@@ -30,6 +30,7 @@ file(GLOB all_SRCS
 # Define sources and executable
 set(EXECUTABLE_NAME "atlas-client")
 add_executable(${EXECUTABLE_NAME} ${all_SRCS})
+target_link_libraries(${EXECUTABLE_NAME} ${CMAKE_DL_LIBS} im-core)
 target_compile_features(${EXECUTABLE_NAME} PRIVATE cxx_std_17)
 
 # Detect and add SFML
@@ -42,6 +43,7 @@ if(SFML_FOUND)
   target_link_libraries(${EXECUTABLE_NAME} ${SFML_LIBRARIES} ${SFML_DEPENDENCIES})
 endif()
 
+find_package(${PROJECT_NAME} QUIET COMPONENTS im-core)
 
 # Install target
 install(TARGETS ${EXECUTABLE_NAME} DESTINATION bin)
