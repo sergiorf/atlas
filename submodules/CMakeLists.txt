@@ -1,4 +1,5 @@
 set(IMGUI_PATH ${CMAKE_SOURCE_DIR}/submodules/imgui)
+set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/submodules/imgui)
 
 # ------ Core -------
 add_library(im-core 
@@ -16,3 +17,4 @@ target_include_directories(im-core
 # namespaced alias
 add_library(${project}::im-core ALIAS im-core)
 
+add_subdirectory(imgui-sfml)

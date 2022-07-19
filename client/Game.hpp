@@ -13,7 +13,7 @@ public:
     sf::UdpSocket UDPsocket;
     sf::TcpSocket TCPsocket;
     sf::Packet packet;
-    sf::IpAddress server_address;
+    //sf::IpAddress server_address;
 
     sf::Clock imguiClock;
     sf::Clock udpClock;

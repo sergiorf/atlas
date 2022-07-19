@@ -23,14 +23,14 @@ include_directories("${PROJECT_BINARY_DIR}")
 file(GLOB all_SRCS
         "${PROJECT_SOURCE_DIR}/*.hpp"
         "${PROJECT_SOURCE_DIR}/*.cpp"
-        "${PROJECT_SOURCE_DIR}/../imgui/*.h"
-        "${PROJECT_SOURCE_DIR}/../imgui/*.cpp"
         )
 
 # Define sources and executable
 set(EXECUTABLE_NAME "atlas-client")
 add_executable(${EXECUTABLE_NAME} ${all_SRCS})
-target_link_libraries(${EXECUTABLE_NAME} ${CMAKE_DL_LIBS} im-core)
+
+target_link_libraries(${EXECUTABLE_NAME} ${CMAKE_DL_LIBS} im-core ImGui-SFML)
+target_include_directories(${EXECUTABLE_NAME} PRIVATE "${IMGUI_DIR}" "${IMGUI_SFML_PUBLIC_HEADERS}")
 target_compile_features(${EXECUTABLE_NAME} PRIVATE cxx_std_17)
 
 # Detect and add SFML

@@ -153,7 +153,7 @@ void Game::imguiMapUI()
     {
         join_error = "";
         nickname = std::string(buf1);
-        server_address = std::string(buf2);
+        //server_address = std::string(buf2);
         server_port = std::stoi(std::string(buf3));
         password = std::string(buf4);
         sendJoinRequest();
@@ -232,7 +232,7 @@ void Game::send()
         */
     udpClock.restart();
     assert(packet.getDataSize() <= sf::UdpSocket::MaxDatagramSize);
-    UDPsocket.send(packet, server_address, server_port);
+ //   UDPsocket.send(packet, server_address, server_port);
     packet.clear();
 }
 
@@ -252,7 +252,7 @@ void Game::sendPlayerInput()
 }
 
 void Game::listen()
-{
+{/*
     sf::IpAddress remote_address;
     unsigned short remote_port; // unused placeholder
 
@@ -261,7 +261,7 @@ void Game::listen()
 
     if (remote_address != server_address)
         return;
-
+        */
     ping_count++;
     ping_avg += pingClock.restart().asMilliseconds();
     sf::Uint8 netcode_raw;

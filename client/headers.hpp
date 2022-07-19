@@ -19,7 +19,7 @@
 #include <SFML/Audio.hpp>
 
 #include "../imgui/imgui.h"
-#include "../imgui/imgui-SFML.h"
+#include "../imgui-sfml/imgui-SFML.h"
 #include "../dxTarRead.h"
 #include "../common.hpp"
 
