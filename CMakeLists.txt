@@ -1,6 +1,11 @@
-project(atlas)
+cmake_minimum_required(VERSION 3.12)
 
-add_subdirectory(submodules)
+project(atlas
+  VERSION 1.0
+  LANGUAGES CXX
+)
+
+add_subdirectory(dependencies)
 add_subdirectory(client)
 
 
