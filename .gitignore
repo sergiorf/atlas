@@ -1,20 +1,39 @@
-.bsp/
-.idea/
-.metals/
-.scala-build/
-.vscode/
-target/
-project/project/
-project/target/
-.DS_Store
+# Data
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+data/exports/
+apps/etl/data/raw/
+apps/etl/data/bronze/
+apps/etl/data/silver/
+apps/etl/data/gold/
+apps/etl/data/exports/
 
-# Local source data and generated output
-data/raw/**
-!data/raw/.gitkeep
-data/parquet/*
-!data/parquet/.gitkeep
+# Secrets
+.env
+*.env
+*.key
+*.pem
 
-# Spark runtime files
+# Logs and Spark
+*.log
 spark-warehouse/
 metastore_db/
 derby.log
+
+# Scala / sbt
+target/
+project/target/
+project/project/
+apps/etl/target/
+apps/etl/project/target/
+apps/etl/project/project/
+
+# IDE
+.idea/
+.bsp/
+.metals/
+.vscode/
+.scala-build/
+.DS_Store
