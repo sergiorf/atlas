@@ -1,4 +1,4 @@
-﻿package atlas.common
+package atlas.common
 
 import org.scalatest.funsuite.AnyFunSuite
 class CnpjUtilsTest extends AnyFunSuite {

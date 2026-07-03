@@ -1,4 +1,4 @@
-﻿package atlas.receita
+package atlas.receita
 
 import atlas.common.{CnpjUtils, DatasetPaths, JobResult, QualityChecks}
 import atlas.config.AtlasConfig

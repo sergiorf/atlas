@@ -1,4 +1,4 @@
-﻿package atlas.config
+package atlas.config
 
 import com.typesafe.config.ConfigFactory
 import java.io.File

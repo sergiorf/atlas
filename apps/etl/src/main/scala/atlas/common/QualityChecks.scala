@@ -1,4 +1,4 @@
-﻿package atlas.common
+package atlas.common
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}

@@ -1,4 +1,4 @@
-﻿package atlas
+package atlas
 
 import atlas.common.SparkSessionFactory
 import atlas.config.AtlasConfig

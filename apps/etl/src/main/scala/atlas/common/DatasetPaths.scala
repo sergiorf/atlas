@@ -1,4 +1,4 @@
-﻿package atlas.common
+package atlas.common
 
 import atlas.config.ReceitaConfig
 

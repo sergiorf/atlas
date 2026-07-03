@@ -1,4 +1,4 @@
-﻿package atlas.receita
+package atlas.receita
 
 import atlas.SparkSuite
 import java.sql.Date

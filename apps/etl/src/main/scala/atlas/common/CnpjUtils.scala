@@ -1,4 +1,4 @@
-﻿package atlas.common
+package atlas.common
 
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{concat, lpad, regexp_replace}

@@ -1,4 +1,4 @@
-﻿package atlas
+package atlas
 
 import org.apache.spark.sql.SparkSession
 import org.scalatest.{BeforeAndAfterAll, Suite}

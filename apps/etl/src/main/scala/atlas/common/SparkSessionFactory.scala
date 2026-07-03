@@ -1,4 +1,4 @@
-﻿package atlas.common
+package atlas.common
 
 import atlas.config.SparkConfig
 import org.apache.spark.sql.SparkSession

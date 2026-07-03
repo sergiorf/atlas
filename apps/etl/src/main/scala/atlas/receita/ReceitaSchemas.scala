@@ -1,4 +1,4 @@
-﻿package atlas.receita
+package atlas.receita
 
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 object ReceitaSchemas {
