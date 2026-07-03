@@ -1,0 +1,20 @@
+.bsp/
+.idea/
+.metals/
+.scala-build/
+.vscode/
+target/
+project/project/
+project/target/
+.DS_Store
+
+# Local source data and generated output
+data/raw/**
+!data/raw/.gitkeep
+data/parquet/*
+!data/parquet/.gitkeep
+
+# Spark runtime files
+spark-warehouse/
+metastore_db/
+derby.log
