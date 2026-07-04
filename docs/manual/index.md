@@ -4,6 +4,7 @@ The manual describes supported behavior for users and operators. Atlas is a loca
 
 - [Getting started](getting-started.md)
 - [Data layers](data_layers.md)
+- [Medallion status registry](status_registry.md)
 - [Querying Atlas](querying-atlas.md)
 - [Datasets](datasets.md)
 - [Data quality](data-quality.md)

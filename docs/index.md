@@ -13,6 +13,7 @@ Atlas documentation separates product direction, implemented contracts, user gui
 
 - [Manual](manual/index.md)
 - [Data layers](manual/data_layers.md)
+- [Medallion status registry](manual/status_registry.md)
 - [Local ETL operations](operations/local-etl.md)
 - [Refresh runbook](operations/refresh-runbook.md)
 - [Troubleshooting](operations/troubleshooting.md)
@@ -25,6 +26,7 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Receita estabelecimentos quality rules](specs/quality/receita-cnpj-quality-rules.md)
 - [Silver establishment schema](specs/schemas/silver-establishment.md)
 - [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
+- [Run-status registry contract](specs/run-status.md)
 
 ## Planned work
 

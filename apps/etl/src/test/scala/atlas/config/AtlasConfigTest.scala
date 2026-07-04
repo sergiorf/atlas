@@ -8,6 +8,7 @@ class AtlasConfigTest extends AnyFunSuite {
   test("loads the configured silver directory") {
     val file = Files.createTempFile("atlas-config", ".conf")
     val config = """atlas {
+      |  status-dir = "custom-status"
       |  output.write-mode = "overwrite"
       |  csv {
       |    delimiter = ";"
@@ -20,6 +21,7 @@ class AtlasConfigTest extends AnyFunSuite {
       |    local-dir = "custom-tmp"
       |  }
       |  receita {
+      |    snapshot = "2026-06"
       |    raw-dir = "raw"
       |    bronze-dir = "bronze"
       |    silver-dir = "custom-silver"
@@ -30,6 +32,8 @@ class AtlasConfigTest extends AnyFunSuite {
 
     val loaded = AtlasConfig.load(file.toString)
     assert(loaded.spark.localDir === "custom-tmp")
+    assert(loaded.statusDir === "custom-status")
+    assert(loaded.receita.snapshot === "2026-06")
     assert(loaded.receita.silverDir === "custom-silver")
   }
 }
