@@ -1,6 +1,6 @@
 # Receita Federal CNPJ dataset specification
 
-- **Status:** Implemented for `Estabelecimentos` bronze only
+- **Status:** Implemented for `Estabelecimentos` bronze and silver normalization
 - **Owner:** `apps/etl/src/main/scala/atlas/receita`
 
 ## Supported input
@@ -20,4 +20,8 @@ Inputs are one or more extracted files matched beneath the configured raw direct
 
 ## Outputs and unsupported behavior
 
-The job writes the [bronze schema](../schemas/bronze-receita-cnpj.md), partitioned by `state`, plus the specified quality reports. It does not deduplicate establishments, verify source completeness, validate CNPJ checksums, resolve reference codes, or join other Receita files.
+The ingestion job writes the [bronze schema](../schemas/bronze-receita-cnpj.md), partitioned by `state`, plus its diagnostic quality reports.
+
+The normalization job reads bronze and writes the curated [silver establishment schema](../schemas/silver-establishment.md), also partitioned by `state`. It parses secondary CNAEs into a valid deduplicated array, normalizes state, postal and contact fields, derives active status, preserves provenance, and enforces unique fourteen-digit establishment identifiers through the [silver quality gate](../quality/silver-establishment-quality-rules.md).
+
+Atlas does not deduplicate establishments automatically, verify source completeness, validate CNPJ checksums, resolve municipality names, apply business CNAE groups, or join other Receita files.

@@ -19,6 +19,7 @@ lazy val root = (project in file("."))
     javaOptions ++= Seq(
       "-Dio.netty.tryReflectionSetAccessible=true",
       "--add-opens=java.base/java.nio=ALL-UNNAMED",
-      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-exports=java.base/sun.util.calendar=ALL-UNNAMED"
     )
   )

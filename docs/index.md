@@ -22,6 +22,8 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Raw Receita estabelecimentos layout](specs/schemas/raw-receita-cnpj.md)
 - [Bronze Receita estabelecimentos schema](specs/schemas/bronze-receita-cnpj.md)
 - [Receita estabelecimentos quality rules](specs/quality/receita-cnpj-quality-rules.md)
+- [Silver establishment schema](specs/schemas/silver-establishment.md)
+- [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
 
 ## Planned work
 

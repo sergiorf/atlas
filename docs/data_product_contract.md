@@ -8,13 +8,13 @@ This document defines global invariants across Atlas data products. Dataset and 
 - **Published data-product contract:** a table, export, or golden dataset exposed to consumers. Changes require compatibility analysis and migration notes.
 - **Public query contract:** API, index, or UI behavior visible outside the pipeline. It requires explicit filters, limits, errors, freshness, and unsupported cases.
 
-Bronze Receita output in v0.1 is an internal schema contract. Atlas has no public API, index, UI, or production gold contract yet.
+Bronze and silver Receita establishment outputs are internal schema contracts. Atlas has no public API, index, UI, or production gold contract yet.
 
 ## Data layers
 
 - **Raw:** immutable source bytes, outside Git. Atlas never edits, normalizes, or deletes them in place.
 - **Bronze:** source-faithful parsing with explicit schemas, stable identifiers, provenance, and conservative type conversion.
-- **Silver:** future normalized entities, reference joins, and cross-source reconciliation.
+- **Silver:** normalized entities, with future reference joins and cross-source reconciliation added only through explicit contracts.
 - **Gold:** future business-ready, queryable product concepts.
 - **Exports:** future controlled projections of gold contracts.
 - **Serving stores:** future disposable, rebuildable derivatives of gold data.

@@ -274,7 +274,7 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 
 ### v0.2 — normalized establishments and first lead export
 
-- build silver establishment normalization;
+- build silver establishment normalization — implemented as the first v0.2 slice;
 - add municipality lookup support;
 - operationalize CNAE group filters;
 - ship the first export-leads command.

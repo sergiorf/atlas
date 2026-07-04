@@ -9,4 +9,15 @@ object DatasetPaths {
     val bronze = c.bronzeDir.stripSuffix("/").stripSuffix("\\")
     DatasetPaths(s"$raw/*", s"$bronze/estabelecimentos", s"$bronze/estabelecimentos_quality_report.json", s"$bronze/estabelecimentos_quality_report.md")
   }
+
+  def silverEstablishments(c: ReceitaConfig): DatasetPaths = {
+    val bronze = c.bronzeDir.stripSuffix("/").stripSuffix("\\")
+    val silver = c.silverDir.stripSuffix("/").stripSuffix("\\")
+    DatasetPaths(
+      s"$bronze/estabelecimentos",
+      s"$silver/establishments",
+      s"$silver/establishments_quality_report.json",
+      s"$silver/establishments_quality_report.md"
+    )
+  }
 }

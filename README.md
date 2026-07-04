@@ -1,10 +1,10 @@
 # Atlas
 
-Atlas is a private commercial monorepo for turning Brazilian public company data into trusted, business-ready tables. The current v0.1 implements only the local Spark ETL for Receita Federal `estabelecimentos`.
+Atlas is a private commercial monorepo for turning Brazilian public company data into trusted, business-ready tables. The current implementation ingests Receita Federal `estabelecimentos` to bronze and normalizes them into the first v0.2 silver contract.
 
 ## Current scope
 
-`apps/etl` reads the raw Receita snapshot, writes bronze Parquet, and produces JSON and Markdown quality reports. API, UI, indexing, AI, sanctions, procurement, and other Receita datasets are roadmap items only.
+`apps/etl` reads the raw Receita snapshot, writes bronze Parquet, builds a curated silver establishment table, and produces JSON and Markdown quality reports. Municipality enrichment, CNAE business groups, lead exports, API, UI, indexing, AI, sanctions, procurement, and other Receita datasets remain roadmap items.
 
 ## Layout
 

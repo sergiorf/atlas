@@ -22,4 +22,4 @@ The committed write mode is `overwrite`. Verify the bronze destination and envir
 
 ## Quality metrics are nonzero
 
-v0.1 reports rather than rejects these conditions. Confirm source completeness, inspect representative affected records, and compare with prior snapshots. Do not silently add filtering or correction semantics outside the dataset and quality contracts.
+Bronze reports rather than rejects these conditions. Silver rejects invalid or duplicate CNPJ identifiers and reports its other completeness metrics. Confirm source completeness, inspect representative affected records, and compare with prior snapshots. Do not silently add filtering or correction semantics outside the dataset and quality contracts.

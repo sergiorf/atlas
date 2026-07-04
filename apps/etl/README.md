@@ -1,6 +1,6 @@
-﻿# Atlas ETL v0.1
+# Atlas ETL
 
-Local Scala/Spark ingestion for Receita Federal CNPJ `estabelecimentos`. It uses explicit string-first parsing, normalizes CNPJ components, adds provenance metadata, writes state-partitioned bronze Parquet, and emits quality reports.
+Local Scala/Spark ingestion and silver normalization for Receita Federal CNPJ `estabelecimentos`. Bronze uses explicit string-first parsing and provenance; silver provides a curated, uniquely identified establishment table.
 
 See the repository [getting-started manual](../../docs/manual/getting-started.md), [Receita dataset specification](../../docs/specs/datasets/receita-cnpj.md), and [local operations guide](../../docs/operations/local-etl.md) for the supported contract and operational details.
 
@@ -12,18 +12,26 @@ Use JDK 17 and sbt 1.10+. From `apps/etl`:
 sbt compile
 sbt test
 sbt "runMain atlas.Main ingest-receita-estabelecimentos"
+sbt "runMain atlas.Main normalize-receita-estabelecimentos"
 ```
 
 For a smaller JVM, pass suitable sbt `-J-Xmx` settings; production laptop runs may use `sbt -J-Xmx24G ...`. Spark remains local and memory is not hard-coded.
 
 ## Input and output
 
-The committed configuration reads `data/raw/receita/2026-06/estabelecimentos/extracted`. Override it with `ATLAS_RECEITA_RAW_DIR`. Output defaults to `data/bronze/receita/estabelecimentos`, partitioned by `state`.
+The committed configuration reads `data/raw/receita/2026-06/estabelecimentos/extracted`. Override it with `ATLAS_RECEITA_RAW_DIR`. Bronze defaults to `data/bronze/receita/estabelecimentos`; silver defaults to `data/silver/receita/establishments`. Both are partitioned by `state`. Override their roots with `ATLAS_RECEITA_BRONZE_DIR` and `ATLAS_RECEITA_SILVER_DIR`.
 
-The same run writes:
+Ingestion writes:
 
 - `data/bronze/receita/estabelecimentos_quality_report.json`
 - `data/bronze/receita/estabelecimentos_quality_report.md`
+
+Normalization writes:
+
+- `data/silver/receita/establishments_quality_report.json`
+- `data/silver/receita/establishments_quality_report.md`
+
+Invalid or duplicate silver CNPJ identifiers reject publication before the existing silver table is replaced.
 
 Download or resume a snapshot with:
 
@@ -35,4 +43,4 @@ Raw archives, extracted CSV, Parquet, reports, and temporary Spark files are ign
 
 ## Querying
 
-DuckDB examples live in `examples/duckdb`. They demonstrate bronze inspection and preview future lead and graph questions without implementing those product layers yet.
+DuckDB examples live in `examples/duckdb`. They demonstrate bronze inspection and preview future lead and graph questions without implementing those product layers yet. Silver is an internal ETL contract, not a public query surface.

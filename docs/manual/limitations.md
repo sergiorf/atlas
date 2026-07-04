@@ -1,14 +1,13 @@
 # Limitations
 
-Atlas v0.1:
+Atlas currently:
 
-- supports only Receita `Estabelecimentos` bronze ingestion;
+- supports only Receita `Estabelecimentos` bronze ingestion and silver normalization;
 - validates normalized CNPJ length but not checksum;
 - converts valid `yyyyMMdd` dates and represents invalid or blank dates as null;
-- reports quality metrics without enforcing rejection thresholds;
-- does not establish uniqueness or referential integrity across other Receita files;
+- enforces unique fourteen-digit identifiers in silver but not referential integrity across other Receita files;
 - does not enrich municipality or CNAE codes;
-- does not implement silver or gold tables, exports, scheduled refresh, API, UI, search, ranking, billing, AI, sanctions, or procurement;
+- does not implement municipality lookup, CNAE business groups, gold tables, exports, scheduled refresh, API, UI, search, ranking, billing, AI, sanctions, or procurement;
 - runs locally and is designed around a 32 GB RAM, 1 TB SSD development machine.
 
-DuckDB lead and graph examples are demonstrations, not supported product contracts.
+Silver is an internal pipeline contract, not a published product surface. DuckDB lead and graph examples are demonstrations, not supported product contracts.
