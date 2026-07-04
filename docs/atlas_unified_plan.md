@@ -1,4 +1,4 @@
-﻿# Atlas consolidated product plan
+﻿# Atlas unified plan
 
 This is the canonical product and delivery plan for Atlas. Focused documents in this directory expand individual decisions, but this file owns the complete product direction, scope boundaries, dataset sequence, target data products, commercial model, and phased roadmap.
 
@@ -63,7 +63,7 @@ The monorepo grows around clear responsibilities:
 - `apps/ui`: future public site and customer dashboard;
 - `packages/domain`: future shared CNPJ, company profile, lead filter, risk flag, and query-intent models;
 - `packages/config`: future shared CNAE, municipality, and business-category configuration;
-- `docs`: product, architecture, data-model, quality, and roadmap decisions;
+- `docs`: product direction, data contracts, user guidance, operations, and roadmap decisions;
 - `infra`: future deployment assets only when deployment becomes an active phase.
 
 Only `apps/etl` and documentation are implemented in v0.1. Documenting future components does not authorize building them early.
@@ -333,19 +333,22 @@ Public-data risk outputs must remain factual, explainable, source-attributed, an
 
 A phase is complete only when its documented commands work, tests use small in-memory fixtures, configuration and schema changes are documented, data safety has been verified, and the relevant product question can be answered from the intended layer.
 
-Every feature follows the repository workflow in `AGENTS.md`: inspect, plan, implement a coherent slice, test, document, compare against the plan, and report unverified items. Scope may not silently expand into a later phase.
+Every feature follows the repository [feature development workflow](feature_development_workflow.md): classify, inspect, design and plan proportionately, implement a coherent slice, test, document, compare against the plan, and report evidence and unverified items. Scope may not silently expand into a later phase.
 
 For v0.1 specifically, done means the ingestion command loads configuration, starts local Spark, reads configured Estabelecimentos files, applies the explicit schema, constructs normalized CNPJ fields, adds metadata, writes bronze Parquet, and emits both quality reports. The required DuckDB bronze example must read the resulting Parquet.
 
 ## Supporting documents
 
-- [Architecture](architecture.md)
-- [Data model](data-model.md)
-- [Data quality](data-quality.md)
-- [Laptop constraints](laptop-constraints.md)
-- [Future datasets](future-datasets.md)
-- [Future gold tables](future-gold-tables.md)
-- [Future serving layer](future-serving-layer.md)
-- [Future graph aggregates](future-graph-aggregates.md)
-- [Future AI query assistant](future-ai-query-assistant.md)
-- [Release roadmap](roadmap.md)
+- [Documentation index](index.md)
+- [Feature development workflow](feature_development_workflow.md)
+- [Source catalog](source_catalog.md)
+- [Data product contract](data_product_contract.md)
+- [Manual](manual/index.md)
+- [Receita CNPJ dataset specification](specs/datasets/receita-cnpj.md)
+- [Local ETL operations](operations/local-etl.md)
+- [Future datasets](roadmap/datasets.md)
+- [Future gold tables](roadmap/gold-tables.md)
+- [Future serving layer](roadmap/serving-layer.md)
+- [Future graph aggregates](roadmap/graph-aggregates.md)
+- [Future AI query assistant](roadmap/ai-query-assistant.md)
+- [Release roadmap](roadmap/release-roadmap.md)

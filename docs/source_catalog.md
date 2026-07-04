@@ -1,0 +1,19 @@
+# Source catalog
+
+This catalog records source ownership, location, ingestion boundaries, and refresh assumptions. A listing does not by itself authorize implementation; the [unified plan](atlas_unified_plan.md) controls sequencing.
+
+## Receita Federal CNPJ — Estabelecimentos
+
+- **Status:** Implemented in v0.1 (bronze only)
+- **Publisher:** Receita Federal do Brasil
+- **Official distribution:** `https://arquivos.receitafederal.gov.br/public.php/webdav` (the downloader's configured Receita WebDAV endpoint)
+- **Atlas input:** Monthly `Estabelecimentos` archives extracted beneath `apps/etl/data/raw/receita/<YYYY-MM>/estabelecimentos/extracted`
+- **Ownership:** Public source material remains owned and governed by its publisher; Atlas owns its code, contracts, transformations, and derived product logic.
+- **Licensing and redistribution:** Confirm current publisher terms before redistributing source or derived datasets. Runtime data is not committed to Git.
+- **Refresh assumption:** Monthly snapshots identified by `YYYY-MM`; refresh is currently operator-triggered, not scheduled.
+- **Ingestion boundary:** v0.1 reads only Estabelecimentos CSV files and produces a source-faithful bronze Parquet dataset plus quality reports.
+- **Specification:** [Receita CNPJ](specs/datasets/receita-cnpj.md)
+
+## Planned sources
+
+Other Receita groups, IBGE geography, CNAE reference enrichment, sanctions, procurement, labor, trade, financial, macroeconomic, and judicial sources remain planned. See the [dataset roadmap](roadmap/datasets.md). Add ownership, URLs, licensing review, refresh expectations, and an approved dataset specification here before implementing any of them.

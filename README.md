@@ -9,7 +9,7 @@ Atlas is a private commercial monorepo for turning Brazilian public company data
 ## Layout
 
 - `apps/etl/` - Scala/Spark ETL application and local data layers
-- `docs/` - product, architecture, data-model, quality, and roadmap decisions
+- `docs/` - product direction, data contracts, user manual, operations, and roadmap decisions
 - `apps/etl/data/raw/receita/` - downloaded snapshots, ignored by Git
 
-See the canonical [consolidated product plan](docs/product-plan.md) for the complete product direction and [apps/etl/README.md](apps/etl/README.md) for commands. Raw data was migrated intact to `apps/etl/data/raw/receita/2026-06`; its incomplete `.part` archive remains resumable.
+Start with the [documentation index](docs/index.md), see the canonical [Atlas unified plan](docs/atlas_unified_plan.md) for product direction, and use [apps/etl/README.md](apps/etl/README.md) for commands. Raw data was migrated intact to `apps/etl/data/raw/receita/2026-06`; its incomplete `.part` archive remains resumable.

@@ -2,6 +2,8 @@
 
 Local Scala/Spark ingestion for Receita Federal CNPJ `estabelecimentos`. It uses explicit string-first parsing, normalizes CNPJ components, adds provenance metadata, writes state-partitioned bronze Parquet, and emits quality reports.
 
+See the repository [getting-started manual](../../docs/manual/getting-started.md), [Receita dataset specification](../../docs/specs/datasets/receita-cnpj.md), and [local operations guide](../../docs/operations/local-etl.md) for the supported contract and operational details.
+
 ## Requirements and commands
 
 Use JDK 17 and sbt 1.10+. From `apps/etl`:

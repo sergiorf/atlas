@@ -1,28 +1,40 @@
-﻿# Repository Guidelines
+# Repository Guidelines
 
-## Structure and scope
+## Scope and canonical guidance
 
-Atlas is a private commercial monorepo. Production ETL code belongs in `apps/etl/src/main/scala/atlas`, tests mirror it under `apps/etl/src/test/scala/atlas`, and product/architecture decisions belong in `docs`. Keep raw, bronze, silver, gold, and exports separate. Never commit or delete downloaded Receita archives, extracted CSV, Parquet, Spark temporary files, credentials, or private data.
+Atlas is a private commercial monorepo. Production ETL code belongs in `apps/etl/src/main/scala/atlas`, tests mirror it under `apps/etl/src/test/scala/atlas`, and product and data-contract decisions belong in `docs`.
 
-v0.1 supports only Receita `estabelecimentos`. Do not add API, UI, indexer, AI, sanctions, PNCP, Docker, cloud, billing, or dashboard implementations until their roadmap phase is explicitly requested.
+Before substantial work, read:
 
-## Plan-implement workflow
+- [`docs/atlas_unified_plan.md`](docs/atlas_unified_plan.md)
+- [`docs/feature_development_workflow.md`](docs/feature_development_workflow.md)
+- the relevant dataset specification under `docs/specs/datasets/`
+- the relevant schema contract under `docs/specs/schemas/`
+- the relevant manual and operations pages
 
-Every new feature follows this loop:
+The unified plan owns direction and sequencing. Specifications own implemented data behavior. The manual owns user-facing claims. Planned documents do not authorize implementation.
 
-1. Inspect the current tree, relevant code, configuration, tests, and documentation before editing. Check `git status` and identify any existing user changes.
-2. Write a short implementation plan with independently verifiable steps. State data migration and compatibility risks explicitly. For work spanning several files, keep the plan updated while implementing.
-3. Implement the smallest coherent vertical slice. Preserve raw data and existing behavior unless the plan explicitly changes them. Keep file-specific ETL logic isolated and typed.
-4. Add or update in-memory tests for the behavior. Never make tests depend on the full public dataset.
-5. Run the narrowest relevant checks first, then `sbt test` from `apps/etl`. Also inspect `git diff --check` and the final tree.
-6. Update README, configuration examples, data-model/quality docs, and roadmap notes in the same change whenever behavior or interfaces change.
-7. Finish by comparing the result with the plan and reporting completed validation, unverified items, data movements, and follow-up risks.
+v0.1 supports only Receita `estabelecimentos` bronze ingestion. Do not add API, UI, indexer, AI, sanctions, PNCP, Docker, cloud, billing, dashboard, silver, or gold implementations until their roadmap phase is explicitly requested.
 
-Do not silently broaden a feature beyond its plan. If new requirements materially change architecture or could risk existing data, stop and revise the plan before continuing.
+## Development workflow
+
+Classify each change as trivial, bounded, or substantial using the feature workflow. Use the complete workflow for changes to public or published data behavior, architecture, dataset ownership, schema contracts, refresh semantics, query or index behavior, lineage, quality rules, privacy or licensing boundaries, or the supported product surface. Keep isolated fixes proportionate.
+
+Inspect the current tree, relevant implementation, configuration, tests, and documentation before editing. Check `git status` and preserve user changes. Write an independently verifiable plan for work spanning several files and state compatibility, migration, and data-movement risks. Do not silently broaden scope; revise the plan when new evidence materially changes it.
+
+Implement the smallest coherent vertical slice. Add or update small in-memory tests; tests must not depend on the full public dataset. Run focused checks first and then `sbt test` from `apps/etl` when Scala behavior changes. Review the final diff and tree, run `git diff --check`, and report verification evidence, unverified items, data movements, compatibility impact, and follow-up risks.
+
+## Data and documentation rules
+
+Keep raw, bronze, silver, gold, and exports separate. Raw source data is immutable: never edit, normalize, delete, or reinterpret raw files in place. Never commit or delete downloaded archives, extracted CSV, generated Parquet, Spark temporary files, credentials, or private data. Every transformation must be reproducible from declared inputs, versioned configuration, and documented rules.
+
+Shared data contracts are the product core. Do not create ETL, notebook, UI, API, index, or analysis semantics that bypass a missing contract. Published tables, golden datasets, derived fields, query behavior, quality rules, and unsupported cases must be explicit. Schema or behavior changes require compatibility analysis, migration notes when applicable, documentation updates, and affected tests.
+
+Documentation is part of done for every user-visible or data-visible capability. Update the owning manual, catalog, contract, specification, operational page, README, index, or plan in the same change. Correct stale documentation in the affected scope. Verify examples against generated sample data, tests, or executable queries and check local links.
 
 ## Scala and Spark conventions
 
-Use Scala 2.12, two-space indentation, `PascalCase` types, `camelCase` methods/values, and lowercase packages. Prefer small typed transformations over row indexing. Isolate Receita layouts in schema modules. Do not use `collect()` on large DataFrames or convert them to local collections. Use disk-based stages and avoid unnecessary shuffles.
+Use Scala 2.12, two-space indentation, `PascalCase` types, `camelCase` methods and values, and lowercase packages. Prefer small typed transformations over row indexing. Isolate Receita layouts in schema modules. Do not use `collect()` on large DataFrames or convert them to local collections. Use disk-based stages and avoid unnecessary shuffles.
 
 From `apps/etl`, keep these workflows working:
 
@@ -32,4 +44,4 @@ From `apps/etl`, keep these workflows working:
 - `sbt clean`
 - `python scripts/download_receita.py --month 2026-06 --extract`
 
-Use concise imperative commit subjects. Pull requests explain changed ETL behavior, validation, schema/config changes, and small representative input/output examples.
+Use concise imperative commit subjects. Pull requests explain changed ETL behavior, validation, schema or configuration changes, and small representative input/output examples. Worktrees, subagents, and commits are optional execution tools, not repository requirements.
