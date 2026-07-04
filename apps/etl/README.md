@@ -15,7 +15,7 @@ sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 sbt "runMain atlas.Main normalize-receita-estabelecimentos"
 ```
 
-For a smaller JVM, pass suitable sbt `-J-Xmx` settings; production laptop runs may use `sbt -J-Xmx24G ...`. Spark remains local and memory is not hard-coded.
+For a smaller JVM, pass suitable sbt `-J-Xmx` settings; production laptop runs may use `sbt -J-Xmx24G ...`. Spark remains local and memory is not hard-coded. Spark spill files default to `spark-tmp`, avoiding a size-limited WSL `/tmp`; override this location with `ATLAS_SPARK_LOCAL_DIR` when needed.
 
 ## Input and output
 

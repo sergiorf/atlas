@@ -17,6 +17,7 @@ class AtlasConfigTest extends AnyFunSuite {
       |    app-name = "test"
       |    master = "local[1]"
       |    shuffle-partitions = 1
+      |    local-dir = "custom-tmp"
       |  }
       |  receita {
       |    raw-dir = "raw"
@@ -27,6 +28,8 @@ class AtlasConfigTest extends AnyFunSuite {
       |""".stripMargin
     Files.write(file, config.getBytes(StandardCharsets.UTF_8))
 
-    assert(AtlasConfig.load(file.toString).receita.silverDir === "custom-silver")
+    val loaded = AtlasConfig.load(file.toString)
+    assert(loaded.spark.localDir === "custom-tmp")
+    assert(loaded.receita.silverDir === "custom-silver")
   }
 }

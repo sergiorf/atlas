@@ -9,6 +9,7 @@ apps/etl/data/bronze/
 apps/etl/data/silver/
 apps/etl/data/gold/
 apps/etl/data/exports/
+apps/etl/data/tmp/
 
 # Secrets
 .env
