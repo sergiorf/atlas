@@ -12,6 +12,7 @@ Atlas documentation separates product direction, implemented contracts, user gui
 ## Use and operate Atlas
 
 - [Manual](manual/index.md)
+- [Data layers](manual/data_layers.md)
 - [Local ETL operations](operations/local-etl.md)
 - [Refresh runbook](operations/refresh-runbook.md)
 - [Troubleshooting](operations/troubleshooting.md)
