@@ -24,4 +24,4 @@ The ingestion job writes the [bronze schema](../schemas/bronze-receita-cnpj.md),
 
 The normalization job reads bronze and writes the curated [silver establishment schema](../schemas/silver-establishment.md), also partitioned by `state`. It parses secondary CNAEs into a valid deduplicated array, normalizes state, postal and contact fields, derives active status, preserves provenance, and enforces unique fourteen-digit establishment identifiers through the [silver quality gate](../quality/silver-establishment-quality-rules.md).
 
-Atlas does not deduplicate establishments automatically, verify source completeness, validate CNPJ checksums, resolve municipality names, apply business CNAE groups, or join other Receita files.
+Bronze may preserve malformed or shifted source-shaped rows. Silver structurally validates CNPJ widths and registration status codes, quarantines malformed rows, then enforces uniqueness among valid candidates. Atlas does not deduplicate establishments automatically, verify source completeness, validate CNPJ checksums, resolve municipality names, apply business CNAE groups, or join other Receita files.

@@ -22,7 +22,7 @@ For a smaller JVM, pass suitable sbt `-J-Xmx` settings; production laptop runs m
 
 The committed configuration reads `data/raw/receita/2026-06/estabelecimentos/extracted`. Override it with `ATLAS_RECEITA_RAW_DIR`. Bronze defaults to `data/bronze/receita/estabelecimentos`; silver defaults to `data/silver/receita/establishments`. Both are partitioned by `state`. Override their roots with `ATLAS_RECEITA_BRONZE_DIR` and `ATLAS_RECEITA_SILVER_DIR`.
 
-Successful or failed bronze attempts write the latest status to `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`. Override the snapshot with `ATLAS_RECEITA_SNAPSHOT` and the registry root with `ATLAS_STATUS_DIR`. The status command reads these small JSON files without starting Spark.
+Bronze attempts write the latest status to `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`; silver uses `data/_atlas/status/receita/establishments/2026-06/silver.json`. Override the snapshot with `ATLAS_RECEITA_SNAPSHOT` and the registry root with `ATLAS_STATUS_DIR`. The status command reads these small JSON files without starting Spark and distinguishes clean success from `success_with_warnings`.
 
 Ingestion writes:
 
@@ -34,7 +34,7 @@ Normalization writes:
 - `data/silver/receita/establishments_quality_report.json`
 - `data/silver/receita/establishments_quality_report.md`
 
-Invalid or duplicate silver CNPJ identifiers reject publication before the existing silver table is replaced.
+Malformed silver candidates are quarantined beneath `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows` and excluded before uniqueness validation. Duplicate valid CNPJ identifiers are reported in the sibling `duplicate_cnpj_full` directory and reject publication before the existing silver table is replaced.
 
 Download or resume a snapshot with:
 

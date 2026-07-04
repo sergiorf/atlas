@@ -2,8 +2,11 @@ package atlas.receita
 
 import atlas.common.DatasetPaths
 import atlas.config.AtlasConfig
+import atlas.status.{QualityWarning, RunStatus, RunStatusRegistry}
+import java.nio.file.Paths
+import java.time.{Duration, Instant}
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{col, current_timestamp, expr, length, lit, lower, lpad, regexp_replace, trim, upper, when}
+import org.apache.spark.sql.functions.{col, concat_ws, current_timestamp, expr, length, lit, lower, lpad, regexp_replace, trim, upper, when}
 import org.apache.spark.sql.types.{ArrayType, StringType}
 import org.apache.spark.storage.StorageLevel
 
@@ -11,32 +14,77 @@ object SilverEstablishmentJob {
   private val diagnosticColumns = Seq(
     "_invalid_main_cnae",
     "_malformed_secondary_cnae_count",
-    "_invalid_state"
+    "_invalid_state",
+    "_malformed_reason"
   )
 
+  private val validStates = Seq(
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
+    "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+  )
+  private val validRegistrationStatuses = Seq("01", "02", "03", "04", "08")
+
   def run(spark: SparkSession, config: AtlasConfig): SilverQualityReport = {
-    val paths = DatasetPaths.silverEstablishments(config.receita)
-    val prepared = prepare(spark.read.parquet(paths.input)).persist(StorageLevel.DISK_ONLY)
+    val startedAt = Instant.now()
+    val paths = DatasetPaths.silverEstablishments(config)
+    var observedReport: Option[SilverQualityReport] = None
+    var cached: Option[DataFrame] = None
     try {
-      validateAndPublish(prepared, paths) { data =>
-        data.write.mode(config.writeMode).partitionBy("state").parquet(paths.output)
+      val prepared = prepare(spark.read.parquet(paths.input)).persist(StorageLevel.DISK_ONLY)
+      cached = Some(prepared)
+      val report = validateAndPublish(prepared, paths, value => observedReport = Some(value)) { data =>
+        publishAtomically(data, paths.output)
       }
-    } finally prepared.unpersist()
+      val warnings = qualityWarnings(report, paths)
+      RunStatusRegistry.write(
+        Paths.get(config.statusDir),
+        status(config, paths, startedAt, if (warnings.isEmpty) "success" else "success_with_warnings", Some(report), warnings)
+      )
+      report
+    } catch {
+      case error: Throwable =>
+        try RunStatusRegistry.write(
+          Paths.get(config.statusDir),
+          status(config, paths, startedAt, "failed", observedReport, observedReport.toSeq.flatMap(qualityWarnings(_, paths)), Some(error))
+        )
+        catch { case statusError: Throwable => error.addSuppressed(statusError) }
+        throw error
+    } finally cached.foreach(_.unpersist())
   }
 
   private[receita] def validateAndPublish(
       prepared: DataFrame,
-      paths: DatasetPaths
+      paths: DatasetPaths,
+      observe: SilverQualityReport => Unit = _ => ()
   )(publish: DataFrame => Unit): SilverQualityReport = {
-    val report = SilverQualityChecks.evaluate(prepared, paths)
+    val malformed = prepared.filter(col("_malformed_reason").isNotNull)
+    val valid = prepared.filter(col("_malformed_reason").isNull)
+    val report = SilverQualityChecks.evaluate(prepared, valid, paths)
+    observe(report)
     SilverQualityChecks.write(report, paths)
+    if (report.malformedRowCount > 0) {
+      malformed
+        .withColumnRenamed("_malformed_reason", "malformed_reason")
+        .drop("_invalid_main_cnae", "_malformed_secondary_cnae_count", "_invalid_state")
+        .write.mode("overwrite").parquet(paths.malformedRows)
+      println(s"WARNING: quarantined ${report.malformedRowCount} malformed rows at ${paths.malformedRows}")
+    } else deleteGeneratedPath(prepared, paths.malformedRows)
     if (!report.accepted) {
+      valid
+        .join(
+          valid.groupBy("cnpj_full").count().filter(col("count") > 1).select("cnpj_full"),
+          Seq("cnpj_full"),
+          "inner"
+        )
+        .transform(published)
+        .write.mode("overwrite").parquet(paths.duplicateCnpjFull)
       throw new IllegalStateException(
-        s"Silver quality gate rejected ${report.invalidCnpjCount} invalid CNPJ rows and " +
-          s"${report.duplicateKeyCount} duplicate keys; existing output was not replaced"
+        s"Silver quality gate rejected ${report.duplicateKeyCount} duplicate valid CNPJ keys; " +
+          s"report: ${paths.duplicateCnpjFull}; existing output was not replaced"
       )
     }
-    publish(published(prepared))
+    deleteGeneratedPath(prepared, paths.duplicateCnpjFull)
+    publish(published(valid))
     report
   }
 
@@ -45,6 +93,11 @@ object SilverEstablishmentJob {
   private[receita] def prepare(bronze: DataFrame): DataFrame = {
     val normalizedState = upper(nullableTrim(col("state")))
     val normalizedMainCnae = fixedDigits(col("main_cnae"), 7)
+    val cleanedRoot = nullableTrim(col("cnpj_root"))
+    val cleanedBranch = nullableTrim(col("cnpj_branch"))
+    val cleanedCheck = nullableTrim(col("cnpj_check"))
+    val cleanedFull = nullableTrim(col("cnpj_full"))
+    val cleanedStatus = nullableTrim(col("registration_status_code"))
     val validSecondary = expr(
       "array_distinct(filter(transform(split(coalesce(secondary_cnaes, ''), ','), token -> trim(token)), " +
         "token -> token rlike '^[0-9]{7}$'))"
@@ -55,14 +108,14 @@ object SilverEstablishmentJob {
     )
 
     bronze.select(
-      nullableTrim(col("cnpj_root")).as("cnpj_root"),
-      nullableTrim(col("cnpj_branch")).as("cnpj_branch"),
-      nullableTrim(col("cnpj_check")).as("cnpj_check"),
-      nullableTrim(col("cnpj_full")).as("cnpj_full"),
+      cleanedRoot.as("cnpj_root"),
+      cleanedBranch.as("cnpj_branch"),
+      cleanedCheck.as("cnpj_check"),
+      cleanedFull.as("cnpj_full"),
       col("is_headquarters").cast("boolean").as("is_headquarters"),
       nullableTrim(col("trade_name")).as("trade_name"),
-      nullableTrim(col("registration_status_code")).as("registration_status_code"),
-      (nullableTrim(col("registration_status_code")) === "02").as("is_active"),
+      cleanedStatus.as("registration_status_code"),
+      (cleanedStatus === "02").as("is_active"),
       col("registration_status_date").cast("date").as("registration_status_date"),
       nullableTrim(col("registration_status_reason")).as("registration_status_reason"),
       col("opening_date").cast("date").as("opening_date"),
@@ -76,7 +129,7 @@ object SilverEstablishmentJob {
       nullableTrim(col("address_extra")).as("address_extra"),
       nullableTrim(col("neighborhood")).as("neighborhood"),
       fixedDigitsAfterCleanup(col("postal_code"), 8).as("postal_code"),
-      when(normalizedState.rlike("^[A-Z]{2}$"), normalizedState)
+      when(normalizedState.isin(validStates: _*), normalizedState)
         .otherwise(lit(null).cast("string"))
         .as("state"),
       nullableTrim(col("municipality_code")).as("municipality_code"),
@@ -98,12 +151,84 @@ object SilverEstablishmentJob {
       (nullableTrim(col("main_cnae")).isNull || normalizedMainCnae.isNull)
         .as("_invalid_main_cnae"),
       malformedSecondaryCount.as("_malformed_secondary_cnae_count"),
-      (nullableTrim(col("state")).isNotNull && !normalizedState.rlike("^[A-Z]{2}$"))
-        .as("_invalid_state")
+      (nullableTrim(col("state")).isNotNull && !normalizedState.isin(validStates: _*))
+        .as("_invalid_state"),
+      concat_ws(
+        "; ",
+        when(cleanedRoot.isNull || !cleanedRoot.rlike("^[0-9]{8}$"), lit("cnpj_root must be exactly 8 digits")),
+        when(cleanedBranch.isNull || !cleanedBranch.rlike("^[0-9]{4}$"), lit("cnpj_branch must be exactly 4 digits")),
+        when(cleanedCheck.isNull || !cleanedCheck.rlike("^[0-9]{2}$"), lit("cnpj_check must be exactly 2 digits")),
+        when(cleanedFull.isNull || !cleanedFull.rlike("^[0-9]{14}$"), lit("cnpj_full must be exactly 14 digits")),
+        when(cleanedStatus.isNull || !cleanedStatus.isin(validRegistrationStatuses: _*), lit("invalid registration_status_code"))
+      ).as("_malformed_reason")
+    )
+      .withColumn(
+        "_malformed_reason",
+        when(length(col("_malformed_reason")) === 0, lit(null).cast("string"))
+          .otherwise(col("_malformed_reason"))
+      )
+  }
+
+  private def qualityWarnings(report: SilverQualityReport, paths: DatasetPaths): Seq[QualityWarning] = {
+    val malformed = if (report.malformedRowCount > 0)
+      Seq(QualityWarning("malformed_rows", report.malformedRowCount, "Structural validation failed", paths.malformedRows))
+    else Seq.empty
+    val duplicates = if (report.duplicateRowCount > 0)
+      Seq(QualityWarning("duplicate_cnpj_full", report.duplicateRowCount, "Conflicting valid CNPJ keys", paths.duplicateCnpjFull))
+    else Seq.empty
+    malformed ++ duplicates
+  }
+
+  private def status(
+      config: AtlasConfig,
+      paths: DatasetPaths,
+      startedAt: Instant,
+      runStatus: String,
+      report: Option[SilverQualityReport],
+      warnings: Seq[QualityWarning],
+      error: Option[Throwable] = None
+  ): RunStatus = {
+    val finishedAt = Instant.now()
+    RunStatus(
+      "receita", "establishments", config.receita.snapshot, "silver", runStatus,
+      startedAt, finishedAt, Duration.between(startedAt, finishedAt).toNanos / 1000000000.0,
+      report.map(_.validRowCount), Seq(paths.input), Some(paths.output), Seq("state"), Some("1"),
+      Some(config.spark.appName), Some("normalize-receita-estabelecimentos"),
+      error.map(_.getClass.getName), error.flatMap(value => Option(value.getMessage)),
+      report.map(_.rowCount), report.map(_.validRowCount), report.map(_.malformedRowCount), warnings
     )
   }
 
   private def published(data: DataFrame): DataFrame = data.drop(diagnosticColumns: _*)
+
+  private def deleteGeneratedPath(data: DataFrame, path: String): Unit = {
+    if (path.nonEmpty) {
+      val target = new org.apache.hadoop.fs.Path(path)
+      target.getFileSystem(data.sparkSession.sparkContext.hadoopConfiguration).delete(target, true)
+    }
+  }
+
+  private def publishAtomically(data: DataFrame, output: String): Unit = {
+    val suffix = java.util.UUID.randomUUID().toString
+    val target = new org.apache.hadoop.fs.Path(output)
+    val staging = new org.apache.hadoop.fs.Path(s"$output.staging-$suffix")
+    val backup = new org.apache.hadoop.fs.Path(s"$output.backup-$suffix")
+    val fs = target.getFileSystem(data.sparkSession.sparkContext.hadoopConfiguration)
+    data.write.mode("errorifexists").partitionBy("state").parquet(staging.toString)
+    val hadTarget = fs.exists(target)
+    try {
+      if (hadTarget && !fs.rename(target, backup))
+        throw new IllegalStateException(s"Could not preserve existing silver output at $output")
+      if (!fs.rename(staging, target))
+        throw new IllegalStateException(s"Could not publish staged silver output at $output")
+      if (hadTarget) fs.delete(backup, true)
+    } catch {
+      case error: Throwable =>
+        fs.delete(staging, true)
+        if (hadTarget && fs.exists(backup) && !fs.exists(target)) fs.rename(backup, target)
+        throw error
+    }
+  }
 
   private def nullableTrim(value: Column): Column =
     when(length(trim(value)) === 0, lit(null).cast("string")).otherwise(trim(value))

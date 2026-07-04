@@ -50,8 +50,29 @@ class RunStatusRegistryTest extends AnyFunSuite {
 
     assert(scan.statuses.map(_.dataset) === Seq("estabelecimentos"))
     assert(scan.errors.map(_.path) === Seq(malformed))
-    assert(StatusTable.render(scan.statuses).contains("row_count"))
+    assert(StatusTable.render(scan.statuses).contains("rows_out"))
     assert(StatusTable.render(scan.statuses).contains("42"))
+  }
+
+  test("round trips warning status fields and renders quarantined rows distinctly") {
+    val root = Files.createTempDirectory("atlas-status-warning")
+    val status = sample("success_with_warnings", Some(9L)).copy(
+      layer = "silver",
+      dataset = "establishments",
+      inputRowCount = Some(10L),
+      outputRowCount = Some(9L),
+      quarantinedRowCount = Some(1L),
+      qualityWarnings = Seq(
+        QualityWarning("malformed_rows", 1L, "Invalid registration_status_code", "quality/malformed_rows")
+      )
+    )
+
+    val path = RunStatusRegistry.write(root, status)
+    assert(RunStatusRegistry.readFile(path) === status)
+    val table = StatusTable.render(Seq(status))
+    assert(table.contains("success_with_warnings"))
+    assert(table.contains("quarantined"))
+    assert(table.contains("malformed_rows"))
   }
 
   private def sample(status: String, rowCount: Option[Long]): RunStatus = RunStatus(

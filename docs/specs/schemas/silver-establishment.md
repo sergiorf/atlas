@@ -17,7 +17,7 @@ The silver table is a curated, rebuildable establishment model. It does not enri
 | `cnpj_full` | string | no | Unique fourteen-digit establishment identifier |
 | `is_headquarters` | boolean | yes | Headquarters indicator inherited from bronze |
 | `trade_name` | string | yes | Trimmed establishment trade name |
-| `registration_status_code` | string | yes | Receita registration-status code |
+| `registration_status_code` | string | no | Receita registration-status code; one of `01`, `02`, `03`, `04`, or `08` |
 | `is_active` | boolean | yes | True only for status `02`; null when the status is null |
 | `registration_status_date` | date | yes | Registration-status date |
 | `registration_status_reason` | string | yes | Registration-status reason code |
@@ -48,4 +48,6 @@ The silver table is a curated, rebuildable establishment model. It does not enri
 | `ingestion_timestamp` | timestamp | yes | Bronze ingestion timestamp |
 | `silver_transformation_timestamp` | timestamp | no | Timestamp assigned by the silver transformation |
 
-The quality gate requires `cnpj_full` to be fourteen digits and unique before publication. It does not validate the CNPJ checksum. Schema, key, partition, or semantic changes require a coordinated internal migration.
+Before this schema is produced, structural validation requires the CNPJ components to be exactly 8, 4, and 2 digits, `cnpj_full` to be exactly 14 digits, and the registration status to be one of `01`, `02`, `03`, `04`, or `08`. Malformed source-shaped bronze rows are written beneath `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows` and excluded. State is normalized to a valid Brazilian UF or null under the existing nullable contract, with invalid source values reported diagnostically.
+
+The quality gate enforces unique `cnpj_full` values after malformed rows are excluded. Conflicting valid duplicates are reported beneath the snapshot quality directory and reject publication. The job does not validate the CNPJ checksum or silently deduplicate records. These stricter input gates do not change the clean silver table layout, so no stored-schema migration is required.

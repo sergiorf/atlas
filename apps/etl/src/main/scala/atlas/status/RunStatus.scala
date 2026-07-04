@@ -2,6 +2,13 @@ package atlas.status
 
 import java.time.Instant
 
+final case class QualityWarning(
+    warningType: String,
+    rowCount: Long,
+    reason: String,
+    reportPath: String
+)
+
 final case class RunStatus(
     source: String,
     dataset: String,
@@ -19,5 +26,9 @@ final case class RunStatus(
     applicationName: Option[String],
     jobName: Option[String],
     errorType: Option[String] = None,
-    errorMessage: Option[String] = None
+    errorMessage: Option[String] = None,
+    inputRowCount: Option[Long] = None,
+    outputRowCount: Option[Long] = None,
+    quarantinedRowCount: Option[Long] = None,
+    qualityWarnings: Seq[QualityWarning] = Seq.empty
 )

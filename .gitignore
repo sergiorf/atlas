@@ -13,6 +13,7 @@ apps/etl/data/serving/
 apps/etl/data/index/
 apps/etl/data/indexes/
 apps/etl/data/_atlas/status/
+apps/etl/data/_atlas/quality/
 apps/etl/data/tmp/
 
 # Secrets

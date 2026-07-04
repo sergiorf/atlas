@@ -19,7 +19,10 @@ object RunStatusRegistry {
       .resolve(s"${status.layer}.json")
 
   def write(root: Path, status: RunStatus): Path = {
-    require(Set("success", "failed").contains(status.status), "status must be success or failed")
+    require(
+      Set("success", "success_with_warnings", "failed").contains(status.status),
+      "status must be success, success_with_warnings, or failed"
+    )
     val target = statusPath(root, status)
     Option(target.getParent).foreach(Files.createDirectories(_))
     Files.write(target, json(status).getBytes(StandardCharsets.UTF_8))
@@ -70,7 +73,20 @@ object RunStatusRegistry {
     optional(c, "application_name")(_.getString("application_name")),
     optional(c, "job_name")(_.getString("job_name")),
     optional(c, "error_type")(_.getString("error_type")),
-    optional(c, "error_message")(_.getString("error_message"))
+    optional(c, "error_message")(_.getString("error_message")),
+    optional(c, "input_row_count")(_.getLong("input_row_count")),
+    optional(c, "output_row_count")(_.getLong("output_row_count")),
+    optional(c, "quarantined_row_count")(_.getLong("quarantined_row_count")),
+    optional(c, "quality_warnings")(
+      _.getConfigList("quality_warnings").asScala.map { warning =>
+        QualityWarning(
+          warning.getString("type"),
+          warning.getLong("row_count"),
+          warning.getString("reason"),
+          warning.getString("report_path")
+        )
+      }.toSeq
+    ).getOrElse(Seq.empty)
   )
 
   private def optional[A](c: Config, path: String)(read: Config => A): Option[A] =
@@ -98,12 +114,26 @@ object RunStatusRegistry {
       s.applicationName.map(value => "application_name" -> quoted(value)),
       s.jobName.map(value => "job_name" -> quoted(value)),
       s.errorType.map(value => "error_type" -> quoted(value)),
-      s.errorMessage.map(value => "error_message" -> quoted(value))
+      s.errorMessage.map(value => "error_message" -> quoted(value)),
+      s.inputRowCount.map(value => "input_row_count" -> value.toString),
+      s.outputRowCount.map(value => "output_row_count" -> value.toString),
+      s.quarantinedRowCount.map(value => "quarantined_row_count" -> value.toString),
+      if (s.qualityWarnings.nonEmpty)
+        Some("quality_warnings" -> warningArray(s.qualityWarnings))
+      else None
     ).flatten
     fields.map { case (key, value) => s"  ${quoted(key)}: $value" }.mkString("{\n", ",\n", "\n}\n")
   }
 
   private def array(values: Seq[String]): String = values.map(quoted).mkString("[", ", ", "]")
+  private def warningArray(values: Seq[QualityWarning]): String = values.map { warning =>
+    Seq(
+      "type" -> quoted(warning.warningType),
+      "row_count" -> warning.rowCount.toString,
+      "reason" -> quoted(warning.reason),
+      "report_path" -> quoted(warning.reportPath)
+    ).map { case (key, value) => s"${quoted(key)}: $value" }.mkString("{", ", ", "}")
+  }.mkString("[", ", ", "]")
   private def quoted(value: String): String = {
     val escaped = value.flatMap {
       case '"'  => "\\\""; case '\\' => "\\\\"; case '\b' => "\\b"; case '\f' => "\\f"
@@ -121,7 +151,9 @@ object StatusTable {
     "snapshot",
     "layer",
     "status",
-    "row_count",
+    "rows_out",
+    "quarantined",
+    "warning",
     "finished_at",
     "output_path"
   )
@@ -133,7 +165,9 @@ object StatusTable {
         s.snapshot,
         s.layer,
         s.status,
-        s.rowCount.fold("-")(_.toString),
+        s.outputRowCount.orElse(s.rowCount).fold("-")(_.toString),
+        s.quarantinedRowCount.fold("0")(_.toString),
+        if (s.qualityWarnings.isEmpty) "-" else s.qualityWarnings.map(_.warningType).mkString(","),
         s.finishedAt.toString,
         s.outputPath.getOrElse("-")
       )

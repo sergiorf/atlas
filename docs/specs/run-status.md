@@ -1,8 +1,8 @@
 # Atlas run-status registry contract
 
-- **Status:** Implemented for Receita `estabelecimentos` bronze ingestion
+- **Status:** Implemented for Receita establishments bronze and silver jobs
 - **Owner:** `apps/etl/src/main/scala/atlas/status`
-- **Contract version:** `1`
+- **Contract version:** `2` (additive fields and status value; version 1 files remain readable)
 
 Atlas records the latest attempted ETL run for each source, dataset, snapshot, and layer as one UTF-8 JSON file. Paths are relative to `apps/etl`:
 
@@ -17,14 +17,18 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 | Field | JSON type | Required | Meaning |
 | --- | --- | --- | --- |
 | `source` | string | yes | Stable source identifier, currently `receita` |
-| `dataset` | string | yes | Stable dataset identifier, currently `estabelecimentos` |
+| `dataset` | string | yes | Stable layer-specific dataset identifier: bronze `estabelecimentos`, silver `establishments` |
 | `snapshot` | string | yes | Operator-configured source snapshot, currently `2026-06` |
-| `layer` | string | yes | Layer attempted, currently emitted only for `bronze` |
-| `status` | string | yes | Exactly `success` or `failed` |
+| `layer` | string | yes | Layer attempted, currently `bronze` or `silver` |
+| `status` | string | yes | `success`, `success_with_warnings`, or `failed` |
 | `started_at` | string | yes | Run start as an ISO-8601 UTC instant |
 | `finished_at` | string | yes | Run finish as an ISO-8601 UTC instant |
 | `duration_seconds` | number | yes | Non-negative elapsed wall-clock seconds |
 | `row_count` | integer | no | Produced/evaluated rows when known |
+| `input_row_count` | integer | no | Rows evaluated by the layer |
+| `output_row_count` | integer | no | Rows published by the layer |
+| `quarantined_row_count` | integer | no | Rows excluded into generated quality output |
+| `quality_warnings` | array | no | Warning objects containing `type`, `row_count`, `reason`, and `report_path` |
 | `input_paths` | array of strings | yes | Declared input paths or globs |
 | `output_path` | string | no | Intended or produced output location |
 | `partition_columns` | array of strings | yes | Physical output partition columns; empty when not applicable |
@@ -34,11 +38,11 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 | `error_type` | string | failed runs | Fully qualified exception type when available |
 | `error_message` | string | no | Exception message when available; may be absent for exceptions without a message |
 
-Writers create parent directories. Strings use JSON escaping. Readers accept absent optional fields. The CLI reports malformed individual files and continues listing valid records.
+`success` means the layer was produced without quality warnings. `success_with_warnings` means the layer was produced but rows were quarantined or another quality warning was recorded. `failed` means the layer was not published. Writers create parent directories. Strings use JSON escaping. Readers accept absent optional fields, including warning fields in older records. The CLI reports malformed individual files and continues listing valid records.
 
 ## Publication and failure behavior
 
-The bronze job writes `success` only after Parquet and quality reports have been written. Its status includes the evaluated row count, output `data/bronze/receita/estabelecimentos`, and partition column `state`. If the run throws after metadata is known, it makes a best-effort write of `failed` and rethrows the original exception. A registry-write error is attached to the original failure rather than replacing it.
+The bronze job writes `success` only after Parquet and quality reports have been written. Silver writes `success_with_warnings` after publishing when malformed rows were quarantined, and writes `failed` when valid duplicate keys or another hard gate prevents publication. If a job throws after metadata is known, it makes a best-effort write of `failed` and rethrows the original exception. A registry-write error is attached to the original failure rather than replacing it.
 
 The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. Missing means no run was recorded. No files are created for unimplemented gold, serving/index, or dashboard work.
 

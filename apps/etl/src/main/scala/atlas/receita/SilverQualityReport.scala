@@ -7,6 +7,8 @@ final case class SilverQualityReport(
     inputPath: String,
     outputPath: String,
     rowCount: Long,
+    validRowCount: Long,
+    malformedRowCount: Long,
     invalidCnpjCount: Long,
     duplicateKeyCount: Long,
     duplicateRowCount: Long,

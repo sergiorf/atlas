@@ -2,6 +2,8 @@ package atlas.receita
 
 import atlas.SparkSuite
 import atlas.common.DatasetPaths
+import atlas.config.{AtlasConfig, CsvConfig, ReceitaConfig, SparkConfig}
+import atlas.status.RunStatusRegistry
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.sql.Timestamp
@@ -48,13 +50,55 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
     assert(report.invalidStateCount === 1)
   }
 
-  test("rejects invalid or duplicate identities") {
+  test("classifies date-like registration status rows as malformed before uniqueness") {
+    val malformed = Seq("20250317", "20250324", "20250324", "20250324", "20250326", "20250331")
+      .map(code => bronzeFixture().withColumn("registration_status_code", lit(code)))
+      .reduce(_.unionByName(_))
+    val prepared = SilverEstablishmentJob.prepare(malformed)
+    val root = Files.createTempDirectory("atlas-silver-shifted")
+    val paths = qualityPaths(root)
+
+    val report = SilverQualityChecks.evaluate(prepared, paths)
+
+    assert(report.malformedRowCount === 6)
+    assert(report.validRowCount === 0)
+    assert(report.duplicateKeyCount === 0)
+    assert(report.accepted)
+    assert(prepared.select("_malformed_reason").head().getString(0).contains("registration_status_code"))
+  }
+
+  test("quarantines malformed rows and publishes only structurally valid candidates") {
+    val root = Files.createTempDirectory("atlas-silver-quarantine")
+    val paths = qualityPaths(root)
+    val input = bronzeFixture().unionByName(
+      bronzeFixture()
+        .withColumn("cnpj_full", lit("00000002202500"))
+        .withColumn("registration_status_code", lit("20250324"))
+    )
+    var publishedCount = -1L
+
+    val report = SilverEstablishmentJob.validateAndPublish(
+      SilverEstablishmentJob.prepare(input), paths
+    )(data => publishedCount = data.count())
+
+    assert(report.accepted)
+    assert(report.malformedRowCount === 1)
+    assert(publishedCount === 1)
+    val quarantined = spark.read.parquet(paths.malformedRows)
+    assert(quarantined.count() === 1)
+    assert(quarantined.select("registration_status_code").head().getString(0) === "20250324")
+    assert(quarantined.columns.contains("malformed_reason"))
+  }
+
+  test("quarantines invalid identities and rejects duplicate valid identities") {
     val invalid = bronzeFixture().withColumn("cnpj_full", lit("123"))
     val duplicate = bronzeFixture().unionByName(bronzeFixture())
     val root = Files.createTempDirectory("atlas-silver-identities")
-    val paths = DatasetPaths("bronze", "silver", root.resolve("q.json").toString, root.resolve("q.md").toString)
+    val paths = qualityPaths(root)
 
-    assert(!SilverQualityChecks.evaluate(SilverEstablishmentJob.prepare(invalid), paths).accepted)
+    val invalidReport = SilverQualityChecks.evaluate(SilverEstablishmentJob.prepare(invalid), paths)
+    assert(invalidReport.accepted)
+    assert(invalidReport.malformedRowCount === 1)
     val duplicateReport = SilverQualityChecks.evaluate(SilverEstablishmentJob.prepare(duplicate), paths)
     assert(!duplicateReport.accepted)
     assert(duplicateReport.duplicateKeyCount === 1)
@@ -67,7 +111,9 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
       "bronze/estabelecimentos",
       "silver/establishments",
       root.resolve("quality.json").toString,
-      root.resolve("quality.md").toString
+      root.resolve("quality.md").toString,
+      root.resolve("malformed_rows").toString,
+      root.resolve("duplicate_cnpj_full").toString
     )
     var publishedCnpjs = Seq.empty[String]
     val publish: DataFrame => Unit = data => {
@@ -91,7 +137,48 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
     assert(publishedCnpjs === Seq("12345678000109"))
     val json = new String(Files.readAllBytes(java.nio.file.Paths.get(paths.qualityJson)), StandardCharsets.UTF_8)
     assert(json.contains("\"status\": \"rejected\""))
+    assert(Files.exists(java.nio.file.Paths.get(paths.duplicateCnpjFull)))
   }
+
+  test("records success with warnings when a malformed row is quarantined") {
+    val root = Files.createTempDirectory("atlas-silver-status")
+    val bronzeDir = root.resolve("bronze/receita")
+    val silverDir = root.resolve("silver/receita")
+    val statusDir = root.resolve("_atlas/status")
+    bronzeFixture().unionByName(
+      bronzeFixture().withColumn("registration_status_code", lit("20250324"))
+    ).write.mode("overwrite").parquet(bronzeDir.resolve("estabelecimentos").toString)
+    val config = AtlasConfig(
+      SparkConfig("local[2]", "atlas-tests", 2, root.resolve("spark-tmp").toString),
+      CsvConfig(";", "UTF-8"),
+      ReceitaConfig("2026-06", root.resolve("raw").toString, bronzeDir.toString, silverDir.toString),
+      statusDir.toString,
+      "overwrite"
+    )
+
+    val report = SilverEstablishmentJob.run(spark, config)
+    val status = RunStatusRegistry.readFile(statusDir.resolve("receita/establishments/2026-06/silver.json"))
+
+    assert(report.malformedRowCount === 1)
+    assert(status.status === "success_with_warnings")
+    assert(status.inputRowCount.contains(2L))
+    assert(status.outputRowCount.contains(1L))
+    assert(status.quarantinedRowCount.contains(1L))
+    assert(status.qualityWarnings.map(_.warningType) === Seq("malformed_rows"))
+
+    bronzeFixture().unionByName(bronzeFixture())
+      .write.mode("overwrite").parquet(bronzeDir.resolve("estabelecimentos").toString)
+    intercept[IllegalStateException](SilverEstablishmentJob.run(spark, config))
+    val failed = RunStatusRegistry.readFile(statusDir.resolve("receita/establishments/2026-06/silver.json"))
+    assert(failed.status === "failed")
+    assert(failed.qualityWarnings.map(_.warningType) === Seq("duplicate_cnpj_full"))
+    assert(spark.read.parquet(silverDir.resolve("establishments").toString).count() === 1)
+  }
+
+  private def qualityPaths(root: java.nio.file.Path): DatasetPaths = DatasetPaths(
+    "bronze", "silver", root.resolve("quality.json").toString, root.resolve("quality.md").toString,
+    root.resolve("malformed_rows").toString, root.resolve("duplicate_cnpj_full").toString
+  )
 
   private def bronzeFixture(): DataFrame = {
     val values = ReceitaSchemas.estabelecimentoColumns.map {

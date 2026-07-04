@@ -8,10 +8,15 @@ import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions.{coalesce, col, count, lit, sum, when}
 
 object SilverQualityChecks {
-  def evaluate(data: DataFrame, paths: DatasetPaths): SilverQualityReport = {
+  def evaluate(data: DataFrame, paths: DatasetPaths): SilverQualityReport =
+    evaluate(data, data.filter(col("_malformed_reason").isNull), paths)
+
+  def evaluate(data: DataFrame, valid: DataFrame, paths: DatasetPaths): SilverQualityReport = {
     val metrics = data
       .agg(
         count("*").as("row_count"),
+        sumLong(col("_malformed_reason").isNull).as("valid_row_count"),
+        sumLong(col("_malformed_reason").isNotNull).as("malformed_row_count"),
         sumLong(col("cnpj_full").isNull || !col("cnpj_full").rlike("^[0-9]{14}$"))
           .as("invalid_cnpj_count"),
         sumLong(col("opening_date").isNull).as("null_opening_date_count"),
@@ -23,7 +28,7 @@ object SilverQualityChecks {
       )
       .head()
 
-    val duplicates = data
+    val duplicates = valid
       .filter(col("cnpj_full").isNotNull)
       .groupBy("cnpj_full")
       .count()
@@ -41,6 +46,8 @@ object SilverQualityChecks {
       paths.input,
       paths.output,
       metrics.getAs[Long]("row_count"),
+      metrics.getAs[Long]("valid_row_count"),
+      metrics.getAs[Long]("malformed_row_count"),
       invalidCnpjCount,
       duplicateKeyCount,
       duplicates.getAs[Long]("duplicate_row_count"),
@@ -49,7 +56,7 @@ object SilverQualityChecks {
       metrics.getAs[Long]("malformed_secondary_cnae_token_count"),
       metrics.getAs[Long]("invalid_state_count"),
       metrics.getAs[Long]("null_municipality_code_count"),
-      accepted = invalidCnpjCount == 0 && duplicateKeyCount == 0,
+      accepted = duplicateKeyCount == 0,
       Instant.now()
     )
   }
@@ -74,6 +81,8 @@ object SilverQualityChecks {
     |  "output_path": "${escape(r.outputPath)}",
     |  "status": "${if (r.accepted) "accepted" else "rejected"}",
     |  "row_count": ${r.rowCount},
+    |  "valid_row_count": ${r.validRowCount},
+    |  "malformed_row_count": ${r.malformedRowCount},
     |  "invalid_cnpj_count": ${r.invalidCnpjCount},
     |  "duplicate_key_count": ${r.duplicateKeyCount},
     |  "duplicate_row_count": ${r.duplicateRowCount},
@@ -93,6 +102,8 @@ object SilverQualityChecks {
     || Metric | Value |
     || --- | ---: |
     || Rows | ${r.rowCount} |
+    || Valid rows | ${r.validRowCount} |
+    || Quarantined malformed rows | ${r.malformedRowCount} |
     || Invalid CNPJ | ${r.invalidCnpjCount} |
     || Duplicate keys | ${r.duplicateKeyCount} |
     || Rows with duplicate keys | ${r.duplicateRowCount} |
