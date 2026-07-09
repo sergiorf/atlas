@@ -55,6 +55,9 @@ object RunStatusRegistry {
 
   def readFile(path: Path): RunStatus = fromConfig(ConfigFactory.parseFile(path.toFile).resolve())
 
+  def jsonArray(statuses: Seq[RunStatus]): String =
+    statuses.map(json(_).trim).mkString("[\n", ",\n", "\n]")
+
   private def fromConfig(c: Config): RunStatus = RunStatus(
     c.getString("source"),
     c.getString("dataset"),

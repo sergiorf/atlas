@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ETL_DIR="$ROOT_DIR/apps/etl"
+if [[ -z "${XDG_RUNTIME_DIR:-}" || ! -w "${XDG_RUNTIME_DIR:-}" ]]; then
+  export XDG_RUNTIME_DIR="/tmp/atlas-runtime"
+fi
+mkdir -p "$XDG_RUNTIME_DIR"
+export SBT_OPTS="${SBT_OPTS:-} -Dsbt.global.base=/tmp/atlas-sbt-global -Dsbt.boot.directory=/tmp/atlas-sbt-boot -Dsbt.ivy.home=/tmp/atlas-ivy -Divy.home=/tmp/atlas-ivy"
+
+usage() {
+  cat <<'EOF'
+Atlas - Brazilian public company intelligence ETL
+
+Usage:
+  atlas <command> [options]
+
+Commands:
+  ingest receita estabelecimentos          Ingest Receita establishments to bronze
+  normalize receita estabelecimentos       Build latest normalized silver establishments
+  refresh receita estabelecimentos         Ingest, normalize, compare, and publish latest current
+  status [--json]                          Show local pipeline execution status
+  releases list                            List known local releases
+  releases inspect --release YYYY-MM       Inspect raw and derived paths for a release
+  releases drop-derived --release YYYY-MM --layer LAYER [--dry-run|--force]
+  compile                                  Compile the ETL project
+  test                                     Run ETL tests
+  clean                                    Clean ETL build outputs
+  help                                     Show this help message
+  version                                  Show Atlas CLI version
+EOF
+}
+
+run_main() {
+  local command="runMain atlas.Main"
+  local arg
+  for arg in "$@"; do
+    command+=" $(printf '%q' "$arg")"
+  done
+  (cd "$ETL_DIR" && sbt "$command")
+}
+
+if [[ $# -eq 0 ]]; then
+  echo "Missing command. Run ./atlas help." >&2
+  exit 2
+fi
+
+case "$1" in
+  help)
+    usage
+    ;;
+  version)
+    printf 'Atlas local CLI\nETL version: development\n'
+    ;;
+  compile)
+    (cd "$ETL_DIR" && sbt compile)
+    ;;
+  test)
+    (cd "$ETL_DIR" && sbt test)
+    ;;
+  clean)
+    (cd "$ETL_DIR" && sbt clean)
+    ;;
+  status)
+    shift
+    run_main status "$@"
+    ;;
+  ingest)
+    shift
+    if [[ "${1:-}" == "receita" && "${2:-}" == "estabelecimentos" ]]; then
+      shift 2
+      run_main ingest-receita-estabelecimentos "$@"
+    else
+      echo "Usage: ./atlas ingest receita estabelecimentos [--release YYYY-MM]" >&2
+      exit 2
+    fi
+    ;;
+  normalize)
+    shift
+    if [[ "${1:-}" == "receita" && "${2:-}" == "estabelecimentos" ]]; then
+      shift 2
+      run_main normalize-receita-estabelecimentos "$@"
+    else
+      echo "Usage: ./atlas normalize receita estabelecimentos [--release YYYY-MM]" >&2
+      exit 2
+    fi
+    ;;
+  refresh)
+    shift
+    if [[ "${1:-}" == "receita" && "${2:-}" == "estabelecimentos" ]]; then
+      shift 2
+      run_main refresh-receita-estabelecimentos "$@"
+    else
+      echo "Usage: ./atlas refresh receita estabelecimentos --release YYYY-MM" >&2
+      exit 2
+    fi
+    ;;
+  releases)
+    shift
+    run_main releases "$@"
+    ;;
+  *)
+    echo "Unknown command: $1. Run ./atlas help." >&2
+    exit 2
+    ;;
+esac

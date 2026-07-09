@@ -1,10 +1,10 @@
 # Atlas run-status registry contract
 
-- **Status:** Implemented for Receita establishments bronze and silver jobs
+- **Status:** Implemented for Receita establishments bronze, silver, and history jobs
 - **Owner:** `apps/etl/src/main/scala/atlas/status`
 - **Contract version:** `2` (additive fields and status value; version 1 files remain readable)
 
-Atlas records the latest attempted ETL run for each source, dataset, snapshot, and layer as one UTF-8 JSON file. Paths are relative to `apps/etl`:
+Atlas records the latest attempted ETL run for each source, dataset, snapshot, and layer as one UTF-8 JSON file. The root CLI calls the same operator-selected `snapshot` a `release`. Paths are relative to `apps/etl`:
 
 ```text
 data/_atlas/status/<source>/<dataset>/<snapshot>/<layer>.json
@@ -19,7 +19,7 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 | `source` | string | yes | Stable source identifier, currently `receita` |
 | `dataset` | string | yes | Stable layer-specific dataset identifier: bronze `estabelecimentos`, silver `establishments` |
 | `snapshot` | string | yes | Operator-configured source snapshot, currently `2026-06` |
-| `layer` | string | yes | Layer attempted, currently `bronze` or `silver` |
+| `layer` | string | yes | Layer attempted, currently `bronze`, `silver`, or `history` |
 | `status` | string | yes | `success`, `success_with_warnings`, or `failed` |
 | `started_at` | string | yes | Run start as an ISO-8601 UTC instant |
 | `finished_at` | string | yes | Run finish as an ISO-8601 UTC instant |
@@ -42,7 +42,7 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 
 ## Publication and failure behavior
 
-The bronze job writes `success` only after Parquet and quality reports have been written. Silver writes `success_with_warnings` after publishing when malformed rows were quarantined, and writes `failed` when valid duplicate keys or another hard gate prevents publication. If a job throws after metadata is known, it makes a best-effort write of `failed` and rethrows the original exception. A registry-write error is attached to the original failure rather than replacing it.
+The bronze job writes `success` only after Parquet and quality reports have been written. Silver writes `success_with_warnings` after publishing when malformed rows were quarantined, and writes `failed` when valid duplicate keys or another hard gate prevents publication. The release refresh history job writes `history` status after compact change events and the latest current table are published. If a job throws after metadata is known, it makes a best-effort write of `failed` and rethrows the original exception. A registry-write error is attached to the original failure rather than replacing it.
 
 The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. Missing means no run was recorded. No files are created for unimplemented gold, serving/index, or dashboard work.
 

@@ -89,7 +89,7 @@ Receita has the highest priority. It supplies identity, registration status, nam
 
 Important source groups are Empresas, Estabelecimentos, Socios, Simples, CNAE, Municipios, Naturezas Juridicas, Paises, Qualificacoes de Socios, and Motivos de Situacao Cadastral.
 
-v0.1 implements only Estabelecimentos to bronze because it provides the first useful lead dimensions: location, opening date, registration status, primary and secondary CNAE, trade name, email, phone, and headquarters/branch status.
+v0.1 implemented Estabelecimentos to bronze because it provides the first useful lead dimensions: location, opening date, registration status, primary and secondary CNAE, trade name, email, phone, and headquarters/branch status. The local ETL foundation now also includes silver establishment normalization and compact release-to-release change events for selected establishment fields.
 
 Future Receita silver tables include:
 
@@ -219,7 +219,7 @@ Normalized bronze adds:
 - `source_file`;
 - `ingestion_timestamp`.
 
-Bronze output is stored under `apps/etl/data/bronze/receita/estabelecimentos` relative to the monorepo, with practical state partitioning that avoids excessive tiny files.
+Bronze output is stored under `apps/etl/data/bronze/receita/estabelecimentos/release=YYYY-MM` relative to the monorepo, with practical state partitioning that avoids excessive tiny files. Latest silver current is stored as one full normalized table; older establishment history is represented by selected field deltas rather than full historical copies.
 
 ## Data quality policy
 
@@ -275,6 +275,7 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 ### v0.2 — normalized establishments and first lead export
 
 - build silver establishment normalization — implemented as the first v0.2 slice;
+- add local CLI, release status, lifecycle controls, and compact establishment change events;
 - add municipality lookup support;
 - operationalize CNAE group filters;
 - ship the first export-leads command.

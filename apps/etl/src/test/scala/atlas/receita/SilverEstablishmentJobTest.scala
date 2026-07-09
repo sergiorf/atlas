@@ -147,7 +147,7 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
     val statusDir = root.resolve("_atlas/status")
     bronzeFixture().unionByName(
       bronzeFixture().withColumn("registration_status_code", lit("20250324"))
-    ).write.mode("overwrite").parquet(bronzeDir.resolve("estabelecimentos").toString)
+    ).write.mode("overwrite").parquet(bronzeDir.resolve("estabelecimentos/release=2026-06").toString)
     val config = AtlasConfig(
       SparkConfig("local[2]", "atlas-tests", 2, root.resolve("spark-tmp").toString),
       CsvConfig(";", "UTF-8"),
@@ -167,12 +167,12 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
     assert(status.qualityWarnings.map(_.warningType) === Seq("malformed_rows"))
 
     bronzeFixture().unionByName(bronzeFixture())
-      .write.mode("overwrite").parquet(bronzeDir.resolve("estabelecimentos").toString)
+      .write.mode("overwrite").parquet(bronzeDir.resolve("estabelecimentos/release=2026-06").toString)
     intercept[IllegalStateException](SilverEstablishmentJob.run(spark, config))
     val failed = RunStatusRegistry.readFile(statusDir.resolve("receita/establishments/2026-06/silver.json"))
     assert(failed.status === "failed")
     assert(failed.qualityWarnings.map(_.warningType) === Seq("duplicate_cnpj_full"))
-    assert(spark.read.parquet(silverDir.resolve("establishments").toString).count() === 1)
+    assert(spark.read.parquet(silverDir.resolve("establishments_current").toString).count() === 1)
   }
 
   private def qualityPaths(root: java.nio.file.Path): DatasetPaths = DatasetPaths(

@@ -52,7 +52,7 @@ object SilverEstablishmentJob {
     } finally cached.foreach(_.unpersist())
   }
 
-  private[receita] def validateAndPublish(
+  private[atlas] def validateAndPublish(
       prepared: DataFrame,
       paths: DatasetPaths,
       observe: SilverQualityReport => Unit = _ => ()
@@ -88,9 +88,9 @@ object SilverEstablishmentJob {
     report
   }
 
-  private[receita] def transform(bronze: DataFrame): DataFrame = published(prepare(bronze))
+  private[atlas] def transform(bronze: DataFrame): DataFrame = published(prepare(bronze))
 
-  private[receita] def prepare(bronze: DataFrame): DataFrame = {
+  private[atlas] def prepare(bronze: DataFrame): DataFrame = {
     val normalizedState = upper(nullableTrim(col("state")))
     val normalizedMainCnae = fixedDigits(col("main_cnae"), 7)
     val cleanedRoot = nullableTrim(col("cnpj_root"))

@@ -87,7 +87,7 @@ object ReceitaIngestJob {
       errorMessage = error.flatMap(value => Option(value.getMessage))
     )
   }
-  private[receita] def transform(raw: DataFrame): DataFrame = {
+  private[atlas] def transform(raw: DataFrame): DataFrame = {
     val cleaned = raw
       .select(ReceitaSchemas.estabelecimentoColumns.map { name =>
         if (dateColumns.contains(name)) receitaDate(col(name)).as(name)

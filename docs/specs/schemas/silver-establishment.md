@@ -3,7 +3,7 @@
 - **Status:** Implemented
 - **Contract level:** Internal schema contract
 - **Input:** Bronze Receita `estabelecimentos`
-- **Output:** `data/silver/receita/establishments` relative to `apps/etl`
+- **Output:** `data/silver/receita/establishments_current` relative to `apps/etl`
 - **Primary key:** `cnpj_full`
 - **Partition:** `state`
 
@@ -47,7 +47,9 @@ The silver table is a curated, rebuildable establishment model. It does not enri
 | `source_file` | string | yes | Original source file recorded by bronze |
 | `ingestion_timestamp` | timestamp | yes | Bronze ingestion timestamp |
 | `silver_transformation_timestamp` | timestamp | no | Timestamp assigned by the silver transformation |
+| `release` | string | no | Operator-selected release when produced through the release refresh command |
+| `record_hash` | string | no | Deterministic hash of selected business fields for release-to-release comparison |
 
 Before this schema is produced, structural validation requires the CNPJ components to be exactly 8, 4, and 2 digits, `cnpj_full` to be exactly 14 digits, and the registration status to be one of `01`, `02`, `03`, `04`, or `08`. Malformed source-shaped bronze rows are written beneath `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows` and excluded. State is normalized to a valid Brazilian UF or null under the existing nullable contract, with invalid source values reported diagnostically.
 
-The quality gate enforces unique `cnpj_full` values after malformed rows are excluded. Conflicting valid duplicates are reported beneath the snapshot quality directory and reject publication. The job does not validate the CNPJ checksum or silently deduplicate records. These stricter input gates do not change the clean silver table layout, so no stored-schema migration is required.
+The quality gate enforces unique `cnpj_full` values after malformed rows are excluded. Conflicting valid duplicates are reported beneath the snapshot quality directory and reject publication. The job does not validate the CNPJ checksum or silently deduplicate records. The release refresh command keeps this table as the latest full normalized state and writes older changes as compact deltas rather than retaining full historical copies.

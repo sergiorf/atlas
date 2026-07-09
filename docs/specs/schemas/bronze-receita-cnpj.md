@@ -2,7 +2,7 @@
 
 - **Status:** Implemented
 - **Contract level:** Internal schema contract
-- **Output:** `data/bronze/receita/estabelecimentos` relative to `apps/etl`
+- **Output:** `data/bronze/receita/estabelecimentos/release=YYYY-MM` relative to `apps/etl`
 - **Partition:** `state`
 
 Bronze retains all raw fields after trimming and blank-to-null conversion. Most remain nullable strings. Three source fields become nullable Spark `date` values:
@@ -21,4 +21,4 @@ Atlas normalizes `cnpj_root`, `cnpj_branch`, and `cnpj_check` as nullable digit-
 | `source_file` | string | no for file input | Spark input filename |
 | `ingestion_timestamp` | timestamp | no | Processing timestamp assigned by the job |
 
-The writer uses the configured write mode (default `overwrite`). This schema is not a public API or gold contract. Any semantic, type, field, key, or partition change requires affected tests and documentation; consumers must coordinate migrations.
+The writer uses the configured write mode (default `overwrite`) within the selected release path. This schema is not a public API or gold contract. Any semantic, type, field, key, or partition change requires affected tests and documentation; consumers must coordinate migrations.
