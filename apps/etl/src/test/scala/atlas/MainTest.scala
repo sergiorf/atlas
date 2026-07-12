@@ -10,6 +10,16 @@ class MainTest extends AnyFunSuite {
     assert(Main.parseArgs(List("status", "--json")) === Main.Cli("status", json = true))
   }
 
+  test("help explains command effects and common options") {
+    val help = Main.helpText
+
+    assert(help.contains("Pipeline commands:"))
+    assert(help.contains("Raw input files are never modified."))
+    assert(help.contains("publish the release as latest current"))
+    assert(help.contains("LAYER is one of bronze, silver, reports"))
+    assert(help.contains("--config PATH"))
+  }
+
   test("status output explains an empty registry") {
     val root = Files.createTempDirectory("atlas-empty-status")
     assert(Main.statusOutput(root.toString).contains("No ETL status has been recorded yet"))
@@ -42,6 +52,10 @@ class MainTest extends AnyFunSuite {
     assert(
       Main.parseArgs(List("releases", "drop-derived", "--release", "2026-07", "--layer", "bronze", "--force")) ===
         Main.Cli("releases-drop-derived", release = Some("2026-07"), layer = Some("bronze"), force = true)
+    )
+    assert(
+      Main.parseArgs(List("releases", "drop-stale-derived", "--force")) ===
+        Main.Cli("releases-drop-stale-derived", force = true)
     )
   }
 }

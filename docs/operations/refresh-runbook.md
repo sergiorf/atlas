@@ -24,3 +24,5 @@ Refreshes are manual and snapshot-based.
 9. Inspect representative bronze, latest silver current, and change-event Parquet records before treating the refresh as usable.
 
 The default write mode is `overwrite`; verify configured destinations before running. Atlas keeps the latest full normalized table and selected field-level deltas instead of full historical silver copies. A snapshot folder name is not proof that every official source archive was published or downloaded completely.
+
+When upgrading a legacy `establishments_current` table that lacks `release` and `record_hash`, refresh recomputes the comparison hash from the contracted tracked fields. Change events leave `from_release` null because the earlier month cannot be recovered reliably from that table; the newly published current table includes both metadata fields.

@@ -55,6 +55,27 @@ class EstablishmentHistoryJobTest extends AnyFunSuite with SparkSuite {
     assert(!Files.exists(paths.historyRelease))
   }
 
+  test("compares a legacy current table without release metadata or record hashes") {
+    val root = Files.createTempDirectory("atlas-history-legacy-current")
+    val config = AtlasConfig(
+      SparkConfig("local[2]", "atlas-tests", 2, root.resolve("spark-tmp").toString),
+      CsvConfig(";", "UTF-8"),
+      ReceitaConfig("2026-07", root.resolve("raw").toString, root.resolve("bronze/receita").toString, root.resolve("silver/receita").toString),
+      root.resolve("_atlas/status").toString,
+      "overwrite"
+    )
+    val paths = ReleasePaths(config)
+    val prior = silver("2026-06", "12345678000109", "old@example.com", "Atlas").drop("release", "record_hash")
+    val candidate = silver("2026-07", "12345678000109", "new@example.com", "Atlas")
+
+    val result = EstablishmentHistoryJob.compareWithPrior(spark, config, prior, candidate, paths)
+
+    assert(result.updatedCount === 1)
+    val event = spark.read.parquet(paths.historyRelease.toString).head()
+    assert(event.isNullAt(event.fieldIndex("from_release")))
+    assert(event.getAs[String]("change_type") === "updated")
+  }
+
   private def silver(release: String, cnpjFull: String, email: String, tradeName: String): DataFrame = {
     val raw = spark.createDataFrame(
       spark.sparkContext.parallelize(Seq(Row(values(cnpjFull, email, tradeName): _*))),

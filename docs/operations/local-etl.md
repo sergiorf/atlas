@@ -42,9 +42,12 @@ Raw Receita files under `data/raw` are protected. Derived bronze, silver work ta
 ./atlas releases drop-derived --release 2026-07 --layer bronze --dry-run
 ./atlas releases drop-derived --release 2026-07 --layer bronze --force
 ./atlas releases drop-derived --release 2026-07 --layer all-derived --dry-run
+./atlas releases drop-stale-derived --dry-run
+./atlas releases drop-stale-derived --force
 ```
 
 `drop-derived --force` moves derived paths to `data/_atlas/_trash/...` instead of deleting raw files. Atlas refuses invalid release ids and paths outside the configured ETL data directories.
+`drop-stale-derived --force` quarantines known legacy derived paths that are no longer part of the current contract, such as the old `data/silver/receita/establishments` table and its old sibling quality reports. It does not touch raw files, `data/silver/receita/establishments_current`, or compact history events.
 
 ## Change history storage
 

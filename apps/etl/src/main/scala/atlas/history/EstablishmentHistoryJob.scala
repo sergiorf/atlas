@@ -69,7 +69,10 @@ object EstablishmentHistoryJob {
       }
       report = Some(quality)
 
-      val candidate = spark.read.parquet(candidatePaths.output).cache()
+      val candidate = withComparisonMetadata(
+        spark.read.parquet(candidatePaths.output),
+        Some(config.receita.snapshot)
+      ).cache()
       try {
         val priorExists = parquetExists(spark, releasePaths.silverCurrent.toString)
         val computed =
@@ -102,8 +105,8 @@ object EstablishmentHistoryJob {
       candidate: DataFrame,
       paths: ReleasePaths
   ): HistoryResult = {
-    val priorAlias = prior.select((Seq(col("cnpj_full"), col("release"), col("record_hash")) ++ TrackedFields.map(col)): _*).as("old")
-    val newAlias = candidate.select((Seq(col("cnpj_full"), col("release"), col("record_hash")) ++ TrackedFields.map(col)): _*).as("new")
+    val priorAlias = comparisonColumns(prior, None).as("old")
+    val newAlias = comparisonColumns(candidate, Some(config.receita.snapshot)).as("new")
     val joined = priorAlias.join(newAlias, Seq("cnpj_full"), "full_outer")
     val changedFields = array(TrackedFields.map(fieldDelta): _*)
     val events = joined
@@ -158,6 +161,19 @@ object EstablishmentHistoryJob {
 
   private def recordHash: Column =
     sha2(to_json(struct(TrackedFields.map(name => col(name).as(name)): _*)), 256)
+
+  private def comparisonColumns(data: DataFrame, fallbackRelease: Option[String]): DataFrame = {
+    val withMetadata = withComparisonMetadata(data, fallbackRelease)
+    withMetadata.select((Seq(col("cnpj_full"), col("release"), col("record_hash")) ++ TrackedFields.map(col)): _*)
+  }
+
+  private def withComparisonMetadata(data: DataFrame, fallbackRelease: Option[String]): DataFrame = {
+    val withRelease =
+      if (data.columns.contains("release")) data
+      else data.withColumn("release", fallbackRelease.map(lit).getOrElse(lit(null).cast("string")))
+    if (withRelease.columns.contains("record_hash")) withRelease
+    else withRelease.withColumn("record_hash", recordHash)
+  }
 
   private def publishCurrent(spark: SparkSession, data: DataFrame, output: String): Unit = {
     val suffix = java.util.UUID.randomUUID().toString

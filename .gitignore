@@ -4,6 +4,7 @@ data/bronze/
 data/silver/
 data/gold/
 data/exports/
+data/_atlas/
 apps/etl/data/raw/
 apps/etl/data/bronze/
 apps/etl/data/silver/
@@ -12,8 +13,7 @@ apps/etl/data/exports/
 apps/etl/data/serving/
 apps/etl/data/index/
 apps/etl/data/indexes/
-apps/etl/data/_atlas/status/
-apps/etl/data/_atlas/quality/
+apps/etl/data/_atlas/
 apps/etl/data/tmp/
 
 # Secrets

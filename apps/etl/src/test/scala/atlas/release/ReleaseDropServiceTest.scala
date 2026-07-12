@@ -32,6 +32,34 @@ class ReleaseDropServiceTest extends AnyFunSuite {
     assert(result.entries.forall(!_.exists))
   }
 
+  test("stale derived cleanup quarantines legacy silver outputs only") {
+    val root = Files.createTempDirectory("atlas-stale-derived")
+    val legacy = root.resolve("silver/receita/establishments")
+    val current = root.resolve("silver/receita/establishments_current")
+    val history = root.resolve("silver/receita/establishment_change_events/to_release=2026-07")
+    val oldReport = root.resolve("silver/receita/establishments_quality_report.json")
+    Files.createDirectories(legacy)
+    Files.createDirectories(current)
+    Files.createDirectories(history)
+    Files.write(legacy.resolve("part.parquet"), "legacy".getBytes(StandardCharsets.UTF_8))
+    Files.write(current.resolve("part.parquet"), "current".getBytes(StandardCharsets.UTF_8))
+    Files.write(history.resolve("part.parquet"), "history".getBytes(StandardCharsets.UTF_8))
+    Files.write(oldReport, "report".getBytes(StandardCharsets.UTF_8))
+    val config = sampleConfig(root)
+
+    val dryRun = StaleDerivedCleanupService.plan(config)
+    assert(dryRun.entries.exists(e => e.label == "legacy_silver_establishments" && e.exists))
+    assert(Files.exists(legacy))
+
+    val forced = StaleDerivedCleanupService.force(config)
+    assert(!Files.exists(legacy))
+    assert(!Files.exists(oldReport))
+    assert(Files.exists(current.resolve("part.parquet")))
+    assert(Files.exists(history.resolve("part.parquet")))
+    assert(forced.trashRoot.exists(path => Files.exists(path.resolve("legacy_silver_establishments/part.parquet"))))
+    assert(forced.trashRoot.exists(path => Files.exists(path.resolve("legacy_silver_quality_report_json"))))
+  }
+
   private def sampleConfig(root: java.nio.file.Path): AtlasConfig = AtlasConfig(
     SparkConfig("local[1]", "atlas-tests", 1, root.resolve("spark-tmp").toString),
     CsvConfig(";", "UTF-8"),

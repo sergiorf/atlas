@@ -23,6 +23,7 @@ From the repository root, prefer the short wrapper for day-to-day use:
 ./atlas ingest receita estabelecimentos
 ./atlas normalize receita estabelecimentos
 ./atlas refresh receita estabelecimentos --release 2026-07
+./atlas releases drop-stale-derived --dry-run
 ./atlas status --json
 ```
 
@@ -37,6 +38,8 @@ Bronze attempts write the latest status to `data/_atlas/status/receita/estabelec
 Ingestion writes release-scoped reports under `data/_atlas/reports/receita/estabelecimentos/<snapshot>/bronze`. Normalization writes reports under the sibling `silver` directory. The refresh command keeps only the latest full normalized table and stores older differences as selected field deltas to avoid keeping full historical silver copies on a 1 TB laptop.
 
 Malformed silver candidates are quarantined beneath `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows` and excluded before uniqueness validation. Duplicate valid CNPJ identifiers are reported in the sibling `duplicate_cnpj_full` directory and reject publication before the existing silver table is replaced.
+
+Legacy derived outputs from earlier local runs, such as `data/silver/receita/establishments` and old sibling `establishments_quality_report.*` files, can be quarantined with `./atlas releases drop-stale-derived --force`. The command leaves raw files, `establishments_current`, and compact history events intact.
 
 Download or resume a snapshot with:
 

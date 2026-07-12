@@ -23,4 +23,4 @@ The committed configuration reads `data/raw/receita/2026-06/estabelecimentos/ext
 
 Spark uses `spark-tmp` for shuffle spill and other local working files. This intentionally avoids `/tmp`, which WSL2 may mount as a small tmpfs. Set `ATLAS_SPARK_LOCAL_DIR` to another directory on a filesystem with sufficient free space if needed.
 
-The jobs write state-partitioned Parquet under `data/bronze/receita/estabelecimentos` and `data/silver/receita/establishments`, with quality reports beside each layer. Raw and generated files are ignored by Git. See the [local ETL guide](../operations/local-etl.md) before changing paths or memory settings.
+The jobs write state-partitioned bronze Parquet under `data/bronze/receita/estabelecimentos`, latest normalized silver under `data/silver/receita/establishments_current`, compact change events under `data/silver/receita/establishment_change_events`, and quality reports under `data/_atlas/reports`. Raw and generated files are ignored by Git. See the [local ETL guide](../operations/local-etl.md) before changing paths or memory settings.

@@ -4,7 +4,7 @@ import atlas.common.SparkSessionFactory
 import atlas.config.AtlasConfig
 import atlas.history.EstablishmentHistoryJob
 import atlas.receita.ReceitaIngestJob
-import atlas.release.{ReleaseDropService, ReleaseId, ReleaseInventoryService, ReleaseLayer}
+import atlas.release.{ReleaseDropService, ReleaseId, ReleaseInventoryService, ReleaseLayer, StaleDerivedCleanupService}
 import atlas.receita.SilverEstablishmentJob
 import atlas.status.{RunStatusRegistry, StatusTable}
 import java.nio.file.Paths
@@ -28,6 +28,11 @@ object Main {
         val layer = ReleaseLayer.parse(cli.layer.getOrElse(throw new IllegalArgumentException("Missing --layer LAYER"))).fold(message => throw new IllegalArgumentException(message), identity)
         val result = if (cli.force) ReleaseDropService.force(config, release, layer) else ReleaseDropService.plan(config, release, layer)
         println(ReleaseDropService.render(result))
+      case "releases-drop-stale-derived" =>
+        val result =
+          if (cli.force) StaleDerivedCleanupService.force(config)
+          else StaleDerivedCleanupService.plan(config)
+        println(StaleDerivedCleanupService.render(result))
       case "ingest-receita-estabelecimentos" =>
         withSpark(config) { spark =>
           val result = ReceitaIngestJob.run(spark, config)
@@ -87,6 +92,12 @@ object Main {
       Cli("releases-drop-derived", release = Some(release), layer = Some(layer))
     case "releases" :: "drop-derived" :: "--release" :: release :: "--layer" :: layer :: "--force" :: Nil =>
       Cli("releases-drop-derived", release = Some(release), layer = Some(layer), force = true)
+    case "releases" :: "drop-stale-derived" :: Nil =>
+      Cli("releases-drop-stale-derived")
+    case "releases" :: "drop-stale-derived" :: "--dry-run" :: Nil =>
+      Cli("releases-drop-stale-derived")
+    case "releases" :: "drop-stale-derived" :: "--force" :: Nil =>
+      Cli("releases-drop-stale-derived", force = true)
     case _ =>
       throw new IllegalArgumentException(
         "Usage: atlas.Main <ingest-receita-estabelecimentos|normalize-receita-estabelecimentos|refresh-receita-estabelecimentos|status|help|version>"
@@ -99,18 +110,55 @@ object Main {
       |Usage:
       |  atlas <command> [options]
       |
-      |Commands:
-      |  ingest receita estabelecimentos          Ingest Receita establishments to bronze
-      |  normalize receita estabelecimentos       Build latest normalized silver establishments
-      |  refresh receita estabelecimentos         Ingest, normalize, compare, and publish latest current
-      |  status [--json]                          Show local pipeline execution status
-      |  releases list                            List known local releases
-      |  releases inspect --release YYYY-MM       Inspect raw and derived paths for a release
+      |Pipeline commands:
+      |  ingest receita estabelecimentos [--release YYYY-MM]
+      |      Read configured Receita Estabelecimentos CSV files for the release, write source-faithful
+      |      bronze Parquet, and emit bronze quality reports. Raw input files are never modified.
+      |
+      |  normalize receita estabelecimentos [--release YYYY-MM]
+      |      Read the release bronze table and build a normalized silver candidate for establishments.
+      |      Use this when you want to validate silver output without publishing it as current.
+      |
+      |  refresh receita estabelecimentos [--release YYYY-MM]
+      |      Run ingest and silver normalization, compare the release with the current silver table,
+      |      write compact establishment change events, and publish the release as latest current.
+      |
+      |Status and release commands:
+      |  status [--json]
+      |      Show recorded local pipeline runs, or print the same registry as JSON for automation.
+      |
+      |  releases list
+      |      List local releases Atlas can see across raw, bronze, silver work, reports, and history paths.
+      |
+      |  releases inspect --release YYYY-MM
+      |      Show the raw and derived paths for one release, including which paths exist and are protected.
+      |
       |  releases drop-derived --release YYYY-MM --layer LAYER [--dry-run|--force]
-      |  compile                                  Compile the ETL project
-      |  test                                     Run ETL tests
-      |  clean                                    Clean ETL build outputs
-      |  help                                     Show this help message
-      |  version                                  Show Atlas CLI version
+      |      Plan or quarantine derived data for one release. LAYER is one of bronze, silver, reports,
+      |      history, or all-derived. --dry-run is the default; --force moves eligible paths to trash.
+      |
+      |  releases drop-stale-derived [--dry-run|--force]
+      |      Plan or quarantine legacy derived paths that are no longer part of the current contract.
+      |      Raw files, current silver, and compact history events are protected.
+      |
+      |Project commands:
+      |  compile
+      |      Compile the ETL project through sbt.
+      |
+      |  test
+      |      Run the ETL test suite through sbt.
+      |
+      |  clean
+      |      Clean ETL build outputs through sbt. Data directories are not build outputs.
+      |
+      |  help
+      |      Show this help message.
+      |
+      |  version
+      |      Show the local Atlas CLI version.
+      |
+      |Common options:
+      |  --release YYYY-MM    Override the configured Receita snapshot for commands that read a release.
+      |  --config PATH        Use an alternate ETL HOCON configuration file.
       |""".stripMargin
 }
