@@ -10,6 +10,7 @@ import java.time.{Duration, Instant}
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.storage.StorageLevel
 
 final case class HistoryResult(
     release: String,
@@ -72,7 +73,7 @@ object EstablishmentHistoryJob {
       val candidate = withComparisonMetadata(
         spark.read.parquet(candidatePaths.output),
         Some(config.receita.snapshot)
-      ).cache()
+      ).persist(StorageLevel.DISK_ONLY)
       try {
         val priorExists = parquetExists(spark, releasePaths.silverCurrent.toString)
         val computed =
@@ -131,7 +132,7 @@ object EstablishmentHistoryJob {
         current_timestamp().as("detected_at")
       )
 
-    val materialized = events.cache()
+    val materialized = events.persist(StorageLevel.DISK_ONLY)
     try {
       val counts = materialized.groupBy("change_type").count().collect().map(row => row.getString(0) -> row.getLong(1)).toMap
       val total = counts.values.sum

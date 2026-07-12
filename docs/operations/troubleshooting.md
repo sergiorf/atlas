@@ -12,6 +12,8 @@ Keep `.part` files and rerun the downloader so it can resume. Do not delete or r
 
 Confirm free disk space, reduce unrelated workloads, choose suitable sbt `-J-Xmx` settings, and inspect Spark temporary directories. Do not solve memory pressure by collecting the dataset locally. Review shuffle partitions and storage changes as contract-affecting work when they alter operational guarantees.
 
+The refresh pipeline persists its large candidate and change-event intermediates with disk-only storage. A stack trace through `InMemoryRelation`, `DefaultCachedBatchSerializer`, and `MemoryStore.putIterator` indicates an older build still using memory-backed history caches; rebuild before retrying. Ingest and refresh may share one Spark session, but the ingest intermediate is unpersisted before normalization begins.
+
 ## No space left on device in Spark DiskStore
 
 If the stack trace contains `java.io.IOException: No space left on device` and `org.apache.spark.storage.DiskStore.put`, check the filesystem that contains the configured Spark local directory, not only the WSL root filesystem. WSL2 may mount `/tmp` as a tmpfs with roughly 8 GB, which can fill during Receita shuffle or persistence even while the root filesystem has ample capacity.
