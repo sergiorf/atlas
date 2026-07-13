@@ -19,7 +19,7 @@ sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 sbt "runMain atlas.Main normalize-receita-estabelecimentos"
 ```
 
-The committed configuration reads `data/raw/receita/2026-06/estabelecimentos/extracted` relative to `apps/etl`. Override raw, bronze, and silver paths with `ATLAS_RECEITA_RAW_DIR`, `ATLAS_RECEITA_BRONZE_DIR`, and `ATLAS_RECEITA_SILVER_DIR`.
+The committed raw-path template is `data/raw/receita/2026-06/estabelecimentos/extracted` relative to `apps/etl`. `--release YYYY-MM` replaces that dated segment, so each release reads its matching raw directory. Override raw, bronze, and silver paths with `ATLAS_RECEITA_RAW_DIR`, `ATLAS_RECEITA_BRONZE_DIR`, and `ATLAS_RECEITA_SILVER_DIR`; a custom raw path without a date segment is used unchanged.
 
 Spark uses `spark-tmp` for shuffle spill and other local working files. This intentionally avoids `/tmp`, which WSL2 may mount as a small tmpfs. Set `ATLAS_SPARK_LOCAL_DIR` to another directory on a filesystem with sufficient free space if needed.
 

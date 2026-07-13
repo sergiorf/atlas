@@ -7,7 +7,7 @@
 
 Atlas reads headerless, semicolon-delimited Receita `Estabelecimentos` CSV using configurable encoding (default `ISO-8859-1`). The layout has exactly the 30 ordered fields defined by the [raw schema contract](../schemas/raw-receita-cnpj.md). Parsing is permissive and string-first.
 
-Inputs are one or more extracted files matched beneath the configured raw directory. Raw files are immutable and remain outside Git. The snapshot month is an operator-controlled path convention, not inferred from file contents.
+Inputs are one or more extracted files matched beneath the configured raw directory. Raw files are immutable and remain outside Git. The snapshot month is operator-controlled and is not inferred from file contents. When the configured raw directory contains a `YYYY-MM` segment, Atlas replaces that segment with the selected release before reading; a custom path without a date segment is used unchanged.
 
 ## Interpretation
 

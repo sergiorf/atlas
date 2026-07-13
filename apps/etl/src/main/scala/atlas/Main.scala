@@ -158,7 +158,7 @@ object Main {
       |      Show the local Atlas CLI version.
       |
       |Common options:
-      |  --release YYYY-MM    Override the configured Receita snapshot for commands that read a release.
+      |  --release YYYY-MM    Select the snapshot and matching YYYY-MM segment in the configured raw path.
       |  --config PATH        Use an alternate ETL HOCON configuration file.
       |""".stripMargin
 }

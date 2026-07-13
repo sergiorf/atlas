@@ -31,7 +31,7 @@ For a smaller JVM, pass suitable sbt `-J-Xmx` settings; production laptop runs m
 
 ## Input and output
 
-The committed configuration reads `data/raw/receita/2026-06/estabelecimentos/extracted`. Override it with `ATLAS_RECEITA_RAW_DIR`. Bronze defaults to `data/bronze/receita/estabelecimentos/release=<snapshot>`; latest silver current defaults to `data/silver/receita/establishments_current`. Both are partitioned by `state`. Compact history events are written under `data/silver/receita/establishment_change_events/to_release=<snapshot>`. Override roots with `ATLAS_RECEITA_BRONZE_DIR` and `ATLAS_RECEITA_SILVER_DIR`.
+The committed raw-path template is `data/raw/receita/2026-06/estabelecimentos/extracted`. Selecting another release replaces its `YYYY-MM` segment, so `--release 2026-05` reads `data/raw/receita/2026-05/estabelecimentos/extracted`. Override it with `ATLAS_RECEITA_RAW_DIR`; a custom path without a date segment is used unchanged. Bronze defaults to `data/bronze/receita/estabelecimentos/release=<snapshot>`; latest silver current defaults to `data/silver/receita/establishments_current`. Both are partitioned by `state`. Compact history events are written under `data/silver/receita/establishment_change_events/to_release=<snapshot>`. Override roots with `ATLAS_RECEITA_BRONZE_DIR` and `ATLAS_RECEITA_SILVER_DIR`.
 
 Bronze attempts write the latest status to `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`; silver uses `data/_atlas/status/receita/establishments/2026-06/silver.json`. Override the snapshot with `ATLAS_RECEITA_SNAPSHOT` and the registry root with `ATLAS_STATUS_DIR`. The status command reads these small JSON files without starting Spark and distinguishes clean success from `success_with_warnings`.
 

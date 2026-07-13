@@ -10,7 +10,7 @@ Refreshes are manual and snapshot-based.
    ```
 
 3. Confirm archives and extracted files are under `data/raw/receita/<YYYY-MM>/estabelecimentos`; never edit them in place.
-4. Point `ATLAS_RECEITA_RAW_DIR` and, if needed, `ATLAS_RECEITA_BRONZE_DIR` to the intended snapshot/output. With the root CLI, pass `--release YYYY-MM` for the same operator-selected value.
+4. Pass `--release YYYY-MM` with the root CLI. Atlas replaces the `YYYY-MM` segment in the configured raw directory with that release, so the default configuration selects `data/raw/receita/<release>/estabelecimentos/extracted`. If `ATLAS_RECEITA_RAW_DIR` uses a custom layout without a date segment, point it explicitly to the intended snapshot. Override `ATLAS_RECEITA_BRONZE_DIR` only when a non-default output root is required.
 5. Run the refresh command when maintaining latest current plus compact history:
 
    ```bash
@@ -18,7 +18,7 @@ Refreshes are manual and snapshot-based.
    ```
 
    Or run the individual sbt ingestion/normalization commands for isolated troubleshooting.
-6. Review the bronze JSON and Markdown reports for paths, row count, identifier issues, missing dates, missing CNAEs, and run timestamp.
+6. Review the bronze JSON and Markdown reports for the resolved raw input path, output path, row count, identifier issues, missing dates, missing CNAEs, and run timestamp. Stop if the input path does not contain the intended release when using the default dated layout.
 7. Point `ATLAS_RECEITA_SILVER_DIR` to the intended output when overriding defaults, then run `sbt "runMain atlas.Main normalize-receita-estabelecimentos"`.
 8. Review the silver reports. Invalid or duplicate CNPJs reject publication; investigate the bronze snapshot instead of editing raw files or silently deduplicating.
 9. Inspect representative bronze, latest silver current, and change-event Parquet records before treating the refresh as usable.

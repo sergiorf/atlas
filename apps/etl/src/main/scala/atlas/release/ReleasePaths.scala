@@ -9,11 +9,7 @@ final case class ReleasePaths(config: AtlasConfig) {
   val atlasRoot: Path = Option(Paths.get(config.statusDir).getParent).getOrElse(Paths.get("data/_atlas"))
 
   def rawRoot: Path = {
-    val raw = config.receita.rawDir
-    val releasePattern = "([0-9]{4}-[0-9]{2})".r
-    releasePattern.findFirstIn(raw).fold(Paths.get(raw)) { found =>
-      Paths.get(raw.replace(found, release.value))
-    }
+    Paths.get(ReleasePaths.rawDirForRelease(config.receita.rawDir, release))
   }
   def bronzeRelease: Path = Paths.get(config.receita.bronzeDir).resolve("estabelecimentos").resolve(s"release=${release.value}")
   def bronzeReports: Path = atlasRoot.resolve("reports/receita/estabelecimentos").resolve(release.value).resolve("bronze")
@@ -41,4 +37,13 @@ final case class ReleasePaths(config: AtlasConfig) {
       .find(candidate => normalized.forall(_.startsWith(candidate)))
       .getOrElse(Paths.get("data"))
   }
+}
+
+object ReleasePaths {
+  private val ReleasePattern = "([0-9]{4}-[0-9]{2})".r
+
+  def rawDirForRelease(rawDir: String, release: ReleaseId): String =
+    ReleasePattern.findFirstMatchIn(rawDir).fold(rawDir) { matched =>
+      rawDir.substring(0, matched.start) + release.value + rawDir.substring(matched.end)
+    }
 }

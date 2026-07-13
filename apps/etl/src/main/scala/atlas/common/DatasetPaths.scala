@@ -1,7 +1,7 @@
 package atlas.common
 
 import atlas.config.ReceitaConfig
-import atlas.release.ReleasePaths
+import atlas.release.{ReleaseId, ReleasePaths}
 import java.nio.file.Paths
 
 final case class DatasetPaths(
@@ -14,7 +14,8 @@ final case class DatasetPaths(
 )
 object DatasetPaths {
   def estabelecimentos(c: ReceitaConfig): DatasetPaths = {
-    val raw = c.rawDir.stripSuffix("/").stripSuffix("\\")
+    val release = ReleaseId.unsafe(c.snapshot)
+    val raw = ReleasePaths.rawDirForRelease(c.rawDir, release).stripSuffix("/").stripSuffix("\\")
     val bronze = c.bronzeDir.stripSuffix("/").stripSuffix("\\")
     val bronzePath = Paths.get(c.bronzeDir)
     val dataRoot = Option(bronzePath.getParent).flatMap(path => Option(path.getParent)).getOrElse(Paths.get("data"))
