@@ -27,6 +27,13 @@ object StaleDerivedCleanupService {
       Files.createDirectories(destination.getParent)
       Files.move(entry.path, destination, StandardCopyOption.REPLACE_EXISTING)
     }
+    TrashManifest.write(trash, TrashManifest(
+      "stale-derived",
+      Instant.now(),
+      planned.entries.filter(_.exists).map(_.path.toString),
+      Seq.empty,
+      planned.entries.filter(_.exists).map(_.label)
+    ))
     planned.copy(dryRun = false, trashRoot = Some(trash))
   }
 

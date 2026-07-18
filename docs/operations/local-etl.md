@@ -46,10 +46,16 @@ Raw Receita files under `data/raw` are protected. Derived bronze, silver work ta
 ./atlas releases drop-derived --release 2026-07 --layer all-derived --dry-run
 ./atlas releases drop-stale-derived --dry-run
 ./atlas releases drop-stale-derived --force
+./atlas releases purge-trash
+./atlas releases purge-trash --older-than-days 7 --force
 ```
 
 `drop-derived --force` moves derived paths to `data/_atlas/_trash/...` instead of deleting raw files. Atlas refuses invalid release ids and paths outside the configured ETL data directories.
 `drop-stale-derived --force` quarantines known legacy derived paths that are no longer part of the current contract, such as the old `data/silver/receita/establishments` table and its old sibling quality reports. It does not touch raw files, `data/silver/receita/establishments_current`, compact history events, or release summaries.
+
+`purge-trash` inventories each timestamped quarantine generation and explains its operation type, UTC age, bytes, eligibility, and blockers. Dry-run is the default. `--force` permanently deletes only eligible generations and keeps blocked or too-young generations; the default recovery window is seven full 24-hour periods from the timestamp directory. `--older-than-days N` accepts a non-negative override. Atlas takes the establishment publication lock and repeats the safety inspection before deleting, never follows symbolic links, prunes only empty timestamp directories, and reports deleted and skipped byte totals. Raw paths are outside the inventory and are never considered.
+
+New quarantines contain an internal `.atlas-trash-manifest.json` recording their recovery role, creation time, original paths, replacement expectations, and labels. Atlas recognizes older release drops, stale-derived quarantines, and failed rebuilds by conservative layouts. Legacy full-rebuild backups without replacement expectations remain blocked.
 
 ## Change history storage
 

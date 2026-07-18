@@ -48,6 +48,10 @@ Status and release commands:
       Plan or quarantine legacy derived paths that are no longer part of the current contract.
       Raw files, current silver, and compact history events are protected.
 
+  releases purge-trash [--older-than-days N] [--dry-run|--force]
+      Inspect quarantined generations and permanently delete only those proven safe and old enough.
+      Dry-run and a seven-day recovery window are the defaults. Raw data is never considered.
+
   releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM [--dry-run|--force]
       Recreate all generated establishment data chronologically from protected raw releases.
       Dry-run is the default; --force stages and validates a replacement before activation.

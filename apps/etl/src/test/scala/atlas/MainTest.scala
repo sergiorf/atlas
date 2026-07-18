@@ -73,4 +73,16 @@ class MainTest extends AnyFunSuite {
         Main.Cli("releases-drop-stale-derived", force = true)
     )
   }
+
+  test("parses trash purge retention and force options") {
+    assert(Main.parseArgs(List("releases", "purge-trash")) === Main.Cli("releases-purge-trash"))
+    assert(Main.parseArgs(List("releases", "purge-trash", "--force")) === Main.Cli("releases-purge-trash", force = true))
+    assert(
+      Main.parseArgs(List("releases", "purge-trash", "--older-than-days", "0", "--force")) ===
+        Main.Cli("releases-purge-trash", force = true, olderThanDays = 0)
+    )
+    assertThrows[IllegalArgumentException](Main.parseArgs(List("releases", "purge-trash", "--older-than-days", "-1")))
+    assert(Main.helpText.contains("releases purge-trash"))
+    assert(Main.helpText.contains("seven-day recovery window"))
+  }
 }

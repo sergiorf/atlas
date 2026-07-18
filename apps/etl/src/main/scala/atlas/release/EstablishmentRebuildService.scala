@@ -77,7 +77,11 @@ object EstablishmentRebuildService {
         val journal = paths.atlasRoot.resolve("transactions/establishments-rebuild.tsv")
         if (Files.exists(stagingRoot) && !Files.exists(journal)) {
           val timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()).replace(":", "").replace(".", "")
-          try move(stagingRoot, paths.atlasRoot.resolve("_trash").resolve(timestamp).resolve("failed-establishments-rebuild").resolve(suffix))
+          try {
+            val failed = paths.atlasRoot.resolve("_trash").resolve(timestamp).resolve("failed-establishments-rebuild")
+            move(stagingRoot, failed.resolve(suffix))
+            TrashManifest.write(failed, TrashManifest("failed-rebuild", Instant.now(), Seq(stagingRoot.toString), Seq.empty, Seq(suffix)))
+          }
           catch { case cleanup: Throwable => error.addSuppressed(cleanup) }
         }
         throw error
@@ -179,6 +183,13 @@ object EstablishmentRebuildService {
       journal,
       (journalLines.mkString("\n") + "\n").getBytes(StandardCharsets.UTF_8)
     )
+    TrashManifest.write(trash, TrashManifest(
+      "full-rebuild-backup",
+      Instant.now(),
+      pairs.filter { case (_, active, _) => Files.exists(active) }.map(_._2.toString),
+      pairs.filter { case (_, active, _) => Files.exists(active) }.map(_._2.toString),
+      pairs.filter { case (_, active, _) => Files.exists(active) }.map(_._1)
+    ))
     val moved = scala.collection.mutable.ArrayBuffer.empty[(Path, Path, Path)]
     try {
       pairs.foreach { case (label, active, staged) =>
@@ -278,10 +289,11 @@ object EstablishmentRebuildService {
     }
   }
 
-  private def rewritePath(value: String, replacements: Seq[(Path, Path)]): String = {
+  private[release] def rewritePath(value: String, replacements: Seq[(Path, Path)]): String = {
+    val candidate = Paths.get(value).toAbsolutePath.normalize()
     replacements.collectFirst {
-      case (staged, active) if Paths.get(value).normalize().startsWith(staged.normalize()) =>
-        active.normalize().resolve(staged.normalize().relativize(Paths.get(value).normalize())).toString
+      case (staged, active) if candidate.startsWith(staged.toAbsolutePath.normalize()) =>
+        active.normalize().resolve(staged.toAbsolutePath.normalize().relativize(candidate)).toString
     }.getOrElse(value)
   }
 

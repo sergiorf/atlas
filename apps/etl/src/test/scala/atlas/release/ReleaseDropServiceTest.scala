@@ -24,6 +24,8 @@ class ReleaseDropServiceTest extends AnyFunSuite {
     assert(!Files.exists(bronze))
     assert(Files.exists(raw.resolve("source.csv")))
     assert(forced.trashRoot.exists(path => Files.exists(path.resolve("bronze/part.parquet"))))
+    assert(forced.trashRoot.exists(path => Files.exists(path.resolve(TrashManifest.FileName))))
+    assert(forced.trashRoot.map(TrashManifest.read).exists(_.operationType == "release-drop"))
   }
 
   test("missing derived path is idempotent") {
@@ -74,6 +76,7 @@ class ReleaseDropServiceTest extends AnyFunSuite {
     assert(Files.exists(history.resolve("part.parquet")))
     assert(forced.trashRoot.exists(path => Files.exists(path.resolve("legacy_silver_establishments/part.parquet"))))
     assert(forced.trashRoot.exists(path => Files.exists(path.resolve("legacy_silver_quality_report_json"))))
+    assert(forced.trashRoot.map(TrashManifest.read).exists(_.operationType == "stale-derived"))
   }
 
   private def sampleConfig(root: java.nio.file.Path): AtlasConfig = AtlasConfig(

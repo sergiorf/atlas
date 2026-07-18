@@ -4,7 +4,7 @@ import atlas.common.SparkSessionFactory
 import atlas.config.AtlasConfig
 import atlas.history.EstablishmentHistoryJob
 import atlas.receita.ReceitaIngestJob
-import atlas.release.{EstablishmentRebuildService, PublicationLock, ReleaseDropService, ReleaseId, ReleaseInventoryService, ReleaseLayer, StaleDerivedCleanupService}
+import atlas.release.{EstablishmentRebuildService, PublicationLock, ReleaseDropService, ReleaseId, ReleaseInventoryService, ReleaseLayer, StaleDerivedCleanupService, TrashPurgeService}
 import atlas.receita.SilverEstablishmentJob
 import atlas.status.{RunStatusRegistry, StatusTable}
 import java.nio.file.Paths
@@ -19,7 +19,8 @@ object Main {
       force: Boolean = false,
       allowLegacyCurrent: Boolean = false,
       fromRelease: Option[String] = None,
-      toRelease: Option[String] = None
+      toRelease: Option[String] = None,
+      olderThanDays: Int = 7
   )
   def main(args: Array[String]): Unit = {
     val cli = parseArgs(args.toList)
@@ -43,6 +44,9 @@ object Main {
           if (cli.force) StaleDerivedCleanupService.force(config)
           else StaleDerivedCleanupService.plan(config)
         println(StaleDerivedCleanupService.render(result))
+      case "releases-purge-trash" =>
+        val result = if (cli.force) TrashPurgeService.force(config, cli.olderThanDays) else TrashPurgeService.inspect(config, cli.olderThanDays)
+        println(TrashPurgeService.render(result))
       case "releases-rebuild-establishments" =>
         val from = ReleaseId.unsafe(cli.fromRelease.getOrElse(throw new IllegalArgumentException("Missing --from-release YYYY-MM")))
         val to = ReleaseId.unsafe(cli.toRelease.getOrElse(throw new IllegalArgumentException("Missing --to-release YYYY-MM")))
@@ -129,6 +133,7 @@ object Main {
       Cli("releases-drop-stale-derived")
     case "releases" :: "drop-stale-derived" :: "--force" :: Nil =>
       Cli("releases-drop-stale-derived", force = true)
+    case "releases" :: "purge-trash" :: tail => parsePurgeTrash(tail)
     case "releases" :: "rebuild-establishments" :: "--from-release" :: from :: "--to-release" :: to :: Nil =>
       Cli("releases-rebuild-establishments", fromRelease = Some(from), toRelease = Some(to))
     case "releases" :: "rebuild-establishments" :: "--from-release" :: from :: "--to-release" :: to :: "--dry-run" :: Nil =>
@@ -139,6 +144,20 @@ object Main {
       throw new IllegalArgumentException(
         "Usage: atlas.Main <ingest-receita-estabelecimentos|normalize-receita-estabelecimentos|refresh-receita-estabelecimentos|status|help|version>"
       )
+  }
+
+  private def parsePurgeTrash(args: List[String]): Cli = {
+    def loop(rest: List[String], force: Boolean, olderThanDays: Int): Cli = rest match {
+      case Nil => Cli("releases-purge-trash", force = force, olderThanDays = olderThanDays)
+      case "--dry-run" :: tail => loop(tail, force = false, olderThanDays)
+      case "--force" :: tail => loop(tail, force = true, olderThanDays)
+      case "--older-than-days" :: value :: tail =>
+        val days = try value.toInt catch { case _: NumberFormatException => throw new IllegalArgumentException("--older-than-days requires a non-negative integer") }
+        if (days < 0) throw new IllegalArgumentException("--older-than-days must be non-negative")
+        loop(tail, force, days)
+      case _ => throw new IllegalArgumentException("Usage: releases purge-trash [--older-than-days N] [--dry-run|--force]")
+    }
+    loop(args, force = false, olderThanDays = 7)
   }
 
   private[atlas] val helpText: String =
@@ -178,6 +197,10 @@ object Main {
       |  releases drop-stale-derived [--dry-run|--force]
       |      Plan or quarantine legacy derived paths that are no longer part of the current contract.
       |      Raw files, current silver, and compact history events are protected.
+      |
+      |  releases purge-trash [--older-than-days N] [--dry-run|--force]
+      |      Inspect quarantined generations and permanently delete only those proven safe and old enough.
+      |      Dry-run and a seven-day recovery window are the defaults. Raw data is never considered.
       |
       |  releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM [--dry-run|--force]
       |      Recreate all generated establishment data chronologically from protected raw releases.

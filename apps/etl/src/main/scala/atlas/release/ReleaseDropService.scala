@@ -26,6 +26,13 @@ object ReleaseDropService {
       Files.createDirectories(trash.resolve(entry.label).getParent)
       Files.move(entry.path, trash.resolve(entry.label), StandardCopyOption.REPLACE_EXISTING)
     }
+    TrashManifest.write(trash, TrashManifest(
+      "release-drop",
+      Instant.now(),
+      planned.entries.filter(_.exists).map(_.path.toString),
+      Seq.empty,
+      planned.entries.filter(_.exists).map(_.label)
+    ))
     planned.copy(dryRun = false, trashRoot = Some(trash))
   }
 

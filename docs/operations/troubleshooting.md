@@ -26,6 +26,12 @@ Refresh and full rebuild share `data/_atlas/locks/receita-estabelecimentos-curre
 
 Full rebuild writes a transaction journal only during activation. A subsequent forced rebuild restores an interrupted promotion from its timestamped backup before starting. If Atlas reports a malformed journal, stop and inspect `data/_atlas/transactions/establishments-rebuild.tsv`, the named staging directory, and the named trash directory; do not delete any of them until active current and history have been verified.
 
+## Trash purge skips a generation
+
+`./atlas releases purge-trash` treats policy blockers as normal diagnostics and continues inspecting other generations. A generation remains blocked when it is too young, referenced by the active rebuild journal, has an unknown timestamp or layout, contains a symbolic link, escapes the configured trash root, has malformed metadata, or still has a recovery role. Full-rebuild backups additionally require all expected active outputs and complete canonical successful bronze, silver, and history status. Fix the active publication or complete a later successful rebuild; the purge command never rewrites status metadata. Filesystem failures during an eligible deletion fail the command and require operator inspection.
+
+Do not rename legacy trash to make it appear recognizable and do not remove `.atlas-trash-manifest.json`. Legacy full-rebuild backups can remain blocked because pre-manifest generations do not prove their replacement expectations.
+
 ## No space left on device in Spark DiskStore
 
 If the stack trace contains `java.io.IOException: No space left on device` and `org.apache.spark.storage.DiskStore.put`, check the filesystem that contains the configured Spark local directory, not only the WSL root filesystem. WSL2 may mount `/tmp` as a tmpfs with roughly 8 GB, which can fill during Receita shuffle or persistence even while the root filesystem has ample capacity.

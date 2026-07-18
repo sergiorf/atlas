@@ -6,10 +6,19 @@ import atlas.receita.ReceitaSchemas
 import atlas.status.RunStatusRegistry
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.Paths
 import org.apache.spark.sql.functions.col
 import org.scalatest.funsuite.AnyFunSuite
 
 class EstablishmentRebuildServiceTest extends AnyFunSuite with SparkSuite {
+  test("canonicalizes production-style relative staged status paths") {
+    val rewritten = EstablishmentRebuildService.rewritePath(
+      "data/_atlas/rebuild-staging/run/bronze/receita/estabelecimentos/release=2026-06",
+      Seq(Paths.get("data/_atlas/rebuild-staging/run/bronze/receita") -> Paths.get("data/bronze/receita"))
+    )
+    assert(rewritten === "data/bronze/receita/estabelecimentos/release=2026-06")
+  }
+
   test("rebuilds raw releases chronologically and quarantines the active generation") {
     val root = Files.createTempDirectory("atlas-full-rebuild")
     writeRaw(root, "2026-05", "old@example.com")

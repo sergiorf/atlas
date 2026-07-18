@@ -58,6 +58,8 @@ Then stage, validate, and activate the replacement:
 
 The command holds the establishment publication lock, builds under `data/_atlas/rebuild-staging`, and leaves the active generation unchanged until validation succeeds. The first selected release seeds current and has no history partition. Every later available release is compared with the preceding available release. At activation, Atlas moves the previous generated generation to timestamped `data/_atlas/_trash/.../full-establishments-rebuild` storage and promotes the staged generation. “Clean” therefore means removed from active paths, not permanently deleted. An in-process promotion failure restores the prior generation; a later invocation uses the transaction journal to restore an interrupted promotion before rebuilding.
 
+After the recovery window, inspect permanent-deletion eligibility with `./atlas releases purge-trash`. Full-rebuild backups are eligible only when every expected active replacement exists and active bronze, silver, and history statuses are complete, successful, canonical, and free of trash or rebuild-staging references. Use `--force` only after reviewing the dry-run decisions. Legacy full-rebuild trash may remain blocked until a later successful rebuild establishes complete canonical active status and manifest expectations; do not delete it manually merely because it is old.
+
 After success, verify operational state:
 
 ```bash
