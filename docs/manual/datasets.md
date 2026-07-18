@@ -10,6 +10,15 @@ release-to-release change events, and one analytical summary per published relea
 [dataset specification](../specs/datasets/receita-cnpj.md) and the implemented schemas in the
 [documentation index](../index.md#implemented-specifications).
 
-## Planned
+## Catalog status
 
-Municipality names, CNAE business groups, lead exports, other Receita file groups, IBGE/geography, sanctions, procurement, and other sources remain unsupported. Their intended sequence is documented in the [unified plan](../atlas_unified_plan.md#delivery-roadmap).
+The canonical [Dataset and source catalog](../source_catalog.md) uses three classes:
+
+- **Supported** means implemented behavior covered by an active specification. Today this is only
+  Receita CNPJ `Estabelecimentos`.
+- **Planned** means approved roadmap work through v0.6 that remains unsupported until implemented.
+- **Candidate** means a demand-dependent later source with no implementation commitment.
+
+The catalog contains the complete inventory, official source evidence, access and redistribution
+notes, and expected cadence. The [unified plan](../atlas_unified_plan.md#delivery-roadmap) remains
+the sole owner of priorities and sequencing.

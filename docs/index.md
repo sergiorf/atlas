@@ -6,7 +6,7 @@ Atlas documentation separates product direction, implemented contracts, user gui
 
 - [Atlas unified plan](atlas_unified_plan.md) — product direction, milestones, sequencing, and scope.
 - [Feature development workflow](feature_development_workflow.md) — proportional planning, implementation, and verification gates.
-- [Source catalog](source_catalog.md) — official inputs, ownership, licensing notes, and refresh assumptions.
+- [Dataset and source catalog](source_catalog.md) — canonical inventory of supported, planned, and candidate datasets, with official inputs, ownership, access, licensing notes, and refresh assumptions.
 - [Data product contract](data_product_contract.md) — global data-layer, lineage, reproducibility, and compatibility invariants.
 
 ## Learn and inspect Atlas

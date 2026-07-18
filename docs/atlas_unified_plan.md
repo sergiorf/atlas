@@ -2,6 +2,10 @@
 
 This is the canonical product and delivery plan for Atlas. Focused documents in this directory expand individual decisions, but this file owns the complete product direction, scope boundaries, dataset sequence, target data products, commercial model, and phased roadmap.
 
+The [Dataset and source catalog](source_catalog.md) is the canonical inventory of named inputs
+and their support status, access evidence, licensing notes, and refresh assumptions. Catalog
+entries do not change the priorities or sequencing owned here.
+
 ## Product thesis
 
 Atlas turns Brazilian public company data into clean company profiles, lead lists, public-data risk flags, procurement intelligence, and graph-ready market intelligence that can be sold through exports, API access, a user interface, and later a paid natural-language query assistant.
@@ -316,7 +320,7 @@ intended layer without bypassing a missing contract.
 
 - [Documentation index](index.md)
 - [Feature development workflow](feature_development_workflow.md)
-- [Source catalog](source_catalog.md)
+- [Dataset and source catalog](source_catalog.md)
 - [Data product contract](data_product_contract.md)
 - [Manual](manual/index.md)
 - [Receita CNPJ dataset specification](specs/datasets/receita-cnpj.md)

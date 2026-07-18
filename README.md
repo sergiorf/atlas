@@ -38,4 +38,7 @@ sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 - `docs/` - product direction, data contracts, user manual, operations, and roadmap decisions
 - `apps/etl/data/raw/receita/` - downloaded snapshots, protected and ignored by Git
 
-Start with the [documentation index](docs/index.md), see the canonical [Atlas unified plan](docs/atlas_unified_plan.md) for product direction, and use the [local ETL operations guide](docs/operations/local-etl.md) for commands and recovery procedures.
+Start with the [documentation index](docs/index.md), consult the canonical [Dataset and source
+catalog](docs/source_catalog.md) for the complete inventory, and use the [local ETL operations
+guide](docs/operations/local-etl.md) for commands and recovery procedures. The [Atlas unified
+plan](docs/atlas_unified_plan.md) remains the sole owner of product priority and sequencing.

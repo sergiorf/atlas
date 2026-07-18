@@ -1,20 +1,66 @@
-# Source catalog
+# Dataset and source catalog
 
-This catalog records source ownership, location, ingestion boundaries, and refresh assumptions. A listing does not by itself authorize implementation; the [unified plan](atlas_unified_plan.md) controls sequencing.
+This is Atlas's canonical inventory of public datasets and source families. The hierarchy is
+**publisher/source → dataset family → dataset or subdataset**; for example, Receita Federal →
+CNPJ → `Estabelecimentos`.
 
-## Receita Federal CNPJ — Estabelecimentos
+Catalog inclusion records research and product interest. It does not authorize implementation,
+change supported behavior, or override the [Atlas unified plan](atlas_unified_plan.md), which alone
+owns priority and sequencing. A planned or candidate input still needs a reviewed dataset
+specification and refresh contract before implementation.
 
-- **Status:** Implemented for bronze ingestion and silver establishment normalization
-- **Publisher:** Receita Federal do Brasil
-- **Official distribution:** `https://arquivos.receitafederal.gov.br/public.php/webdav` (the downloader's configured Receita WebDAV endpoint)
-- **Atlas input:** Monthly `Estabelecimentos` archives extracted beneath `apps/etl/data/raw/receita/<YYYY-MM>/estabelecimentos/extracted`
-- **Ownership:** Public source material remains owned and governed by its publisher; Atlas owns its code, contracts, transformations, and derived product logic.
-- **Licensing and redistribution:** Confirm current publisher terms before redistributing source or derived datasets. Runtime data is not committed to Git.
-- **Refresh assumption:** Monthly snapshots identified by `YYYY-MM`; refresh is currently operator-triggered, not scheduled.
-- **Acquisition boundary:** The operator-triggered Atlas CLI downloads only `Estabelecimentos` archives, resumes partial transfers, extracts safely, and records a manifest and raw pipeline status. It does not schedule refreshes or modify completed source bytes.
-- **Ingestion boundary:** Atlas reads only Estabelecimentos CSV files, produces source-faithful bronze Parquet, and derives the curated silver establishment table. Both derived stages emit quality reports.
-- **Specification:** [Receita CNPJ](specs/datasets/receita-cnpj.md)
+External source details were last verified against the linked official publisher pages on
+**2026-07-18**. “No access fee” describes the publisher's download or API, not permission to
+commercially redistribute source or derived data. Unless an official dataset-specific grant has
+been reviewed for Atlas, redistribution is marked **review required**.
 
-## Planned sources
+## Status classes
 
-Other Receita groups, IBGE geography, CNAE reference enrichment, sanctions, procurement, labor, trade, financial, macroeconomic, and judicial sources remain planned. See the [unified plan](atlas_unified_plan.md#dataset-strategy-and-sequencing). Add ownership, URLs, licensing review, refresh expectations, and an approved dataset specification here before implementing any of them.
+- **Supported:** implemented Atlas behavior covered by an active specification.
+- **Planned:** approved roadmap work through v0.6, but unsupported until implemented.
+- **Candidate:** demand-dependent later work with no implementation commitment.
+
+## Inventory
+
+The roadmap milestone is descriptive, not a delivery authorization. `TBD before implementation`
+means Atlas has deliberately not selected or contracted that input yet.
+
+| Publisher / family | Dataset or subdataset | Atlas purpose | Status / milestone | Access and cost | Expected publisher cadence | Redistribution | Official evidence | Atlas specification |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Receita Federal / CNPJ | `Estabelecimentos` | Establishment identity, status, CNAE, location, opening date, and contact foundation | **Supported** / v0.1 bronze; v0.2 silver and history | Public bulk ZIP download; no access fee | Monthly snapshots; Atlas refresh is operator-triggered | **Review required**; runtime data stays outside Git | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | [Receita CNPJ](specs/datasets/receita-cnpj.md) |
+| Receita Federal / CNPJ | `Empresas` | Root-level company identity and legal attributes | **Planned** / v0.3 | Public bulk ZIP download; no access fee | Monthly snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| Receita Federal / CNPJ | `Socios` | Partner relationships for company profiles and partner networks | **Planned** / v0.3 | Public bulk ZIP download; no access fee | Monthly snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| Receita Federal / CNPJ | `Simples` | Public tax-regime signals | **Planned** / v0.3 | Public bulk ZIP download; no access fee | Monthly snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| Receita Federal / CNPJ references | `CNAE` | Decode official activity codes; enable later versioned business groups | **Planned** / v0.2 reference enrichment; required by v0.3 company spine | Public bulk download; no access fee | Published with CNPJ snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| Receita Federal / CNPJ references | `Municipios` | Decode Receita municipality codes before geographic enrichment | **Planned** / v0.2 lookup support; required by v0.3 company spine | Public bulk download; no access fee | Published with CNPJ snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| Receita Federal / CNPJ references | `Naturezas Juridicas` | Decode company legal-nature codes | **Planned** / v0.3 | Public bulk download; no access fee | Published with CNPJ snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| Receita Federal / CNPJ references | `Paises` | Decode country codes used by company and partner records | **Planned** / v0.3 | Public bulk download; no access fee | Published with CNPJ snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| Receita Federal / CNPJ references | `Qualificacoes de Socios` | Decode partner-role and responsible-party codes | **Planned** / v0.3 | Public bulk download; no access fee | Published with CNPJ snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| Receita Federal / CNPJ references | `Motivos de Situacao Cadastral` | Decode registration-status reasons | **Planned** / v0.3 | Public bulk download; no access fee | Published with CNPJ snapshots | **Review required** | [CNPJ open-data catalog and metadata](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros), [official CNPJ layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf/@@download/file) | TBD before implementation |
+| IBGE / geography and reference data | Exact municipality, state, region, boundary, area, and population inputs **TBD before implementation** | Resolve geography and support normalized filters, population joins, density, and regional comparisons | **Planned** / v0.2 geography lookup through v0.4 aggregates | Official APIs and file downloads; no access fee | Product-dependent; municipal boundaries and areas are published annually, but the Atlas refresh contract is TBD | **Review required**; consult product-specific technical and legal notes | [IBGE territorial meshes](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/15774-malhas.html), [official geoscience calendar](https://www.ibge.gov.br/calendario/geocientificos) | TBD before implementation |
+| CGU / sanctions | CEIS | Explainable flags for ineligible and suspended entities | **Planned** / v0.5 | Portal da Transparência bulk download; no access fee | Publisher-controlled; Atlas refresh contract TBD | **Review required** | [CEIS download and data dictionary](https://portaldatransparencia.gov.br/download-de-dados/ceis) | TBD before implementation |
+| CGU / sanctions | CNEP | Explainable flags for entities punished under anti-corruption law | **Planned** / v0.5 | Portal da Transparência bulk download; no access fee | Publisher-controlled; Atlas refresh contract TBD | **Review required** | [CNEP download and data dictionary](https://portaldatransparencia.gov.br/download-de-dados/cnep) | TBD before implementation |
+| CGU / sanctions | CEPIM | Explainable flags for barred nonprofit entities | **Planned** / v0.5 | Portal da Transparência bulk download; no access fee | Publisher-controlled; Atlas refresh contract TBD | **Review required** | [CEPIM download and data dictionary](https://portaldatransparencia.gov.br/download-de-dados/cepim) | TBD before implementation |
+| MGI / public procurement | PNCP | Supplier, buyer, category, contract, date, and value intelligence | **Planned** / v0.6 | Public consultation API and downloadable open data; no login and no access fee | Continuously publisher-fed; Atlas snapshot and refresh contract TBD | **Review required** | [PNCP open data](https://www.gov.br/pncp/pt-br/acesso-a-informacao/dados-abertos), [official manuals](https://www.gov.br/pncp/pt-br/pncp/manuais) | TBD before implementation |
+| Ministry of Labour and Employment / PDET | RAIS public, non-identified statistics | Annual formal-employment context only; no employee-level or identified features | **Candidate** / Later | Public non-identified TXT microdata and web tables; no access fee for public downloads | Annual for consolidated RAIS statistics | **Review required** | [official RAIS and CAGED microdata page](https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/microdados-rais-e-caged) | TBD before implementation |
+| Ministry of Labour and Employment / PDET | CAGED public, non-identified statistics | Historical formal-employment movement context only; no employee-level or identified features | **Candidate** / Later | Public non-identified TXT microdata and web tables; no access fee for public downloads | Historical monthly series; exact Atlas coverage TBD | **Review required** | [official RAIS and CAGED microdata page](https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/microdados-rais-e-caged) | TBD before implementation |
+| Ministry of Labour and Employment / PDET | Novo CAGED public, non-identified statistics | Current formal-employment flow context only; no employee-level or identified features | **Candidate** / Later | Public non-identified TXT microdata and publications; no access fee | Monthly statistics | **Review required** | [official PDET overview](https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho), [Novo CAGED definition](https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/estatisticas-trabalho/o-pdet/o-que-e-o-novo-caged) | TBD before implementation |
+| MDIC / foreign trade | ComexStat | Sector, municipality, product, and country trade intelligence | **Candidate** / Later | Public CSV downloads and query service; no registration or access fee | Monthly | **Review required** | [official ComexStat open-data files](https://www.gov.br/mdic/pt-br/assuntos/comercio-exterior/estatisticas/base-de-dados-bruta), [official service description](https://www.gov.br/pt-br/servicos/consultar-estatisticas-oficiais-do-comercio-exterior-de-bens-brasileiro) | TBD before implementation |
+| CVM / capital markets | Exact public-company dataset **TBD before implementation** | Enrich listed and public companies, not provide financials for all private companies | **Candidate** / Later | Official open-data catalog; exact input and access method TBD before implementation | Dataset-dependent; TBD before implementation | **Review required** | [CVM open-data portal](https://www.gov.br/cvm/pt-br/acesso-a-informacao-cvm/dados-abertos/portal-dados-abertos) | TBD before implementation |
+| Banco Central do Brasil / macroeconomic data | Exact SGS or other public series **TBD before implementation** | Macroeconomic and regional credit-market context, not company-level bureau data | **Candidate** / Later | Official open-data downloads/APIs; exact series and access method TBD before implementation | Series-dependent; TBD before implementation | **Review required** | [BCB open-data portal](https://dadosabertos.bcb.gov.br/) | TBD before implementation |
+| CNJ / judicial data | Exact DataJud/CNJ input **TBD before implementation** | Potential aggregate judicial context, subject to separate legal, ethical, product-risk, and technical review | **Candidate** / Later | DataJud public API uses a publisher-provided public key; no access fee stated | Publisher-controlled; TBD before implementation | **Review required**; DataJud terms and privacy limits require review | [DataJud public API](https://datajud-wiki.cnj.jus.br/api-publica/), [official access documentation](https://datajud-wiki.cnj.jus.br/api-publica/acesso/) | TBD before implementation |
+
+## Implementation and data boundaries
+
+Only Receita CNPJ `Estabelecimentos` is supported. Its detailed input, acquisition, refresh,
+lineage, and output behavior remains owned by the [Receita CNPJ dataset
+specification](specs/datasets/receita-cnpj.md) and its linked schema and quality contracts.
+
+All other rows are unsupported. Before any planned or candidate row can be implemented, Atlas
+must select the exact input where still broad, review access and redistribution terms, define a
+versioned dataset specification and refresh contract, analyze compatibility and data movement,
+and obtain roadmap authorization for that phase.
+
+Identified RAIS or CAGED data is explicitly out of scope. Atlas may evaluate only public,
+non-identified labor statistics; access procedures for identified records do not make their use
+an Atlas candidate.

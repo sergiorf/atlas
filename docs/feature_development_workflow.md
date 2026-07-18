@@ -8,6 +8,10 @@ The default path for substantial work is:
 
 The workflow applies to humans and coding agents. It does not require a particular planning tool, worktree strategy, commit cadence, or use of subagents.
 
+The [Dataset and source catalog](source_catalog.md) is the canonical inventory for source status,
+official access evidence, licensing notes, and refresh assumptions. Its inclusion of a dataset does
+not replace roadmap alignment or authorize implementation.
+
 ## Classify the change
 
 ### Trivial fix
@@ -99,7 +103,7 @@ Do not claim completion from inspection alone when executable verification exist
 Update every applicable owner with the implementation:
 
 - `docs/manual/` for purpose, examples, behavior, freshness, quality expectations, and limitations;
-- `docs/source_catalog.md` for inputs, licensing notes, refresh assumptions, and ingestion boundaries;
+- the canonical [Dataset and source catalog](source_catalog.md) for inputs, support status, official access evidence, licensing notes, refresh assumptions, and ingestion boundaries;
 - `docs/specs/datasets/` for source interpretation;
 - `docs/specs/schemas/` for fields, types, keys, partitions, nullability, and meaning;
 - `docs/specs/quality/` for validation, completeness, diagnostics, and failure behavior;
