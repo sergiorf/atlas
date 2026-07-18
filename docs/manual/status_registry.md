@@ -1,8 +1,21 @@
-# Medallion status registry
+# Local run-status registry
 
 The local status registry reports which dataset snapshot and layer last ran, whether it succeeded, when it finished, how many rows were known, and where its output belongs. It gives future operational tooling and a future dashboard a stable file contract without introducing a database or web application.
 
-Atlas uses the direction `raw -> bronze -> silver -> history/gold -> serving/index`. Today, Receita establishments have implemented raw acquisition, bronze, latest silver current, and compact selected field-level history deltas. These jobs record status. Gold, serving/index, and a web dashboard remain roadmap work; their absence must not be interpreted as failed runs.
+Status follows the implemented pipeline structure:
+
+```text
+raw -> bronze -> silver latest current
+                  |-> change events
+                  `-> release summaries
+
+future: gold -> serving/index
+```
+
+Today, Receita establishments have implemented raw acquisition, bronze, latest silver current,
+compact selected field-level history deltas, and release summaries. Instrumented jobs record
+status; release summaries are durable analytical data rather than status records. Gold,
+serving/index, and a web dashboard remain roadmap work, so their absence is not a failed run.
 
 From `apps/etl`, list recorded runs with:
 
@@ -20,6 +33,19 @@ From the repository root, use:
 The command reads `data/_atlas/status` and prints source, dataset, snapshot, layer, status, output rows, raw archive/byte/extraction metrics, compact signed delta/insert/update/remove metrics when available, quarantined rows, warning types, finish time, and output path. It starts no Spark session. Missing additive fields in older records display as zero/`-`. A custom registry root can be set with `ATLAS_STATUS_DIR` or a custom configuration file.
 
 Registry files follow `data/_atlas/status/<source>/<dataset>/<snapshot>/<layer>.json`. For example: `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`.
+
+Current identifiers intentionally reflect existing job contracts:
+
+| Operation | `source` | `dataset` | `layer` |
+| --- | --- | --- | --- |
+| Raw acquisition | `receita` | `estabelecimentos` | `raw` |
+| Bronze ingestion | `receita` | `estabelecimentos` | `bronze` |
+| Silver normalization/publication | `receita` | `establishments` | `silver` |
+| Compact change history | `receita` | `estabelecimentos_history` | `history` |
+
+The Portuguese source identifier and English silver identifier are established internal status
+identities. Consumers should use the full tuple rather than infer data-layer semantics from the
+dataset spelling.
 
 Successful refreshes and full rebuilds also record `receita / establishments / <release> / silver` with `data/silver/receita/establishments_current` as the output. Rebuild status paths name active locations after promotion; the temporary rebuild UUID is never retained in activated status metadata.
 

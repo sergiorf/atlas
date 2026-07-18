@@ -17,4 +17,4 @@ This catalog records source ownership, location, ingestion boundaries, and refre
 
 ## Planned sources
 
-Other Receita groups, IBGE geography, CNAE reference enrichment, sanctions, procurement, labor, trade, financial, macroeconomic, and judicial sources remain planned. See the [dataset roadmap](roadmap/datasets.md). Add ownership, URLs, licensing review, refresh expectations, and an approved dataset specification here before implementing any of them.
+Other Receita groups, IBGE geography, CNAE reference enrichment, sanctions, procurement, labor, trade, financial, macroeconomic, and judicial sources remain planned. See the [unified plan](atlas_unified_plan.md#dataset-strategy-and-sequencing). Add ownership, URLs, licensing review, refresh expectations, and an approved dataset specification here before implementing any of them.

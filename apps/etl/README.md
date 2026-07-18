@@ -1,6 +1,6 @@
 # Atlas ETL
 
-Local Scala/Spark ingestion, silver normalization, and compact release-to-release history for Receita Federal CNPJ `estabelecimentos`. Bronze uses explicit string-first parsing and provenance; silver provides a curated latest establishment table plus selected field deltas.
+Local Scala/Spark ingestion, silver normalization, and compact release-to-release history for Receita Federal CNPJ `estabelecimentos`. Bronze uses explicit string-first parsing and provenance; silver provides a curated latest establishment table, selected field deltas, and per-release summaries.
 
 See the repository [getting-started manual](../../docs/manual/getting-started.md), [Receita dataset specification](../../docs/specs/datasets/receita-cnpj.md), [status registry manual](../../docs/manual/status_registry.md), and [local operations guide](../../docs/operations/local-etl.md) for the supported contract and operational details.
 
@@ -39,7 +39,7 @@ The committed raw-path template is `data/raw/receita/2026-06/estabelecimentos/ex
 
 Bronze attempts write the latest status to `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`; silver uses `data/_atlas/status/receita/establishments/2026-06/silver.json`. Override the snapshot with `ATLAS_RECEITA_SNAPSHOT` and the registry root with `ATLAS_STATUS_DIR`. The status command reads these small JSON files without starting Spark and distinguishes clean success from `success_with_warnings`.
 
-Ingestion writes release-scoped reports under `data/_atlas/reports/receita/estabelecimentos/<snapshot>/bronze`. Normalization writes reports under the sibling `silver` directory. The refresh command keeps only the latest full normalized table and stores older differences as selected field deltas to avoid keeping full historical silver copies on a 1 TB laptop.
+Ingestion writes release-scoped reports under `data/_atlas/reports/receita/estabelecimentos/<snapshot>/bronze`. Normalization writes reports under the sibling `silver` directory. The refresh command keeps only the latest full normalized table, stores older differences as selected field deltas, and writes one analytical summary per published release. It does not keep full historical silver copies.
 
 Malformed silver candidates are quarantined beneath `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows` and excluded before uniqueness validation. Duplicate valid CNPJ identifiers are reported in the sibling `duplicate_cnpj_full` directory and reject publication before the existing silver table is replaced.
 

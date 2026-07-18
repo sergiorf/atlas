@@ -9,11 +9,16 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Source catalog](source_catalog.md) — official inputs, ownership, licensing notes, and refresh assumptions.
 - [Data product contract](data_product_contract.md) — global data-layer, lineage, reproducibility, and compatibility invariants.
 
-## Use and operate Atlas
+## Learn and inspect Atlas
 
 - [Manual](manual/index.md)
+- [Getting started](manual/getting-started.md)
 - [Data layers](manual/data_layers.md)
-- [Medallion status registry](manual/status_registry.md)
+- [Local run-status registry](manual/status_registry.md)
+- [Querying Atlas](manual/querying-atlas.md)
+
+## Operate Atlas
+
 - [Local ETL operations](operations/local-etl.md)
 - [Refresh runbook](operations/refresh-runbook.md)
 - [Troubleshooting](operations/troubleshooting.md)
@@ -32,4 +37,5 @@ Atlas documentation separates product direction, implemented contracts, user gui
 
 ## Planned work
 
-Future datasets, gold tables, serving, graph, and AI designs live under [`roadmap/`](roadmap/release-roadmap.md). They describe direction rather than supported behavior.
+The [roadmap pointer](roadmap/release-roadmap.md) leads to the unified plan, which is the only
+owner of future sequencing. Planned material describes direction rather than supported behavior.

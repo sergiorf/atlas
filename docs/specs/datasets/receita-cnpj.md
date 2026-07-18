@@ -20,7 +20,7 @@ Inputs are one or more extracted files matched beneath the configured raw direct
 
 - Blank strings become null after trimming.
 - CNPJ root, branch, and check components retain digits, are left-padded to 8, 4, and 2 positions, and form `cnpj_full`.
-- CNPJ validation in v0.1 checks only the resulting 14-character length; it does not validate check digits.
+- Bronze CNPJ validation checks only the resulting 14-character length; it does not validate check digits.
 - `headquarters_branch_code = "1"` produces `is_headquarters = true`; other non-null values produce false and null produces null under Spark comparison semantics.
 - Registration-status, opening, and special-status dates parse only eight-digit `yyyyMMdd` values; other values become null.
 - `source_file` comes from Spark's input filename, and `ingestion_timestamp` is the processing time.

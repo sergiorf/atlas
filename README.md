@@ -6,7 +6,7 @@ Atlas uses a medallion-style raw -> bronze -> silver -> gold -> serving/index da
 
 ## Current scope
 
-`apps/etl` reads the raw Receita snapshot, writes release-scoped bronze Parquet, builds the latest curated silver establishment table, produces JSON and Markdown quality reports, records run status as local JSON metadata, and stores selected field-level history deltas. Municipality enrichment, CNAE business groups, lead exports, API, UI, indexing, AI, sanctions, procurement, and other Receita datasets remain roadmap items.
+`apps/etl` reads the raw Receita snapshot, writes release-scoped bronze Parquet, builds the latest curated silver establishment table, produces JSON and Markdown quality reports, records run status as local JSON metadata, and stores selected field-level history deltas plus per-release summaries. Municipality enrichment, CNAE business groups, lead exports, API, UI, indexing, AI, sanctions, procurement, and other Receita datasets remain roadmap items.
 
 ## Atlas local CLI
 
@@ -38,4 +38,4 @@ sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 - `docs/` - product direction, data contracts, user manual, operations, and roadmap decisions
 - `apps/etl/data/raw/receita/` - downloaded snapshots, protected and ignored by Git
 
-Start with the [documentation index](docs/index.md), see the canonical [Atlas unified plan](docs/atlas_unified_plan.md) for product direction, read the [status registry manual](docs/manual/status_registry.md), and use [apps/etl/README.md](apps/etl/README.md) for commands. Raw data was migrated intact to `apps/etl/data/raw/receita/2026-06`; its incomplete `.part` archive remains resumable.
+Start with the [documentation index](docs/index.md), see the canonical [Atlas unified plan](docs/atlas_unified_plan.md) for product direction, and use the [local ETL operations guide](docs/operations/local-etl.md) for commands and recovery procedures.

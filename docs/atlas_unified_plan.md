@@ -66,7 +66,7 @@ The monorepo grows around clear responsibilities:
 - `docs`: product direction, data contracts, user guidance, operations, and roadmap decisions;
 - `infra`: future deployment assets only when deployment becomes an active phase.
 
-Only `apps/etl` and documentation are implemented in v0.1. Documenting future components does not authorize building them early.
+Only `apps/etl` and documentation exist today. Documenting future components does not authorize building them early.
 
 ## Data layers and product contract
 
@@ -183,73 +183,34 @@ The assistant translates natural language into a constrained, validated JSON que
 
 Example future intents include active software companies opened this month in Recife, sanctioned suppliers in a state, or procurement-active companies in a sector. The deterministic query layer—not the model—owns data access semantics.
 
-## v0.1 ETL scope
+## Current implementation boundary
 
-The first milestone is deliberately narrow:
+Atlas currently acquires operator-selected monthly Receita `Estabelecimentos` archives and processes
+them through bronze and the first v0.2 silver slice. The implemented workflow provides:
 
-1. Load HOCON configuration.
-2. Start a local Spark session.
-3. Read one or more Receita Estabelecimentos CSV files with an explicit string-first schema.
-4. Use Receita-compatible delimiter, header, quote, and configurable encoding options.
-5. Normalize CNPJ components and create `cnpj_full` and `is_headquarters`.
-6. Add source name, source file, and ingestion timestamp.
-7. Write state-partitioned bronze Parquet.
-8. Produce JSON and Markdown quality reports.
-9. Supply DuckDB examples and product/architecture documentation.
+- restartable raw acquisition with manifests and raw-stage status;
+- release-scoped, state-partitioned bronze Parquet and diagnostic quality reports;
+- a validated latest-current silver establishment table;
+- quarantine and publication gates for malformed and duplicate identifiers;
+- compact selected-field change events and one analytical summary per published release;
+- release inventory, guarded derived-data cleanup, chronological rebuild, and local status commands;
+- DuckDB guidance for local inspection.
 
-The command contract from `apps/etl` is:
+Refresh never initiates network I/O. Operators acquire and inspect immutable raw input before
+publishing derived state. Exact fields, paths, quality behavior, commands, and recovery procedures
+belong to the implemented [specifications](index.md#implemented-specifications) and
+[operations guides](operations/local-etl.md), rather than this product plan.
 
-```bash
-sbt compile
-sbt test
-sbt "runMain atlas.Main ingest-receita-estabelecimentos"
-```
-
-From the repository root, Atlas also owns the restartable raw acquisition entry point:
-
-```bash
-./atlas download receita estabelecimentos --release 2026-06
-```
-
-The downloader remains a small Python component inside `apps/etl`, but the Atlas CLI invokes it,
-extracts by default, and records raw-stage status. Refresh deliberately does not initiate network
-I/O: operators can inspect the immutable local snapshot before publishing derived data.
-
-v0.1 does not implement Empresas, Socios, Simples, sanctions, PNCP, API, UI, search, AI, billing, dashboards, Docker, cloud deployment, streaming, or orchestration platforms.
-
-## Bronze establishment contract
-
-The explicit source schema covers CNPJ components, headquarters/branch code, trade name, registration status and date/reason, foreign city and country, opening date, primary and secondary CNAEs, address, postal code, state and municipality code, phones, fax, email, and special status/date.
-
-Normalized bronze adds:
-
-- `cnpj_full`;
-- `is_headquarters`;
-- `source_name`;
-- `source_file`;
-- `ingestion_timestamp`.
-
-Bronze output is stored under `apps/etl/data/bronze/receita/estabelecimentos/release=YYYY-MM` relative to the monorepo, with practical state partitioning that avoids excessive tiny files. Latest silver current is stored as one full normalized table; older establishment history is represented by selected field deltas rather than full historical copies.
-
-## Data quality policy
-
-Data quality is customer-facing product behavior, not an afterthought. Every job reports at least:
-
-- dataset name;
-- input and output paths;
-- row count;
-- invalid CNPJ-length count when applicable;
-- null mandatory identifiers;
-- null opening dates and primary CNAEs for establishments;
-- run timestamp.
-
-v0.1 writes machine-readable JSON and a human-readable Markdown summary beside the bronze dataset. Later stages add uniqueness, referential integrity, domain-code, freshness, and cross-source reconciliation checks.
+Municipality lookup, CNAE business groups, lead exports, other Receita groups, gold, serving,
+API, UI, search, AI, billing, sanctions, procurement, Docker, cloud deployment, streaming, and
+orchestration platforms remain outside the implemented boundary.
 
 ## Raw-data safety and migration
 
 Raw public files are large, local, and never committed. They must not be deleted or overwritten during code or layout changes. Moves require source/destination inspection, conflict checks, and post-move file-count and byte-count verification. Interrupted `.part` files remain resumable.
 
-The existing 2026-06 snapshot was moved intact to `apps/etl/data/raw/receita/2026-06`, including its partial archive. Future downloads default to the same Receita raw-data hierarchy.
+The default local hierarchy stores monthly snapshots beneath `apps/etl/data/raw/receita/<YYYY-MM>`.
+Operational migration or recovery details belong in the refresh runbook, not in the product plan.
 
 ## Laptop and operational constraints
 
@@ -284,8 +245,9 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 
 ### v0.2 — normalized establishments and first lead export
 
-- build silver establishment normalization — implemented as the first v0.2 slice;
-- add local CLI, release status, lifecycle controls, and compact establishment change events;
+- build silver establishment normalization — implemented;
+- add local CLI, release status, lifecycle controls, compact establishment change events, and
+  release summaries — implemented;
 - add municipality lookup support;
 - operationalize CNAE group filters;
 - ship the first export-leads command.
@@ -346,7 +308,9 @@ A phase is complete only when its documented commands work, tests use small in-m
 
 Every feature follows the repository [feature development workflow](feature_development_workflow.md): classify, inspect, design and plan proportionately, implement a coherent slice, test, document, compare against the plan, and report evidence and unverified items. Scope may not silently expand into a later phase.
 
-For v0.1 specifically, done means the ingestion command loads configuration, starts local Spark, reads configured Estabelecimentos files, applies the explicit schema, constructs normalized CNPJ fields, adds metadata, writes bronze Parquet, and emits both quality reports. The required DuckDB bronze example must read the resulting Parquet.
+Completed milestones retain their implemented specifications and verification evidence. Active
+milestones are complete only when their documented product question can be answered from the
+intended layer without bypassing a missing contract.
 
 ## Supporting documents
 
@@ -357,9 +321,4 @@ For v0.1 specifically, done means the ingestion command loads configuration, sta
 - [Manual](manual/index.md)
 - [Receita CNPJ dataset specification](specs/datasets/receita-cnpj.md)
 - [Local ETL operations](operations/local-etl.md)
-- [Future datasets](roadmap/datasets.md)
-- [Future gold tables](roadmap/gold-tables.md)
-- [Future serving layer](roadmap/serving-layer.md)
-- [Future graph aggregates](roadmap/graph-aggregates.md)
-- [Future AI query assistant](roadmap/ai-query-assistant.md)
 - [Release roadmap](roadmap/release-roadmap.md)
