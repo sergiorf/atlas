@@ -1,6 +1,7 @@
 package atlas.release
 
-final case class ReleaseId private (value: String) extends AnyVal {
+final case class ReleaseId private (value: String) extends Ordered[ReleaseId] {
+  override def compare(that: ReleaseId): Int = value.compareTo(that.value)
   override def toString: String = value
 }
 

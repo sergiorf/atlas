@@ -4,6 +4,7 @@ import atlas.common.DatasetPaths
 import atlas.config.AtlasConfig
 import atlas.receita.{SilverEstablishmentJob, SilverQualityReport}
 import atlas.release.ReleasePaths
+import atlas.release.ReleaseId
 import atlas.status.{RunStatus, RunStatusRegistry}
 import java.nio.file.Paths
 import java.time.{Duration, Instant}
@@ -23,6 +24,10 @@ final case class HistoryResult(
 )
 
 object EstablishmentHistoryJob {
+  sealed trait CurrentRelease
+  case object NoCurrent extends CurrentRelease
+  case object LegacyCurrent extends CurrentRelease
+  final case class KnownCurrent(release: ReleaseId) extends CurrentRelease
   val TrackedFields: Seq[String] = Seq(
     "is_headquarters",
     "trade_name",
@@ -54,7 +59,50 @@ object EstablishmentHistoryJob {
     "special_status_date"
   )
 
-  def refresh(spark: SparkSession, config: AtlasConfig): HistoryResult = {
+  def validateAdvance(
+      spark: SparkSession,
+      config: AtlasConfig,
+      allowLegacyCurrent: Boolean = false
+  ): CurrentRelease = {
+    val paths = ReleasePaths(config)
+    if (!parquetExists(spark, paths.silverCurrent.toString)) NoCurrent
+    else {
+      val current = spark.read.parquet(paths.silverCurrent.toString)
+      if (!current.columns.contains("release")) {
+        if (!allowLegacyCurrent)
+          throw new IllegalStateException(
+            "Current establishments table has no release metadata; rerun with --allow-legacy-current " +
+              "only after verifying that the candidate is newer"
+          )
+        LegacyCurrent
+      } else {
+        val values = current.select("release").distinct().limit(2).collect().map(_.getAs[String](0)).toSeq
+        if (values.size != 1 || values.head == null)
+          throw new IllegalStateException("Current establishments table must contain exactly one non-null release")
+        val currentRelease = ReleaseId.parse(values.head).fold(message => throw new IllegalStateException(message), identity)
+        val candidate = ReleaseId.unsafe(config.receita.snapshot)
+        if (candidate <= currentRelease)
+          throw new IllegalStateException(
+            s"Refusing non-monotonic establishment refresh: candidate $candidate must be newer than current $currentRelease"
+          )
+        KnownCurrent(currentRelease)
+      }
+    }
+  }
+
+  def recordRejected(config: AtlasConfig, error: Throwable): Unit = {
+    val startedAt = Instant.now()
+    RunStatusRegistry.write(
+      Paths.get(config.statusDir),
+      status(config, ReleasePaths(config), startedAt, "failed", None, None, Some(error))
+    )
+  }
+
+  def refresh(
+      spark: SparkSession,
+      config: AtlasConfig,
+      allowLegacyCurrent: Boolean = false
+  ): HistoryResult = {
     val startedAt = Instant.now()
     val releasePaths = ReleasePaths(config)
     val silverPaths = DatasetPaths.silverEstablishments(config)
@@ -62,6 +110,7 @@ object EstablishmentHistoryJob {
     var report: Option[SilverQualityReport] = None
     var result: Option[HistoryResult] = None
     try {
+      validateAdvance(spark, config, allowLegacyCurrent)
       val prepared = SilverEstablishmentJob.prepare(spark.read.parquet(candidatePaths.input))
       val quality = SilverEstablishmentJob.validateAndPublish(prepared, candidatePaths) { data =>
         data.withColumn("release", lit(config.receita.snapshot))
@@ -82,6 +131,10 @@ object EstablishmentHistoryJob {
 
         publishCurrent(spark, candidate, releasePaths.silverCurrent.toString)
         result = Some(computed)
+        RunStatusRegistry.write(
+          Paths.get(config.statusDir),
+          silverStatus(config, releasePaths, silverPaths, startedAt, quality, computed)
+        )
         RunStatusRegistry.write(
           Paths.get(config.statusDir),
           status(config, releasePaths, startedAt, "success", report, Some(computed))
@@ -223,6 +276,27 @@ object EstablishmentHistoryJob {
       Seq.empty, Some("1"), Some(config.spark.appName), Some("refresh-receita-estabelecimentos"),
       error.map(_.getClass.getName), error.flatMap(value => Option(value.getMessage)),
       report.map(_.validRowCount), result.map(_.currentRowCount), report.map(_.malformedRowCount)
+    )
+  }
+
+  private def silverStatus(
+      config: AtlasConfig,
+      paths: ReleasePaths,
+      silverPaths: DatasetPaths,
+      startedAt: Instant,
+      report: SilverQualityReport,
+      result: HistoryResult
+  ): RunStatus = {
+    val finishedAt = Instant.now()
+    val warnings = SilverEstablishmentJob.qualityWarnings(report, silverPaths)
+    RunStatus(
+      "receita", "establishments", config.receita.snapshot, "silver",
+      if (warnings.isEmpty) "success" else "success_with_warnings",
+      startedAt, finishedAt, Duration.between(startedAt, finishedAt).toNanos / 1000000000.0,
+      Some(result.currentRowCount), Seq(paths.bronzeRelease.toString), Some(paths.silverCurrent.toString),
+      Seq("state"), Some("1"), Some(config.spark.appName), Some("refresh-receita-estabelecimentos"),
+      inputRowCount = Some(report.rowCount), outputRowCount = Some(result.currentRowCount),
+      quarantinedRowCount = Some(report.malformedRowCount), qualityWarnings = warnings
     )
   }
 }

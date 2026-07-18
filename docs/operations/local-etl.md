@@ -20,11 +20,13 @@ From the repository root, the same local operations are available through the sh
 ./atlas ingest receita estabelecimentos
 ./atlas normalize receita estabelecimentos
 ./atlas refresh receita estabelecimentos --release 2026-07
+./atlas refresh receita estabelecimentos --release 2026-07 --memory 10G
+./atlas releases rebuild-establishments --from-release 2026-05 --to-release 2026-07
 ./atlas status
 ./atlas status --json
 ```
 
-Configuration is in `conf/application.conf`. Override raw, bronze, and silver paths with `ATLAS_RECEITA_RAW_DIR`, `ATLAS_RECEITA_BRONZE_DIR`, and `ATLAS_RECEITA_SILVER_DIR`. `ATLAS_RECEITA_SNAPSHOT` identifies the operator-selected release internally; the root CLI exposes the same value as `--release YYYY-MM`. When the configured raw directory contains a `YYYY-MM` path segment, Atlas replaces that segment with the selected release, so the default layout reads `data/raw/receita/<release>/estabelecimentos/extracted`. A custom raw directory without a date segment is used unchanged. Confirm the resolved input path in the bronze status or quality report after every run. `ATLAS_STATUS_DIR` overrides the default `data/_atlas/status` root. Spark master, shuffle partitions, local directory, CSV delimiter and encoding, and write mode are configuration-owned. For constrained runs, pass suitable sbt JVM options; a production laptop run may use `sbt -J-Xmx24G ...`.
+Configuration is in `conf/application.conf`. Override raw, bronze, and silver paths with `ATLAS_RECEITA_RAW_DIR`, `ATLAS_RECEITA_BRONZE_DIR`, and `ATLAS_RECEITA_SILVER_DIR`. `ATLAS_RECEITA_SNAPSHOT` identifies the operator-selected release internally; the root CLI exposes the same value as `--release YYYY-MM`. When the configured raw directory contains a `YYYY-MM` path segment, Atlas replaces that segment with the selected release, so the default layout reads `data/raw/receita/<release>/estabelecimentos/extracted`. A custom raw directory without a date segment is used unchanged. Confirm the resolved input path in the bronze status or quality report after every run. `ATLAS_STATUS_DIR` overrides the default `data/_atlas/status` root. Spark master, shuffle partitions, local directory, CSV delimiter and encoding, and write mode are configuration-owned. For constrained runs, `--memory SIZE` sets the maximum heap of the forked ETL JVM without enlarging the sbt launcher; sizes use JVM notation such as `10G` or `8192M`.
 
 Spark local storage defaults to `spark-tmp` relative to `apps/etl`. Spark uses this directory for shuffle spill, cached blocks, and other temporary working data, so keep it on a filesystem with ample free space. In WSL2, do not point it at `/tmp`: that path may be a tmpfs of only a few gigabytes even when the WSL root filesystem has hundreds of gigabytes free. Override the default with `ATLAS_SPARK_LOCAL_DIR=/home/<user>/spark-tmp` or set `atlas.spark.local-dir` in a custom HOCON file.
 
@@ -52,3 +54,7 @@ Raw Receita files under `data/raw` are protected. Derived bronze, silver work ta
 ## Change history storage
 
 `./atlas refresh receita estabelecimentos --release YYYY-MM` ingests a release, normalizes it, compares it with the latest silver current table, writes compact selected field deltas, and publishes the new latest current table. The first release seeds the current table and does not emit one insert event per establishment. Atlas stores only selected old/new field values in history, not full previous records, to fit the local 1 TB laptop constraint.
+
+Refresh accepts only a release newer than current. Equal or older releases fail without changing current or history. `./atlas normalize receita estabelecimentos --release YYYY-MM` writes only the release-scoped candidate beneath `data/_atlas/work`; it cannot bypass publication ordering.
+
+For a complete raw-to-history recreation, use `releases rebuild-establishments` as documented in the [refresh runbook](refresh-runbook.md). It stages a complete replacement, quarantines every active generated establishment output after validation, and preserves raw files. `sbt clean` is unrelated to dataset cleanup.

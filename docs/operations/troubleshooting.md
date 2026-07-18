@@ -10,9 +10,21 @@ Keep `.part` files and rerun the downloader so it can resume. Do not delete or r
 
 ## Out of memory or excessive disk use
 
-Confirm free disk space, reduce unrelated workloads, choose suitable sbt `-J-Xmx` settings, and inspect Spark temporary directories. Do not solve memory pressure by collecting the dataset locally. Review shuffle partitions and storage changes as contract-affecting work when they alter operational guarantees.
+Confirm free disk space, reduce unrelated workloads, choose a suitable forked ETL heap with `./atlas ... --memory SIZE`, and inspect Spark temporary directories. For example, a machine with 16 GiB RAM may use `--memory 10G`, leaving capacity for the operating system, sbt, and Spark overhead. Do not solve memory pressure by collecting the dataset locally. Review shuffle partitions and storage changes as contract-affecting work when they alter operational guarantees.
 
 The refresh pipeline persists its large candidate and change-event intermediates with disk-only storage. A stack trace through `InMemoryRelation`, `DefaultCachedBatchSerializer`, and `MemoryStore.putIterator` indicates an older build still using memory-backed history caches; rebuild before retrying. Ingest and refresh may share one Spark session, but the ingest intermediate is unpersisted before normalization begins.
+
+## Refresh release is not newer than current
+
+Atlas refuses equal or older refreshes because they would reverse or rewrite compact history. Confirm current with `./atlas status` and a `SELECT DISTINCT release` query against `establishments_current`. Use the next release for routine refresh. If history is already inconsistent, use the guarded full rebuild in the refresh runbook rather than moving Parquet directories manually.
+
+A current table without a `release` column is legacy output. Prefer a full rebuild from known raw releases. Use `--allow-legacy-current` only after independently confirming that the candidate is newer; Atlas cannot infer the earlier release and records null `from_release` values for that migration.
+
+## Rebuild lock or interrupted promotion
+
+Refresh and full rebuild share `data/_atlas/locks/receita-estabelecimentos-current.lock`. Wait for the active process to finish; do not delete a lock used by a running JVM. Operating-system locks are released when a process exits.
+
+Full rebuild writes a transaction journal only during activation. A subsequent forced rebuild restores an interrupted promotion from its timestamped backup before starting. If Atlas reports a malformed journal, stop and inspect `data/_atlas/transactions/establishments-rebuild.tsv`, the named staging directory, and the named trash directory; do not delete any of them until active current and history have been verified.
 
 ## No space left on device in Spark DiskStore
 

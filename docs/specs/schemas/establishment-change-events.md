@@ -22,3 +22,5 @@ Atlas stores compact selected field deltas for release-to-release changes. It do
 Tracked fields are the normalized lead-relevant establishment fields: status, opening date, CNAEs, location, address, trade name, contact fields, special status, and headquarters flag. Volatile provenance fields such as source file and processing timestamps do not trigger change events.
 
 The first release seeds the latest current table and does not emit one insert event per establishment. History comparison is local Spark/Parquet work and must not compare raw CSV files directly.
+
+Normal refresh requires `to_release` to be strictly newer than current. Calendar gaps are allowed: `from_release` identifies the preceding locally published release, not necessarily the preceding month. A full rebuild orders every available raw release in its explicit inclusive range, omits a history partition for the seed release, and replaces the active history generation only after staged validation succeeds.

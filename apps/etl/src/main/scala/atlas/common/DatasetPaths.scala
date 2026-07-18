@@ -36,7 +36,7 @@ object DatasetPaths {
     val quality = atlasRoot.resolve("quality/receita/establishments").resolve(c.snapshot)
     DatasetPaths(
       paths.bronzeRelease.toString,
-      paths.silverCurrent.toString,
+      paths.silverCandidate.toString,
       paths.silverReports.resolve("quality.json").toString,
       paths.silverReports.resolve("quality.md").toString,
       quality.resolve("malformed_rows").toString,

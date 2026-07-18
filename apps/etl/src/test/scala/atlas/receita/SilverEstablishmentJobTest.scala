@@ -3,6 +3,7 @@ package atlas.receita
 import atlas.SparkSuite
 import atlas.common.DatasetPaths
 import atlas.config.{AtlasConfig, CsvConfig, ReceitaConfig, SparkConfig}
+import atlas.release.ReleasePaths
 import atlas.status.RunStatusRegistry
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -158,6 +159,7 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
 
     val report = SilverEstablishmentJob.run(spark, config)
     val status = RunStatusRegistry.readFile(statusDir.resolve("receita/establishments/2026-06/silver.json"))
+    val candidate = ReleasePaths(config).silverCandidate
 
     assert(report.malformedRowCount === 1)
     assert(status.status === "success_with_warnings")
@@ -165,6 +167,9 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
     assert(status.outputRowCount.contains(1L))
     assert(status.quarantinedRowCount.contains(1L))
     assert(status.qualityWarnings.map(_.warningType) === Seq("malformed_rows"))
+    assert(status.outputPath.contains(candidate.toString))
+    assert(spark.read.parquet(candidate.toString).count() === 1)
+    assert(!Files.exists(silverDir.resolve("establishments_current")))
 
     bronzeFixture().unionByName(bronzeFixture())
       .write.mode("overwrite").parquet(bronzeDir.resolve("estabelecimentos/release=2026-06").toString)
@@ -172,7 +177,7 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
     val failed = RunStatusRegistry.readFile(statusDir.resolve("receita/establishments/2026-06/silver.json"))
     assert(failed.status === "failed")
     assert(failed.qualityWarnings.map(_.warningType) === Seq("duplicate_cnpj_full"))
-    assert(spark.read.parquet(silverDir.resolve("establishments_current").toString).count() === 1)
+    assert(spark.read.parquet(candidate.toString).count() === 1)
   }
 
   private def qualityPaths(root: java.nio.file.Path): DatasetPaths = DatasetPaths(

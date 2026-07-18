@@ -4,13 +4,23 @@ import atlas.common.SparkSessionFactory
 import atlas.config.AtlasConfig
 import atlas.history.EstablishmentHistoryJob
 import atlas.receita.ReceitaIngestJob
-import atlas.release.{ReleaseDropService, ReleaseId, ReleaseInventoryService, ReleaseLayer, StaleDerivedCleanupService}
+import atlas.release.{EstablishmentRebuildService, PublicationLock, ReleaseDropService, ReleaseId, ReleaseInventoryService, ReleaseLayer, StaleDerivedCleanupService}
 import atlas.receita.SilverEstablishmentJob
 import atlas.status.{RunStatusRegistry, StatusTable}
 import java.nio.file.Paths
 
 object Main {
-  private[atlas] final case class Cli(command: String, configPath: String = "conf/application.conf", release: Option[String] = None, json: Boolean = false, layer: Option[String] = None, force: Boolean = false)
+  private[atlas] final case class Cli(
+      command: String,
+      configPath: String = "conf/application.conf",
+      release: Option[String] = None,
+      json: Boolean = false,
+      layer: Option[String] = None,
+      force: Boolean = false,
+      allowLegacyCurrent: Boolean = false,
+      fromRelease: Option[String] = None,
+      toRelease: Option[String] = None
+  )
   def main(args: Array[String]): Unit = {
     val cli = parseArgs(args.toList)
     val loaded = AtlasConfig.load(cli.configPath)
@@ -33,6 +43,14 @@ object Main {
           if (cli.force) StaleDerivedCleanupService.force(config)
           else StaleDerivedCleanupService.plan(config)
         println(StaleDerivedCleanupService.render(result))
+      case "releases-rebuild-establishments" =>
+        val from = ReleaseId.unsafe(cli.fromRelease.getOrElse(throw new IllegalArgumentException("Missing --from-release YYYY-MM")))
+        val to = ReleaseId.unsafe(cli.toRelease.getOrElse(throw new IllegalArgumentException("Missing --to-release YYYY-MM")))
+        val plan = EstablishmentRebuildService.plan(config, from, to)
+        if (cli.force) withSpark(config) { spark =>
+          println(EstablishmentRebuildService.render(EstablishmentRebuildService.force(spark, config, plan)))
+        }
+        else println(EstablishmentRebuildService.render(plan))
       case "ingest-receita-estabelecimentos" =>
         withSpark(config) { spark =>
           val result = ReceitaIngestJob.run(spark, config)
@@ -44,14 +62,25 @@ object Main {
           println(s"Normalized ${result.rowCount} rows to ${result.outputPath}")
         }
       case "refresh-receita-estabelecimentos" =>
-        withSpark(config) { spark =>
-          val ingested = ReceitaIngestJob.run(spark, config)
-          println(s"Ingested ${ingested.rowCount} rows to ${ingested.outputPath}")
-          val result = EstablishmentHistoryJob.refresh(spark, config)
-          println(
-            s"Refreshed release ${result.release}: current=${result.currentRowCount}, " +
-              s"inserted=${result.insertedCount}, updated=${result.updatedCount}, removed=${result.removedCount}"
-          )
+        PublicationLock.withEstablishmentsLock(config) {
+          withSpark(config) { spark =>
+            val current = try EstablishmentHistoryJob.validateAdvance(spark, config, cli.allowLegacyCurrent)
+            catch {
+              case error: Throwable =>
+                try EstablishmentHistoryJob.recordRejected(config, error)
+                catch { case statusError: Throwable => error.addSuppressed(statusError) }
+                throw error
+            }
+            if (current == EstablishmentHistoryJob.LegacyCurrent)
+              println("WARNING: current release metadata is unknown; ordering cannot be verified and from_release will be null")
+            val ingested = ReceitaIngestJob.run(spark, config)
+            println(s"Ingested ${ingested.rowCount} rows to ${ingested.outputPath}")
+            val result = EstablishmentHistoryJob.refresh(spark, config, cli.allowLegacyCurrent)
+            println(
+              s"Refreshed release ${result.release}: current=${result.currentRowCount}, " +
+                s"inserted=${result.insertedCount}, updated=${result.updatedCount}, removed=${result.removedCount}"
+            )
+          }
         }
       case unknown => throw new IllegalArgumentException(s"Unknown command: $unknown")
     }
@@ -83,6 +112,8 @@ object Main {
     case "status" :: "--json" :: Nil => Cli("status", json = true)
     case command :: "--config" :: path :: Nil => Cli(command, path)
     case command :: "--release" :: release :: Nil => Cli(command, release = Some(release))
+    case command :: "--release" :: release :: "--allow-legacy-current" :: Nil =>
+      Cli(command, release = Some(release), allowLegacyCurrent = true)
     case command :: Nil                       => Cli(command)
     case "releases" :: "list" :: Nil => Cli("releases-list")
     case "releases" :: "inspect" :: "--release" :: release :: Nil => Cli("releases-inspect", release = Some(release))
@@ -98,6 +129,12 @@ object Main {
       Cli("releases-drop-stale-derived")
     case "releases" :: "drop-stale-derived" :: "--force" :: Nil =>
       Cli("releases-drop-stale-derived", force = true)
+    case "releases" :: "rebuild-establishments" :: "--from-release" :: from :: "--to-release" :: to :: Nil =>
+      Cli("releases-rebuild-establishments", fromRelease = Some(from), toRelease = Some(to))
+    case "releases" :: "rebuild-establishments" :: "--from-release" :: from :: "--to-release" :: to :: "--dry-run" :: Nil =>
+      Cli("releases-rebuild-establishments", fromRelease = Some(from), toRelease = Some(to))
+    case "releases" :: "rebuild-establishments" :: "--from-release" :: from :: "--to-release" :: to :: "--force" :: Nil =>
+      Cli("releases-rebuild-establishments", force = true, fromRelease = Some(from), toRelease = Some(to))
     case _ =>
       throw new IllegalArgumentException(
         "Usage: atlas.Main <ingest-receita-estabelecimentos|normalize-receita-estabelecimentos|refresh-receita-estabelecimentos|status|help|version>"
@@ -122,6 +159,7 @@ object Main {
       |  refresh receita estabelecimentos [--release YYYY-MM]
       |      Run ingest and silver normalization, compare the release with the current silver table,
       |      write compact establishment change events, and publish the release as latest current.
+      |      Releases must advance chronologically. Legacy current tables require --allow-legacy-current.
       |
       |Status and release commands:
       |  status [--json]
@@ -140,6 +178,10 @@ object Main {
       |  releases drop-stale-derived [--dry-run|--force]
       |      Plan or quarantine legacy derived paths that are no longer part of the current contract.
       |      Raw files, current silver, and compact history events are protected.
+      |
+      |  releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM [--dry-run|--force]
+      |      Recreate all generated establishment data chronologically from protected raw releases.
+      |      Dry-run is the default; --force stages and validates a replacement before activation.
       |
       |Project commands:
       |  compile

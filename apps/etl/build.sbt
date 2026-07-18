@@ -3,6 +3,7 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.20"
 
 lazy val sparkVersion = "3.5.5"
+lazy val atlasRunMemoryOptions = sys.env.get("ATLAS_RUN_MEMORY").toSeq.map(size => s"-Xmx$size")
 
 lazy val root = (project in file("."))
   .settings(
@@ -16,6 +17,7 @@ lazy val root = (project in file("."))
     Compile / run / fork := true,
     Test / fork := true,
     Test / parallelExecution := false,
+    Compile / run / javaOptions ++= atlasRunMemoryOptions,
     javaOptions ++= Seq(
       "-Dio.netty.tryReflectionSetAccessible=true",
       "--add-opens=java.base/java.nio=ALL-UNNAMED",

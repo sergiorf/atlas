@@ -76,6 +76,43 @@ class EstablishmentHistoryJobTest extends AnyFunSuite with SparkSuite {
     assert(event.getAs[String]("change_type") === "updated")
   }
 
+  test("rejects equal and older releases without changing current") {
+    val root = Files.createTempDirectory("atlas-history-order")
+    val base = AtlasConfig(
+      SparkConfig("local[2]", "atlas-tests", 2, root.resolve("spark-tmp").toString),
+      CsvConfig(";", "UTF-8"),
+      ReceitaConfig("2026-06", root.resolve("raw").toString, root.resolve("bronze/receita").toString, root.resolve("silver/receita").toString),
+      root.resolve("_atlas/status").toString,
+      "overwrite"
+    )
+    val currentPath = ReleasePaths(base).silverCurrent
+    silver("2026-06", "12345678000109", "same@example.com", "Atlas")
+      .write.mode("overwrite").parquet(currentPath.toString)
+
+    val equal = intercept[IllegalStateException](EstablishmentHistoryJob.validateAdvance(spark, base))
+    assert(equal.getMessage.contains("candidate 2026-06 must be newer than current 2026-06"))
+    val older = base.copy(receita = base.receita.copy(snapshot = "2026-05"))
+    intercept[IllegalStateException](EstablishmentHistoryJob.validateAdvance(spark, older))
+    assert(spark.read.parquet(currentPath.toString).select("release").distinct().head().getString(0) === "2026-06")
+  }
+
+  test("requires explicit acknowledgement for legacy current metadata") {
+    val root = Files.createTempDirectory("atlas-history-legacy-guard")
+    val config = AtlasConfig(
+      SparkConfig("local[2]", "atlas-tests", 2, root.resolve("spark-tmp").toString),
+      CsvConfig(";", "UTF-8"),
+      ReceitaConfig("2026-07", root.resolve("raw").toString, root.resolve("bronze/receita").toString, root.resolve("silver/receita").toString),
+      root.resolve("_atlas/status").toString,
+      "overwrite"
+    )
+    silver("2026-06", "12345678000109", "old@example.com", "Atlas")
+      .drop("release", "record_hash")
+      .write.mode("overwrite").parquet(ReleasePaths(config).silverCurrent.toString)
+
+    intercept[IllegalStateException](EstablishmentHistoryJob.validateAdvance(spark, config))
+    assert(EstablishmentHistoryJob.validateAdvance(spark, config, allowLegacyCurrent = true) === EstablishmentHistoryJob.LegacyCurrent)
+  }
+
   private def silver(release: String, cnpjFull: String, email: String, tradeName: String): DataFrame = {
     val raw = spark.createDataFrame(
       spark.sparkContext.parallelize(Seq(Row(values(cnpjFull, email, tradeName): _*))),

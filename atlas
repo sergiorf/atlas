@@ -28,6 +28,7 @@ Pipeline commands:
   refresh receita estabelecimentos [--release YYYY-MM]
       Run ingest and silver normalization, compare the release with the current silver table,
       write compact establishment change events, and publish the release as latest current.
+      Releases must advance chronologically. Legacy current tables require --allow-legacy-current.
 
 Status and release commands:
   status [--json]
@@ -46,6 +47,10 @@ Status and release commands:
   releases drop-stale-derived [--dry-run|--force]
       Plan or quarantine legacy derived paths that are no longer part of the current contract.
       Raw files, current silver, and compact history events are protected.
+
+  releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM [--dry-run|--force]
+      Recreate all generated establishment data chronologically from protected raw releases.
+      Dry-run is the default; --force stages and validates a replacement before activation.
 
 Project commands:
   compile
@@ -66,6 +71,7 @@ Project commands:
 Common options:
   --release YYYY-MM    Select the snapshot and matching YYYY-MM segment in the configured raw path.
   --config PATH        Use an alternate ETL HOCON configuration file.
+  --memory SIZE        Set the forked ETL JVM maximum heap, for example 10G or 8192M.
 EOF
 }
 
@@ -77,6 +83,30 @@ run_main() {
   done
   (cd "$ETL_DIR" && sbt "$command")
 }
+
+if [[ $# -eq 0 ]]; then
+  echo "Missing command. Run ./atlas help." >&2
+  exit 2
+fi
+
+args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --memory)
+      if [[ $# -lt 2 || ! "$2" =~ ^[1-9][0-9]*[mMgG]$ ]]; then
+        echo "--memory requires a positive size such as 10G or 8192M." >&2
+        exit 2
+      fi
+      export ATLAS_RUN_MEMORY="$2"
+      shift 2
+      ;;
+    *)
+      args+=("$1")
+      shift
+      ;;
+  esac
+done
+set -- "${args[@]}"
 
 if [[ $# -eq 0 ]]; then
   echo "Missing command. Run ./atlas help." >&2

@@ -169,7 +169,7 @@ object SilverEstablishmentJob {
       )
   }
 
-  private def qualityWarnings(report: SilverQualityReport, paths: DatasetPaths): Seq[QualityWarning] = {
+  private[atlas] def qualityWarnings(report: SilverQualityReport, paths: DatasetPaths): Seq[QualityWarning] = {
     val malformed = if (report.malformedRowCount > 0)
       Seq(QualityWarning("malformed_rows", report.malformedRowCount, "Structural validation failed", paths.malformedRows))
     else Seq.empty

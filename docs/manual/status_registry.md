@@ -21,6 +21,8 @@ The command reads `data/_atlas/status` and prints source, dataset, snapshot, lay
 
 Registry files follow `data/_atlas/status/<source>/<dataset>/<snapshot>/<layer>.json`. For example: `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`.
 
+Successful refreshes and full rebuilds also record `receita / establishments / <release> / silver` with `data/silver/receita/establishments_current` as the output. Rebuild status paths name active locations after promotion; the temporary rebuild UUID is never retained in activated status metadata.
+
 - `success`: the instrumented job completed its output and status publication.
 - `success_with_warnings`: the layer was produced, but rows were quarantined or quality warnings were recorded; inspect the warning report paths.
 - `failed`: the instrumented job failed; error details are recorded when available, and the command still exits as failed.

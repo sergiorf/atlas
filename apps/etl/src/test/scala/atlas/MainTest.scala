@@ -43,6 +43,21 @@ class MainTest extends AnyFunSuite {
     )
   }
 
+  test("parses guarded refresh and full rebuild options") {
+    assert(
+      Main.parseArgs(List("refresh-receita-estabelecimentos", "--release", "2026-07", "--allow-legacy-current")) ===
+        Main.Cli("refresh-receita-estabelecimentos", release = Some("2026-07"), allowLegacyCurrent = true)
+    )
+    assert(
+      Main.parseArgs(List("releases", "rebuild-establishments", "--from-release", "2026-05", "--to-release", "2026-06")) ===
+        Main.Cli("releases-rebuild-establishments", fromRelease = Some("2026-05"), toRelease = Some("2026-06"))
+    )
+    assert(
+      Main.parseArgs(List("releases", "rebuild-establishments", "--from-release", "2026-05", "--to-release", "2026-06", "--force")) ===
+        Main.Cli("releases-rebuild-establishments", force = true, fromRelease = Some("2026-05"), toRelease = Some("2026-06"))
+    )
+  }
+
   test("parses release lifecycle commands") {
     assert(Main.parseArgs(List("releases", "list")) === Main.Cli("releases-list"))
     assert(

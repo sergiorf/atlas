@@ -23,6 +23,7 @@ From the repository root:
 ./atlas releases list
 ./atlas releases inspect --release 2026-07
 ./atlas releases drop-derived --release 2026-07 --layer bronze --dry-run
+./atlas releases rebuild-establishments --from-release 2026-05 --to-release 2026-07
 ```
 
 The existing sbt commands remain supported from `apps/etl`, including:

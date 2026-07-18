@@ -13,4 +13,9 @@ class ReleaseIdTest extends AnyFunSuite {
       assert(ReleaseId.parse(value).isLeft, value)
     }
   }
+
+  test("orders releases chronologically") {
+    assert(ReleaseId.unsafe("2026-05") < ReleaseId.unsafe("2026-06"))
+    assert(ReleaseId.unsafe("2026-12") < ReleaseId.unsafe("2027-01"))
+  }
 }
