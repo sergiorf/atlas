@@ -11,7 +11,8 @@ This catalog records source ownership, location, ingestion boundaries, and refre
 - **Ownership:** Public source material remains owned and governed by its publisher; Atlas owns its code, contracts, transformations, and derived product logic.
 - **Licensing and redistribution:** Confirm current publisher terms before redistributing source or derived datasets. Runtime data is not committed to Git.
 - **Refresh assumption:** Monthly snapshots identified by `YYYY-MM`; refresh is currently operator-triggered, not scheduled.
-- **Ingestion boundary:** Atlas reads only Estabelecimentos CSV files, produces source-faithful bronze Parquet, and derives the curated silver establishment table. Both stages emit quality reports.
+- **Acquisition boundary:** The operator-triggered Atlas CLI downloads only `Estabelecimentos` archives, resumes partial transfers, extracts safely, and records a manifest and raw pipeline status. It does not schedule refreshes or modify completed source bytes.
+- **Ingestion boundary:** Atlas reads only Estabelecimentos CSV files, produces source-faithful bronze Parquet, and derives the curated silver establishment table. Both derived stages emit quality reports.
 - **Specification:** [Receita CNPJ](specs/datasets/receita-cnpj.md)
 
 ## Planned sources

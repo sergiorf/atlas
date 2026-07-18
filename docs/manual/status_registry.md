@@ -2,7 +2,7 @@
 
 The local status registry reports which dataset snapshot and layer last ran, whether it succeeded, when it finished, how many rows were known, and where its output belongs. It gives future operational tooling and a future dashboard a stable file contract without introducing a database or web application.
 
-Atlas uses the direction `raw -> bronze -> silver -> history/gold -> serving/index`. Today, local Receita files are supported input, and Receita establishments have implemented bronze, latest silver current, and compact selected field-level history deltas. These jobs record status. Gold, serving/index, and a web dashboard remain roadmap work; their absence must not be interpreted as failed runs.
+Atlas uses the direction `raw -> bronze -> silver -> history/gold -> serving/index`. Today, Receita establishments have implemented raw acquisition, bronze, latest silver current, and compact selected field-level history deltas. These jobs record status. Gold, serving/index, and a web dashboard remain roadmap work; their absence must not be interpreted as failed runs.
 
 From `apps/etl`, list recorded runs with:
 
@@ -17,11 +17,15 @@ From the repository root, use:
 ./atlas status --json
 ```
 
-The command reads `data/_atlas/status` and prints source, dataset, snapshot, layer, status, output rows, compact signed delta/insert/update/remove metrics when available, quarantined rows, warning types, finish time, and output path. It starts no Spark session. Missing additive fields in older records display as zero/`-`. A custom registry root can be set with `ATLAS_STATUS_DIR` or a custom configuration file.
+The command reads `data/_atlas/status` and prints source, dataset, snapshot, layer, status, output rows, raw archive/byte/extraction metrics, compact signed delta/insert/update/remove metrics when available, quarantined rows, warning types, finish time, and output path. It starts no Spark session. Missing additive fields in older records display as zero/`-`. A custom registry root can be set with `ATLAS_STATUS_DIR` or a custom configuration file.
 
 Registry files follow `data/_atlas/status/<source>/<dataset>/<snapshot>/<layer>.json`. For example: `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`.
 
 Successful refreshes and full rebuilds also record `receita / establishments / <release> / silver` with `data/silver/receita/establishments_current` as the output. Rebuild status paths name active locations after promotion; the temporary rebuild UUID is never retained in activated status metadata.
+
+An integrated download records `receita / estabelecimentos / <release> / raw`. A failed explicit
+release is recorded at the same identity. If `--latest` fails before Receita reports a release,
+there is no snapshot identity under which Atlas can record that attempt.
 
 - `success`: the instrumented job completed its output and status publication.
 - `success_with_warnings`: the layer was produced, but rows were quarantined or quality warnings were recorded; inspect the warning report paths.

@@ -225,6 +225,53 @@ def save_manifest(path: Path, manifest: dict) -> None:
     temporary.replace(path)
 
 
+def save_status(
+    status_dir: Path,
+    *,
+    month: str,
+    started_at: datetime,
+    status: str,
+    input_paths: list[str],
+    output_path: Path,
+    file_count: int | None = None,
+    byte_count: int | None = None,
+    extracted_file_count: int | None = None,
+    error: BaseException | None = None,
+) -> Path:
+    finished_at = datetime.now(timezone.utc)
+    record = {
+        "source": "receita",
+        "dataset": "estabelecimentos",
+        "snapshot": month,
+        "layer": "raw",
+        "status": status,
+        "started_at": started_at.isoformat().replace("+00:00", "Z"),
+        "finished_at": finished_at.isoformat().replace("+00:00", "Z"),
+        "duration_seconds": max((finished_at - started_at).total_seconds(), 0),
+        "input_paths": input_paths,
+        "output_path": str(output_path),
+        "partition_columns": [],
+        "application_name": "atlas-etl",
+        "job_name": "download-receita-estabelecimentos",
+    }
+    optional = {
+        "file_count": file_count,
+        "byte_count": byte_count,
+        "extracted_file_count": extracted_file_count,
+        "error_type": (
+            f"{type(error).__module__}.{type(error).__qualname__}" if error else None
+        ),
+        "error_message": str(error) if error else None,
+    }
+    record.update({key: value for key, value in optional.items() if value is not None})
+    target = status_dir / "receita" / "estabelecimentos" / month / "raw.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(target.name + ".tmp")
+    temporary.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(target)
+    return target
+
+
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Download restartable Receita CNPJ Estabelecimentos snapshots."
@@ -234,6 +281,10 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
         help="Snapshot in YYYY-MM format. Omit to discover the latest available month.",
     )
     parser.add_argument("--output-root", type=Path, default=Path("data/raw/receita"))
+    parser.add_argument(
+        "--status-dir", type=Path, default=Path("data/_atlas/status"),
+        help="Atlas run-status registry root.",
+    )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument(
         "--share-token",
@@ -251,6 +302,7 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Iterable[str] | None = None) -> int:
     args = parse_args(argv)
+    started_at = datetime.now(timezone.utc)
     base_url = args.base_url.rstrip("/")
     month = args.month
     if month is None:
@@ -258,42 +310,62 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(f"Latest Receita snapshot: {month}")
 
     month_url = f"{base_url}/{month}/"
-    files = estabelecimento_files(webdav_entries(month_url, args.share_token))
     dataset_root = args.output_root / month / "estabelecimentos"
     archive_root = dataset_root / "archives"
     extract_root = dataset_root / "extracted"
-    archive_root.mkdir(parents=True, exist_ok=True)
-    if args.extract:
-        extract_root.mkdir(parents=True, exist_ok=True)
-
-    manifest = {
-        "source": month_url,
-        "month": month,
-        "dataset": "estabelecimentos",
-        "updated_at_utc": None,
-        "files": {},
-    }
-    manifest_path = dataset_root / "manifest.json"
-
-    for filename, expected_size in files:
-        url = urllib.parse.urljoin(month_url, filename)
-        archive = archive_root / filename
-        size = download(url, archive, expected_size, args.share_token)
-        manifest["files"][filename] = {
-            "url": url,
-            "bytes": size,
-            "status": "complete",
-            "extracted": False,
-        }
+    input_paths = [month_url]
+    try:
+        files = estabelecimento_files(webdav_entries(month_url, args.share_token))
+        archive_root.mkdir(parents=True, exist_ok=True)
         if args.extract:
-            print(f"Extracting {filename}")
-            extract_restartable(archive, extract_root)
-            manifest["files"][filename]["extracted"] = True
-        save_manifest(manifest_path, manifest)
+            extract_root.mkdir(parents=True, exist_ok=True)
 
-    print(f"Completed {len(files)} archive(s) for {month}.")
-    print(f"Spark input: {extract_root}{os.sep}*")
-    return 0
+        manifest = {
+            "source": month_url,
+            "month": month,
+            "dataset": "estabelecimentos",
+            "updated_at_utc": None,
+            "files": {},
+        }
+        manifest_path = dataset_root / "manifest.json"
+
+        for filename, expected_size in files:
+            url = urllib.parse.urljoin(month_url, filename)
+            archive = archive_root / filename
+            size = download(url, archive, expected_size, args.share_token)
+            manifest["files"][filename] = {
+                "url": url,
+                "bytes": size,
+                "status": "complete",
+                "extracted": False,
+            }
+            if args.extract:
+                print(f"Extracting {filename}")
+                extract_restartable(archive, extract_root)
+                manifest["files"][filename]["extracted"] = True
+            save_manifest(manifest_path, manifest)
+
+        total_bytes = sum(item["bytes"] for item in manifest["files"].values())
+        extracted_count = sum(1 for item in manifest["files"].values() if item["extracted"])
+        save_status(
+            args.status_dir, month=month, started_at=started_at, status="success",
+            input_paths=input_paths, output_path=dataset_root,
+            file_count=len(files), byte_count=total_bytes,
+            extracted_file_count=extracted_count,
+        )
+        print(f"Completed {len(files)} archive(s) for {month}.")
+        if args.extract:
+            print(f"Spark input: {extract_root}{os.sep}*")
+        return 0
+    except (OSError, RuntimeError, urllib.error.URLError) as error:
+        try:
+            save_status(
+                args.status_dir, month=month, started_at=started_at, status="failed",
+                input_paths=input_paths, output_path=dataset_root, error=error,
+            )
+        except OSError as status_error:
+            error.add_note(f"Could not write Atlas status: {status_error}")
+        raise
 
 
 if __name__ == "__main__":
@@ -305,4 +377,3 @@ if __name__ == "__main__":
     except (OSError, RuntimeError, urllib.error.URLError) as error:
         print(f"error: {error}", file=sys.stderr)
         raise SystemExit(1)
-

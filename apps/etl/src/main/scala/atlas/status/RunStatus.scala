@@ -35,5 +35,8 @@ final case class RunStatus(
     netRowDelta: Option[Long] = None,
     insertedRowCount: Option[Long] = None,
     updatedRowCount: Option[Long] = None,
-    removedRowCount: Option[Long] = None
+    removedRowCount: Option[Long] = None,
+    fileCount: Option[Long] = None,
+    byteCount: Option[Long] = None,
+    extractedFileCount: Option[Long] = None
 )

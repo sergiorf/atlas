@@ -3,13 +3,15 @@
 Refreshes are manual and snapshot-based.
 
 1. Confirm the intended `YYYY-MM` snapshot and available disk capacity.
-2. From `apps/etl`, download or resume without deleting `.part` files:
+2. From the repository root, download or resume, extract, and record raw status without deleting `.part` files:
 
    ```bash
-   python scripts/download_receita.py --month 2026-06 --extract
+   ./atlas download receita estabelecimentos --release 2026-06
    ```
 
-3. Confirm archives and extracted files are under `data/raw/receita/<YYYY-MM>/estabelecimentos`; never edit them in place.
+   Use `--latest` only when the intended release is not predetermined; Atlas reports and records
+   the month Receita selects. Refresh never performs network acquisition implicitly.
+3. Confirm raw status is successful and archives and extracted files are under `data/raw/receita/<YYYY-MM>/estabelecimentos`; never edit them in place.
 4. Pass `--release YYYY-MM` with the root CLI. Atlas replaces the `YYYY-MM` segment in the configured raw directory with that release, so the default configuration selects `data/raw/receita/<release>/estabelecimentos/extracted`. If `ATLAS_RECEITA_RAW_DIR` uses a custom layout without a date segment, point it explicitly to the intended snapshot. Override `ATLAS_RECEITA_BRONZE_DIR` only when a non-default output root is required.
 5. Run the refresh command when maintaining latest current plus compact history:
 

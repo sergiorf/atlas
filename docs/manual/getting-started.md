@@ -6,7 +6,7 @@ Atlas ingests Receita Federal CNPJ `Estabelecimentos` CSV files into local bronz
 
 - JDK 17
 - sbt 1.10 or newer
-- Python 3 for the downloader
+- Python 3 for Atlas raw acquisition
 - sufficient local disk space for archives, extracted CSV, Parquet, and Spark temporary data
 
 From `apps/etl`, run:
@@ -14,7 +14,7 @@ From `apps/etl`, run:
 ```bash
 sbt compile
 sbt test
-python scripts/download_receita.py --month 2026-06 --extract
+./atlas download receita estabelecimentos --release 2026-06
 sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 sbt "runMain atlas.Main normalize-receita-estabelecimentos"
 ```

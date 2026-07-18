@@ -20,6 +20,7 @@ sbt "runMain atlas.Main status"
 From the repository root, prefer the short wrapper for day-to-day use:
 
 ```bash
+./atlas download receita estabelecimentos --release 2026-07
 ./atlas ingest receita estabelecimentos
 ./atlas normalize receita estabelecimentos
 ./atlas refresh receita estabelecimentos --release 2026-07
@@ -48,11 +49,15 @@ Trash purge is a dry run unless `--force` is supplied. It permanently deletes on
 
 Routine refresh only advances current to a newer release. Standalone normalization writes a release-scoped candidate. To recreate the entire active establishment dataset from protected raw releases, preview and then force `./atlas releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM`; see the repository refresh runbook for validation and recovery steps.
 
-Download or resume a snapshot with:
+Download, resume, extract, and record raw pipeline status with:
 
 ```bash
-python scripts/download_receita.py --month 2026-06 --extract
+./atlas download receita estabelecimentos --release 2026-06
 ```
+
+Use `--latest` to discover the latest published month, or `--no-extract` when preserving archives
+without preparing Spark input. The underlying `python scripts/download_receita.py` command remains
+available for low-level recovery and accepts the equivalent `--month` and `--extract` options.
 
 Raw archives, extracted CSV, Parquet, reports, status metadata, and temporary Spark files are ignored by Git. Never delete a `.part` file merely because a download was interrupted.
 

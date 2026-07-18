@@ -90,6 +90,21 @@ class RunStatusRegistryTest extends AnyFunSuite {
     assert(RunStatusRegistry.readFile(olderPath).previousRowCount.isEmpty)
   }
 
+  test("round trips raw download metrics and renders them without treating files as rows") {
+    val root = Files.createTempDirectory("atlas-status-raw")
+    val status = sample("success", None).copy(
+      layer = "raw",
+      outputPath = Some("data/raw/receita/2026-06/estabelecimentos"),
+      fileCount = Some(10L),
+      byteCount = Some(1572864L),
+      extractedFileCount = Some(10L)
+    )
+
+    val path = RunStatusRegistry.write(root, status)
+    assert(RunStatusRegistry.readFile(path) === status)
+    assert(StatusTable.render(Seq(status)).contains("10/1.5MiB/10 extracted"))
+  }
+
   private def sample(status: String, rowCount: Option[Long]): RunStatus = RunStatus(
     source = "receita",
     dataset = "estabelecimentos",

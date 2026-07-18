@@ -5,6 +5,13 @@
 
 ## Supported input
 
+Atlas can acquire the supported monthly archives through
+`./atlas download receita estabelecimentos --release YYYY-MM`. The command resumes `.part` files,
+validates remote sizes when available, atomically promotes completed archives, safely extracts ZIP
+members by default, maintains a local manifest, and records raw-stage status. `--latest` discovers
+the lexically latest published `YYYY-MM`; the discovered month is recorded as the snapshot.
+Acquisition remains operator-triggered and is not implicitly run by refresh.
+
 Atlas reads headerless, semicolon-delimited Receita `Estabelecimentos` CSV using configurable encoding (default `ISO-8859-1`). The layout has exactly the 30 ordered fields defined by the [raw schema contract](../schemas/raw-receita-cnpj.md). Parsing is permissive and string-first.
 
 Inputs are one or more extracted files matched beneath the configured raw directory. Raw files are immutable and remain outside Git. The snapshot month is operator-controlled and is not inferred from file contents. When the configured raw directory contains a `YYYY-MM` segment, Atlas replaces that segment with the selected release before reading; a custom path without a date segment is used unchanged.

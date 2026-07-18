@@ -94,7 +94,10 @@ object RunStatusRegistry {
     optional(c, "net_row_delta")(_.getLong("net_row_delta")),
     optional(c, "inserted_row_count")(_.getLong("inserted_row_count")),
     optional(c, "updated_row_count")(_.getLong("updated_row_count")),
-    optional(c, "removed_row_count")(_.getLong("removed_row_count"))
+    optional(c, "removed_row_count")(_.getLong("removed_row_count")),
+    optional(c, "file_count")(_.getLong("file_count")),
+    optional(c, "byte_count")(_.getLong("byte_count")),
+    optional(c, "extracted_file_count")(_.getLong("extracted_file_count"))
   )
 
   private def optional[A](c: Config, path: String)(read: Config => A): Option[A] =
@@ -133,7 +136,10 @@ object RunStatusRegistry {
       s.netRowDelta.map(value => "net_row_delta" -> value.toString),
       s.insertedRowCount.map(value => "inserted_row_count" -> value.toString),
       s.updatedRowCount.map(value => "updated_row_count" -> value.toString),
-      s.removedRowCount.map(value => "removed_row_count" -> value.toString)
+      s.removedRowCount.map(value => "removed_row_count" -> value.toString),
+      s.fileCount.map(value => "file_count" -> value.toString),
+      s.byteCount.map(value => "byte_count" -> value.toString),
+      s.extractedFileCount.map(value => "extracted_file_count" -> value.toString)
     ).flatten
     fields.map { case (key, value) => s"  ${quoted(key)}: $value" }.mkString("{\n", ",\n", "\n}\n")
   }
@@ -165,6 +171,7 @@ object StatusTable {
     "layer",
     "status",
     "rows_out",
+    "raw_files",
     "delta_changes",
     "quarantined",
     "warning",
@@ -180,6 +187,7 @@ object StatusTable {
         s.layer,
         s.status,
         s.outputRowCount.orElse(s.rowCount).fold("-")(_.toString),
+        renderRawFiles(s),
         renderChanges(s),
         s.quarantinedRowCount.fold("0")(_.toString),
         if (s.qualityWarnings.isEmpty) "-" else s.qualityWarnings.map(_.warningType).mkString(","),
@@ -196,6 +204,22 @@ object StatusTable {
           .replaceAll("\\s+$", "")
       )
       .mkString("\n")
+  }
+
+  private def renderRawFiles(s: RunStatus): String = s.fileCount match {
+    case None => "-"
+    case Some(files) =>
+      val bytes = s.byteCount.fold("?")(formatBytes)
+      val extracted = s.extractedFileCount.fold("")(value => s"/$value extracted")
+      s"$files/$bytes$extracted"
+  }
+
+  private def formatBytes(bytes: Long): String = {
+    val units = Seq("B", "KiB", "MiB", "GiB", "TiB")
+    var value = bytes.toDouble
+    var unit = 0
+    while (value >= 1024 && unit < units.size - 1) { value /= 1024; unit += 1 }
+    if (unit == 0) s"${bytes}B" else f"$value%.1f${units(unit)}"
   }
 
   private def renderChanges(s: RunStatus): String = {

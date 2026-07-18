@@ -205,6 +205,16 @@ sbt test
 sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 ```
 
+From the repository root, Atlas also owns the restartable raw acquisition entry point:
+
+```bash
+./atlas download receita estabelecimentos --release 2026-06
+```
+
+The downloader remains a small Python component inside `apps/etl`, but the Atlas CLI invokes it,
+extracts by default, and records raw-stage status. Refresh deliberately does not initiate network
+I/O: operators can inspect the immutable local snapshot before publishing derived data.
+
 v0.1 does not implement Empresas, Socios, Simples, sanctions, PNCP, API, UI, search, AI, billing, dashboards, Docker, cloud deployment, streaming, or orchestration platforms.
 
 ## Bronze establishment contract

@@ -17,6 +17,10 @@ Usage:
   atlas <command> [options]
 
 Pipeline commands:
+  download receita estabelecimentos [--release YYYY-MM|--latest] [--no-extract]
+      Download or resume the Receita archives, extract them by default, preserve raw bytes, and
+      record the raw stage in the Atlas status registry.
+
   ingest receita estabelecimentos [--release YYYY-MM]
       Read configured Receita Estabelecimentos CSV files for the release, write source-faithful
       bronze Parquet, and emit bronze quality reports. Raw input files are never modified.
@@ -136,6 +140,41 @@ case "$1" in
   status)
     shift
     run_main status "$@"
+    ;;
+  download)
+    shift
+    if [[ "${1:-}" == "receita" && "${2:-}" == "estabelecimentos" ]]; then
+      shift 2
+      download_args=(--status-dir "${ATLAS_STATUS_DIR:-data/_atlas/status}")
+      download_extract=true
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --release)
+            [[ $# -ge 2 ]] || { echo "--release requires YYYY-MM." >&2; exit 2; }
+            download_args+=(--month "$2")
+            shift 2
+            ;;
+          --latest)
+            shift
+            ;;
+          --no-extract)
+            download_extract=false
+            shift
+            ;;
+          *)
+            download_args+=("$1")
+            shift
+            ;;
+        esac
+      done
+      if [[ "$download_extract" == true ]]; then
+        download_args+=(--extract)
+      fi
+      (cd "$ETL_DIR" && python3 scripts/download_receita.py "${download_args[@]}")
+    else
+      echo "Usage: ./atlas download receita estabelecimentos [--release YYYY-MM|--latest] [--no-extract]" >&2
+      exit 2
+    fi
     ;;
   ingest)
     shift
