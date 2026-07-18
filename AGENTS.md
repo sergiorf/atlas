@@ -16,6 +16,20 @@ The unified plan owns direction and sequencing. Specifications own implemented d
 
 v0.1 supports only Receita `estabelecimentos` bronze ingestion. Do not add API, UI, indexer, AI, sanctions, PNCP, Docker, cloud, billing, dashboard, silver, or gold implementations until their roadmap phase is explicitly requested.
 
+## Design discussion before implementation
+
+Questions, proposals, and requests framed as “would it be better,” “should we,” “what do you think,” or similar are design discussions, not authorization to edit files.
+
+For changes affecting architecture, data pipelines, contracts, operational workflows, CLI behavior, or multiple documentation owners:
+
+1. Inspect the relevant repository context.
+2. Respond as a senior data engineer with findings, alternatives, trade-offs, risks, and pushback where appropriate.
+3. Identify unclear or unnecessary requirements and ask focused questions.
+4. Propose a decision and an implementation boundary.
+5. Do not modify files until the user explicitly approves implementation.
+
+Explicit requests such as “implement,” “change,” “add,” “fix,” or “proceed” authorize implementation within the agreed scope. If intent is ambiguous, remain in discussion mode.
+
 ## Development workflow
 
 Classify each change as trivial, bounded, or substantial using the feature workflow. Use the complete workflow for changes to public or published data behavior, architecture, dataset ownership, schema contracts, refresh semantics, query or index behavior, lineage, quality rules, privacy or licensing boundaries, or the supported product surface. Keep isolated fixes proportionate.
