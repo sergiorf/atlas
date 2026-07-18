@@ -26,6 +26,7 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Receita estabelecimentos quality rules](specs/quality/receita-cnpj-quality-rules.md)
 - [Silver establishment schema](specs/schemas/silver-establishment.md)
 - [Establishment change-event schema](specs/schemas/establishment-change-events.md)
+- [Establishment release-summary schema](specs/schemas/establishment-release-summaries.md)
 - [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
 - [Run-status registry contract](specs/run-status.md)
 

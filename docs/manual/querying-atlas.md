@@ -50,6 +50,19 @@ FROM read_parquet(
 
 The first refreshed release only seeds `establishments_current`, so the history path may not exist yet. History contains selected field-level changes, not complete copies of previous establishment rows. See the [change-event schema](../specs/schemas/establishment-change-events.md) for the tracked fields and limitations.
 
+Create a view over the durable per-release summaries (the path exists after the seed refresh):
+
+```sql
+CREATE OR REPLACE VIEW establishment_release_summaries AS
+SELECT *
+FROM read_parquet(
+  'data/silver/receita/establishment_release_summaries/**/*.parquet',
+  hive_partitioning = true
+);
+```
+
+Summaries contain totals, state buckets, and updated-field counts for every release. Percentages and alert thresholds are intentionally derived/not implemented and never affect publication.
+
 For bronze investigation, select a release explicitly:
 
 ```sql
@@ -323,6 +336,7 @@ For authoritative field meanings and limitations, see:
 
 - [Silver establishment schema](../specs/schemas/silver-establishment.md)
 - [Establishment change-event schema](../specs/schemas/establishment-change-events.md)
+- [Establishment release-summary schema](../specs/schemas/establishment-release-summaries.md)
 - [Bronze establishment schema](../specs/schemas/bronze-receita-cnpj.md)
 - [Data layers](data_layers.md)
 - [Data quality](data-quality.md)

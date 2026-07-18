@@ -16,11 +16,38 @@ import org.apache.spark.storage.StorageLevel
 final case class HistoryResult(
     release: String,
     currentRowCount: Long,
+    previousRowCount: Option[Long],
     insertedCount: Long,
     updatedCount: Long,
     removedCount: Long,
     eventRowCount: Long,
     outputPath: String
+)
+
+final case class StateReleaseCount(
+    state: Option[String],
+    previous_count: Option[Long],
+    current_count: Option[Long],
+    delta: Long
+)
+final case class ChangedFieldCount(field_name: String, count: Long)
+final case class EstablishmentReleaseSummary(
+    summary_id: String,
+    source: String,
+    dataset: String,
+    from_release: Option[String],
+    to_release: String,
+    calculated_at: java.sql.Timestamp,
+    schema_version: String,
+    previous_record_count: Option[Long],
+    current_record_count: Long,
+    net_record_delta: Option[Long],
+    inserted_count: Long,
+    updated_count: Long,
+    removed_count: Long,
+    event_count: Long,
+    state_counts: Seq[StateReleaseCount],
+    changed_field_counts: Seq[ChangedFieldCount]
 )
 
 object EstablishmentHistoryJob {
@@ -109,6 +136,7 @@ object EstablishmentHistoryJob {
     val candidatePaths = silverPaths.copy(output = releasePaths.silverCandidate.toString)
     var report: Option[SilverQualityReport] = None
     var result: Option[HistoryResult] = None
+    var currentPublished = false
     try {
       validateAdvance(spark, config, allowLegacyCurrent)
       val prepared = SilverEstablishmentJob.prepare(spark.read.parquet(candidatePaths.input))
@@ -127,9 +155,10 @@ object EstablishmentHistoryJob {
         val priorExists = parquetExists(spark, releasePaths.silverCurrent.toString)
         val computed =
           if (priorExists) compareWithPrior(spark, config, spark.read.parquet(releasePaths.silverCurrent.toString), candidate, releasePaths)
-          else HistoryResult(config.receita.snapshot, candidate.count(), 0L, 0L, 0L, 0L, releasePaths.historyRelease.toString)
+          else seedSummary(spark, config, candidate, releasePaths)
 
         publishCurrent(spark, candidate, releasePaths.silverCurrent.toString)
+        currentPublished = true
         result = Some(computed)
         RunStatusRegistry.write(
           Paths.get(config.statusDir),
@@ -143,6 +172,12 @@ object EstablishmentHistoryJob {
       } finally candidate.unpersist()
     } catch {
       case error: Throwable =>
+        if (!currentPublished) {
+          try {
+            deletePath(spark, releasePaths.historyRelease.toString)
+            deletePath(spark, releasePaths.summaryRelease.toString)
+          } catch { case cleanup: Throwable => error.addSuppressed(cleanup) }
+        }
         try RunStatusRegistry.write(
           Paths.get(config.statusDir),
           status(config, releasePaths, startedAt, "failed", report, result, Some(error))
@@ -189,18 +224,112 @@ object EstablishmentHistoryJob {
     try {
       val counts = materialized.groupBy("change_type").count().collect().map(row => row.getString(0) -> row.getLong(1)).toMap
       val total = counts.values.sum
+      val previousCount = prior.count()
+      val currentCount = candidate.count()
+      val inserted = counts.getOrElse("inserted", 0L)
+      val removed = counts.getOrElse("removed", 0L)
+      if (currentCount - previousCount != inserted - removed)
+        throw new IllegalStateException(
+          s"Establishment summary invariant failed: $currentCount - $previousCount != $inserted - $removed"
+        )
       if (total > 0) materialized.write.mode("overwrite").parquet(paths.historyRelease.toString)
       else deletePath(spark, paths.historyRelease.toString)
+      writeSummary(
+        spark, config, Some(prior), candidate, materialized,
+        Some(previousCount), currentCount, inserted, counts.getOrElse("updated", 0L), removed, total, paths
+      )
       HistoryResult(
         config.receita.snapshot,
-        candidate.count(),
-        counts.getOrElse("inserted", 0L),
+        currentCount,
+        Some(previousCount),
+        inserted,
         counts.getOrElse("updated", 0L),
         counts.getOrElse("removed", 0L),
         total,
         paths.historyRelease.toString
       )
     } finally materialized.unpersist()
+  }
+
+  private def seedSummary(
+      spark: SparkSession,
+      config: AtlasConfig,
+      candidate: DataFrame,
+      paths: ReleasePaths
+  ): HistoryResult = {
+    val currentCount = candidate.count()
+    val emptyEvents = spark.createDataFrame(
+      spark.sparkContext.emptyRDD[org.apache.spark.sql.Row],
+      org.apache.spark.sql.types.StructType(Seq(
+        org.apache.spark.sql.types.StructField("change_type", org.apache.spark.sql.types.StringType),
+        org.apache.spark.sql.types.StructField("changed_fields", org.apache.spark.sql.types.ArrayType(
+          org.apache.spark.sql.types.StructType(Seq(
+            org.apache.spark.sql.types.StructField("field_name", org.apache.spark.sql.types.StringType),
+            org.apache.spark.sql.types.StructField("old_value", org.apache.spark.sql.types.StringType),
+            org.apache.spark.sql.types.StructField("new_value", org.apache.spark.sql.types.StringType)
+          ))
+        ))
+      ))
+    )
+    writeSummary(spark, config, None, candidate, emptyEvents, None, currentCount, 0L, 0L, 0L, 0L, paths)
+    HistoryResult(config.receita.snapshot, currentCount, None, 0L, 0L, 0L, 0L, paths.historyRelease.toString)
+  }
+
+  private def writeSummary(
+      spark: SparkSession,
+      config: AtlasConfig,
+      prior: Option[DataFrame],
+      candidate: DataFrame,
+      events: DataFrame,
+      previousCount: Option[Long],
+      currentCount: Long,
+      inserted: Long,
+      updated: Long,
+      removed: Long,
+      eventCount: Long,
+      paths: ReleasePaths
+  ): Unit = {
+    import spark.implicits._
+    val previousStates = prior.map(_.groupBy("state").count().withColumnRenamed("count", "previous_count"))
+      .getOrElse(Seq.empty[(String, Long)].toDF("state", "previous_count"))
+      .withColumn("state_key", coalesce(col("state"), lit("\u0000"))).drop("state")
+    val currentStates = candidate.groupBy("state").count().withColumnRenamed("count", "current_count")
+      .withColumn("state_key", coalesce(col("state"), lit("\u0000"))).drop("state")
+    val stateCounts = previousStates.join(currentStates, Seq("state_key"), "full_outer")
+      .select(
+        when(col("state_key") === "\u0000", lit(null).cast("string")).otherwise(col("state_key")).as("state"),
+        col("previous_count"), col("current_count"),
+        (coalesce(col("current_count"), lit(0L)) - coalesce(col("previous_count"), lit(0L))).as("delta")
+      )
+      .orderBy(col("state").asc_nulls_first)
+      .collect().toSeq.map { row =>
+        val state = Option(row.getAs[String]("state"))
+        val oldCount = Option(row.getAs[java.lang.Long]("previous_count")).map(_.longValue)
+        val newCount = Option(row.getAs[java.lang.Long]("current_count")).map(_.longValue)
+        StateReleaseCount(state, oldCount, newCount, row.getAs[Long]("delta"))
+      }
+    val changedFields =
+      if (eventCount == 0L) Seq.empty[ChangedFieldCount]
+      else events.filter(col("change_type") === "updated")
+        .select(explode(col("changed_fields")).as("change"))
+        .groupBy(col("change.field_name").as("field_name")).count()
+        .orderBy("field_name").collect().toSeq.map(row => ChangedFieldCount(row.getString(0), row.getLong(1)))
+    val fromRelease = prior.flatMap { data =>
+      if (!data.columns.contains("release")) None
+      else data.select("release").filter(col("release").isNotNull).distinct().limit(1).collect().headOption.map(_.getString(0))
+    }
+    Seq(EstablishmentReleaseSummary(
+      summaryId(fromRelease, config.receita.snapshot), "receita", "estabelecimentos", fromRelease,
+      config.receita.snapshot, java.sql.Timestamp.from(Instant.now()), "1", previousCount,
+      currentCount, previousCount.map(currentCount - _),
+      inserted, updated, removed, eventCount, stateCounts, changedFields
+    )).toDF().write.mode("overwrite").parquet(paths.summaryRelease.toString)
+  }
+
+  private def summaryId(fromRelease: Option[String], toRelease: String): String = {
+    val value = Seq("receita", "estabelecimentos", fromRelease.getOrElse("seed"), toRelease).mkString("|")
+    java.security.MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+      .map("%02x".format(_)).mkString
   }
 
   private def fieldDelta(name: String): Column =
@@ -275,7 +404,11 @@ object EstablishmentHistoryJob {
       result.map(_.eventRowCount), Seq(paths.silverCandidate.toString), Some(paths.historyRelease.toString),
       Seq.empty, Some("1"), Some(config.spark.appName), Some("refresh-receita-estabelecimentos"),
       error.map(_.getClass.getName), error.flatMap(value => Option(value.getMessage)),
-      report.map(_.validRowCount), result.map(_.currentRowCount), report.map(_.malformedRowCount)
+      report.map(_.validRowCount), result.map(_.currentRowCount), report.map(_.malformedRowCount),
+      previousRowCount = result.flatMap(_.previousRowCount),
+      netRowDelta = result.flatMap(r => r.previousRowCount.map(r.currentRowCount - _)),
+      insertedRowCount = result.map(_.insertedCount), updatedRowCount = result.map(_.updatedCount),
+      removedRowCount = result.map(_.removedCount)
     )
   }
 
@@ -296,7 +429,11 @@ object EstablishmentHistoryJob {
       Some(result.currentRowCount), Seq(paths.bronzeRelease.toString), Some(paths.silverCurrent.toString),
       Seq("state"), Some("1"), Some(config.spark.appName), Some("refresh-receita-estabelecimentos"),
       inputRowCount = Some(report.rowCount), outputRowCount = Some(result.currentRowCount),
-      quarantinedRowCount = Some(report.malformedRowCount), qualityWarnings = warnings
+      quarantinedRowCount = Some(report.malformedRowCount), qualityWarnings = warnings,
+      previousRowCount = result.previousRowCount,
+      netRowDelta = result.previousRowCount.map(result.currentRowCount - _),
+      insertedRowCount = Some(result.insertedCount), updatedRowCount = Some(result.updatedCount),
+      removedRowCount = Some(result.removedCount)
     )
   }
 }

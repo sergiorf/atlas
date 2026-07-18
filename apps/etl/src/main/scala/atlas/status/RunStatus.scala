@@ -30,5 +30,10 @@ final case class RunStatus(
     inputRowCount: Option[Long] = None,
     outputRowCount: Option[Long] = None,
     quarantinedRowCount: Option[Long] = None,
-    qualityWarnings: Seq[QualityWarning] = Seq.empty
+    qualityWarnings: Seq[QualityWarning] = Seq.empty,
+    previousRowCount: Option[Long] = None,
+    netRowDelta: Option[Long] = None,
+    insertedRowCount: Option[Long] = None,
+    updatedRowCount: Option[Long] = None,
+    removedRowCount: Option[Long] = None
 )

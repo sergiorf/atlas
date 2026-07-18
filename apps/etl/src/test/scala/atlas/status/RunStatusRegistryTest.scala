@@ -75,6 +75,21 @@ class RunStatusRegistryTest extends AnyFunSuite {
     assert(table.contains("malformed_rows"))
   }
 
+  test("round trips additive release metrics and keeps older JSON readable") {
+    val root = Files.createTempDirectory("atlas-status-release-metrics")
+    val status = sample("success", Some(3L)).copy(
+      previousRowCount = Some(10L), netRowDelta = Some(1L),
+      insertedRowCount = Some(2L), updatedRowCount = Some(3L), removedRowCount = Some(1L)
+    )
+    val path = RunStatusRegistry.write(root, status)
+    assert(RunStatusRegistry.readFile(path) === status)
+    assert(StatusTable.render(Seq(status)).contains("+1/+2/~3/-1"))
+
+    val older = sample("success", Some(3L))
+    val olderPath = RunStatusRegistry.write(root, older.copy(snapshot = "2026-05"))
+    assert(RunStatusRegistry.readFile(olderPath).previousRowCount.isEmpty)
+  }
+
   private def sample(status: String, rowCount: Option[Long]): RunStatus = RunStatus(
     source = "receita",
     dataset = "estabelecimentos",

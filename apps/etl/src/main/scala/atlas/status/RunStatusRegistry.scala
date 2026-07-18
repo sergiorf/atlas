@@ -89,7 +89,12 @@ object RunStatusRegistry {
           warning.getString("report_path")
         )
       }.toSeq
-    ).getOrElse(Seq.empty)
+    ).getOrElse(Seq.empty),
+    optional(c, "previous_row_count")(_.getLong("previous_row_count")),
+    optional(c, "net_row_delta")(_.getLong("net_row_delta")),
+    optional(c, "inserted_row_count")(_.getLong("inserted_row_count")),
+    optional(c, "updated_row_count")(_.getLong("updated_row_count")),
+    optional(c, "removed_row_count")(_.getLong("removed_row_count"))
   )
 
   private def optional[A](c: Config, path: String)(read: Config => A): Option[A] =
@@ -123,7 +128,12 @@ object RunStatusRegistry {
       s.quarantinedRowCount.map(value => "quarantined_row_count" -> value.toString),
       if (s.qualityWarnings.nonEmpty)
         Some("quality_warnings" -> warningArray(s.qualityWarnings))
-      else None
+      else None,
+      s.previousRowCount.map(value => "previous_row_count" -> value.toString),
+      s.netRowDelta.map(value => "net_row_delta" -> value.toString),
+      s.insertedRowCount.map(value => "inserted_row_count" -> value.toString),
+      s.updatedRowCount.map(value => "updated_row_count" -> value.toString),
+      s.removedRowCount.map(value => "removed_row_count" -> value.toString)
     ).flatten
     fields.map { case (key, value) => s"  ${quoted(key)}: $value" }.mkString("{\n", ",\n", "\n}\n")
   }
@@ -155,6 +165,7 @@ object StatusTable {
     "layer",
     "status",
     "rows_out",
+    "delta_changes",
     "quarantined",
     "warning",
     "finished_at",
@@ -169,6 +180,7 @@ object StatusTable {
         s.layer,
         s.status,
         s.outputRowCount.orElse(s.rowCount).fold("-")(_.toString),
+        renderChanges(s),
         s.quarantinedRowCount.fold("0")(_.toString),
         if (s.qualityWarnings.isEmpty) "-" else s.qualityWarnings.map(_.warningType).mkString(","),
         s.finishedAt.toString,
@@ -184,5 +196,18 @@ object StatusTable {
           .replaceAll("\\s+$", "")
       )
       .mkString("\n")
+  }
+
+  private def renderChanges(s: RunStatus): String = {
+    val changes = Seq(
+      s.insertedRowCount.map(value => s"+$value"),
+      s.updatedRowCount.map(value => s"~$value"),
+      s.removedRowCount.map(value => s"-$value")
+    ).flatten
+    val delta = s.netRowDelta.map(value => f"$value%+d")
+    (delta.toSeq ++ changes).mkString("/") match {
+      case "" => "-"
+      case value => value
+    }
   }
 }

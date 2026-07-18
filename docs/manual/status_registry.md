@@ -17,7 +17,7 @@ From the repository root, use:
 ./atlas status --json
 ```
 
-The command reads `data/_atlas/status` and prints source, dataset, snapshot, layer, status, output rows, quarantined rows, warning types, finish time, and output path. It starts no Spark session. Missing warning fields in older records display as zero/`-`. A custom registry root can be set with `ATLAS_STATUS_DIR` or a custom configuration file.
+The command reads `data/_atlas/status` and prints source, dataset, snapshot, layer, status, output rows, compact signed delta/insert/update/remove metrics when available, quarantined rows, warning types, finish time, and output path. It starts no Spark session. Missing additive fields in older records display as zero/`-`. A custom registry root can be set with `ATLAS_STATUS_DIR` or a custom configuration file.
 
 Registry files follow `data/_atlas/status/<source>/<dataset>/<snapshot>/<layer>.json`. For example: `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`.
 
@@ -29,6 +29,6 @@ Successful refreshes and full rebuilds also record `receita / establishments / <
 - missing: no status file has been recorded for that identity. This is not evidence of success or failure.
 - not implemented: the layer or job is outside the current supported implementation. Atlas does not create placeholder records for future work.
 
-A malformed file is reported separately while other valid records remain visible. Each file represents the latest recorded attempt for its source, dataset, snapshot, and layer, not an append-only run ledger or a check that output files still exist. Establishment business history is stored separately as compact change-event Parquet under silver.
+A malformed file is reported separately while other valid records remain visible. Each file represents the latest recorded attempt for its source, dataset, snapshot, and layer, not an append-only run ledger or a check that output files still exist. Establishment business history is stored separately as compact change-event and release-summary Parquet under silver.
 
-Status JSON is generated operational metadata. It can contain local paths and failure messages, changes whenever jobs run, and is reproducible by running the job. It therefore remains outside Git along with raw input and generated bronze/silver data. See the [run-status contract](../specs/run-status.md) for field-level behavior.
+Durable analytical release metrics live in `data/silver/receita/establishment_release_summaries`; status remains latest-attempt operational metadata. Status JSON is generated operational metadata. It can contain local paths and failure messages, changes whenever jobs run, and is reproducible by running the job. It therefore remains outside Git along with raw input and generated bronze/silver data. See the [run-status contract](../specs/run-status.md) for field-level behavior.

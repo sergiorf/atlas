@@ -58,6 +58,8 @@ object StaleDerivedCleanupService {
       throw new IllegalArgumentException(s"Refusing current silver path: $path")
     if (normalized.startsWith(paths.historyRoot.toAbsolutePath.normalize()))
       throw new IllegalArgumentException(s"Refusing history path: $path")
+    if (normalized.startsWith(paths.summaryRoot.toAbsolutePath.normalize()))
+      throw new IllegalArgumentException(s"Refusing release summary path: $path")
     ReleaseInventoryService.inventory(label, path, protectedPath = false)
   }
 

@@ -36,7 +36,7 @@ Bronze and silver jobs record their latest attempts in the local [status registr
 
 ## Release lifecycle management
 
-Raw Receita files under `data/raw` are protected. Derived bronze, silver work tables, reports, and history partitions are rebuildable. Use dry-run first:
+Raw Receita files under `data/raw` are protected. Derived bronze, silver work tables, reports, history partitions, and release-summary partitions are rebuildable. Use dry-run first:
 
 ```bash
 ./atlas releases list
@@ -49,11 +49,11 @@ Raw Receita files under `data/raw` are protected. Derived bronze, silver work ta
 ```
 
 `drop-derived --force` moves derived paths to `data/_atlas/_trash/...` instead of deleting raw files. Atlas refuses invalid release ids and paths outside the configured ETL data directories.
-`drop-stale-derived --force` quarantines known legacy derived paths that are no longer part of the current contract, such as the old `data/silver/receita/establishments` table and its old sibling quality reports. It does not touch raw files, `data/silver/receita/establishments_current`, or compact history events.
+`drop-stale-derived --force` quarantines known legacy derived paths that are no longer part of the current contract, such as the old `data/silver/receita/establishments` table and its old sibling quality reports. It does not touch raw files, `data/silver/receita/establishments_current`, compact history events, or release summaries.
 
 ## Change history storage
 
-`./atlas refresh receita estabelecimentos --release YYYY-MM` ingests a release, normalizes it, compares it with the latest silver current table, writes compact selected field deltas, and publishes the new latest current table. The first release seeds the current table and does not emit one insert event per establishment. Atlas stores only selected old/new field values in history, not full previous records, to fit the local 1 TB laptop constraint.
+`./atlas refresh receita estabelecimentos --release YYYY-MM` ingests a release, normalizes it, compares it with the latest silver current table, writes compact selected field deltas and a release summary, and publishes the new latest current table. The first release seeds the current table and does not emit one insert event per establishment. Atlas stores only selected old/new field values in history, not full previous records, to fit the local 1 TB laptop constraint. It writes one compact summary per release, including seed and zero-change releases.
 
 Refresh accepts only a release newer than current. Equal or older releases fail without changing current or history. `./atlas normalize receita estabelecimentos --release YYYY-MM` writes only the release-scoped candidate beneath `data/_atlas/work`; it cannot bypass publication ordering.
 

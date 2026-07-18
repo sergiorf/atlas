@@ -2,7 +2,7 @@
 
 - **Status:** Implemented for Receita establishments bronze, silver, and history jobs
 - **Owner:** `apps/etl/src/main/scala/atlas/status`
-- **Contract version:** `2` (additive fields and status value; version 1 files remain readable)
+- **Contract version:** `3` (additive release metrics; versions 1 and 2 remain readable)
 
 Atlas records the latest attempted ETL run for each source, dataset, snapshot, and layer as one UTF-8 JSON file. The root CLI calls the same operator-selected `snapshot` a `release`. Paths are relative to `apps/etl`:
 
@@ -29,6 +29,11 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 | `output_row_count` | integer | no | Rows published by the layer |
 | `quarantined_row_count` | integer | no | Rows excluded into generated quality output |
 | `quality_warnings` | array | no | Warning objects containing `type`, `row_count`, `reason`, and `report_path` |
+| `previous_row_count` | integer | no | Previous current total; absent for a seed or when unknown |
+| `net_row_delta` | integer | no | Current total minus previous total |
+| `inserted_row_count` | integer | no | Inserted establishment events |
+| `updated_row_count` | integer | no | Updated establishment events |
+| `removed_row_count` | integer | no | Removed establishment events |
 | `input_paths` | array of strings | yes | Declared input paths or globs |
 | `output_path` | string | no | Intended or produced output location |
 | `partition_columns` | array of strings | yes | Physical output partition columns; empty when not applicable |
@@ -44,6 +49,6 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 
 The bronze job writes `success` only after Parquet and quality reports have been written. Standalone silver normalization writes a release-scoped candidate and records `success_with_warnings` when malformed rows were quarantined; it does not publish current. A successful release refresh records both the published latest-current silver table and compact history after current is committed. Full rebuild stages bronze, published-silver, and history statuses with the replacement generation, rewrites their generated paths to active locations, and activates them only after validation. Existing establishment statuses outside the selected rebuild range are quarantined with the replaced generation. If a job throws after metadata is known, it makes a best-effort write of `failed` and rethrows the original exception. A registry-write error is attached to the original failure rather than replacing it.
 
-The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. Missing means no run was recorded. No files are created for unimplemented gold, serving/index, or dashboard work.
+The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. `row_count` remains the history event count and `output_row_count` remains the current establishment count. Durable analytical metrics live in the silver release-summary dataset. Missing means no run was recorded. No files are created for unimplemented gold, serving/index, or dashboard work.
 
 Changing field meaning, identity/path conventions, required fields, status values, or replacement semantics requires compatibility analysis and a contract-version decision. Generated registry files remain local and are ignored by Git.

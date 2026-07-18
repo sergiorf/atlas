@@ -133,6 +133,13 @@ object EstablishmentRebuildService {
     ).historyRelease
     if (Files.exists(seedHistory))
       throw new IllegalStateException(s"Seed release unexpectedly produced history at $seedHistory")
+    plan.releases.foreach { release =>
+      val summaryPath = ReleasePaths(
+        stagedConfig.copy(receita = stagedConfig.receita.copy(snapshot = release.value))
+      ).summaryRelease
+      if (!Files.exists(summaryPath) || spark.read.parquet(summaryPath.toString).count() != 1)
+        throw new IllegalStateException(s"Release $release must have exactly one staged summary")
+    }
     if (current.groupBy("cnpj_full").count().filter("count > 1").limit(1).count() != 0)
       throw new IllegalStateException("Staged current contains duplicate cnpj_full values")
     plan.releases.sliding(2).foreach {
@@ -237,6 +244,7 @@ object EstablishmentRebuildService {
       ("bronze", Paths.get(config.receita.bronzeDir).resolve("estabelecimentos"), Paths.get(stagedConfig.receita.bronzeDir).resolve("estabelecimentos")),
       ("silver-current", active.silverCurrent, staged.silverCurrent),
       ("history", active.historyRoot, staged.historyRoot),
+      ("summaries", active.summaryRoot, staged.summaryRoot),
       ("reports", active.atlasRoot.resolve("reports/receita/estabelecimentos"), staged.atlasRoot.resolve("reports/receita/estabelecimentos")),
       ("quality", active.atlasRoot.resolve("quality/receita/establishments"), staged.atlasRoot.resolve("quality/receita/establishments")),
       ("work", active.atlasRoot.resolve("work/receita/estabelecimentos"), staged.atlasRoot.resolve("work/receita/estabelecimentos")),

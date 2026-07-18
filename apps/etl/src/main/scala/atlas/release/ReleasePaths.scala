@@ -18,13 +18,15 @@ final case class ReleasePaths(config: AtlasConfig) {
   def silverReports: Path = atlasRoot.resolve("reports/receita/estabelecimentos").resolve(release.value).resolve("silver")
   def historyRoot: Path = Paths.get(config.receita.silverDir).resolve("establishment_change_events")
   def historyRelease: Path = historyRoot.resolve(s"to_release=${release.value}")
+  def summaryRoot: Path = Paths.get(config.receita.silverDir).resolve("establishment_release_summaries")
+  def summaryRelease: Path = summaryRoot.resolve(s"to_release=${release.value}")
   def trashRoot(timestamp: String): Path = atlasRoot.resolve("_trash").resolve(timestamp).resolve(s"release=${release.value}")
 
   def derivedPaths(layer: ReleaseLayer): Seq[(String, Path)] = layer match {
     case ReleaseLayer.Bronze => Seq("bronze" -> bronzeRelease)
     case ReleaseLayer.Silver => Seq("silver_candidate" -> silverCandidate)
     case ReleaseLayer.Reports => Seq("bronze_reports" -> bronzeReports, "silver_reports" -> silverReports)
-    case ReleaseLayer.History => Seq("history" -> historyRelease)
+    case ReleaseLayer.History => Seq("history" -> historyRelease, "summary" -> summaryRelease)
     case ReleaseLayer.AllDerived =>
       derivedPaths(ReleaseLayer.Bronze) ++ derivedPaths(ReleaseLayer.Silver) ++
         derivedPaths(ReleaseLayer.Reports) ++ derivedPaths(ReleaseLayer.History)

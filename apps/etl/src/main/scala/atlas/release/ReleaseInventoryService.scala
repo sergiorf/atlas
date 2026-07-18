@@ -16,7 +16,8 @@ object ReleaseInventoryService {
       inventory("silver_candidate", paths.silverCandidate, protectedPath = false),
       inventory("bronze_reports", paths.bronzeReports, protectedPath = false),
       inventory("silver_reports", paths.silverReports, protectedPath = false),
-      inventory("history", paths.historyRelease, protectedPath = false)
+      inventory("history", paths.historyRelease, protectedPath = false),
+      inventory("summary", paths.summaryRelease, protectedPath = false)
     )
     ReleaseInventory(release, entries)
   }

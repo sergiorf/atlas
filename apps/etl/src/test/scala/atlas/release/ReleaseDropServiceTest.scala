@@ -32,6 +32,22 @@ class ReleaseDropServiceTest extends AnyFunSuite {
     assert(result.entries.forall(!_.exists))
   }
 
+  test("history release lifecycle includes events and summaries") {
+    val root = Files.createTempDirectory("atlas-release-history-drop")
+    val config = sampleConfig(root)
+    val paths = ReleasePaths(config)
+    Files.createDirectories(paths.historyRelease)
+    Files.createDirectories(paths.summaryRelease)
+    Files.write(paths.historyRelease.resolve("events"), "events".getBytes(StandardCharsets.UTF_8))
+    Files.write(paths.summaryRelease.resolve("summary"), "summary".getBytes(StandardCharsets.UTF_8))
+
+    val result = ReleaseDropService.force(config, ReleaseId.unsafe("2026-07"), ReleaseLayer.History)
+    assert(result.entries.map(_.label) === Seq("history", "summary"))
+    assert(!Files.exists(paths.historyRelease))
+    assert(!Files.exists(paths.summaryRelease))
+    assert(result.trashRoot.exists(root => Files.exists(root.resolve("summary/summary"))))
+  }
+
   test("stale derived cleanup quarantines legacy silver outputs only") {
     val root = Files.createTempDirectory("atlas-stale-derived")
     val legacy = root.resolve("silver/receita/establishments")

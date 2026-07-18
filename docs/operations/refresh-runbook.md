@@ -26,7 +26,7 @@ Refreshes are manual and snapshot-based.
    The individual ingestion and normalization commands are for isolated troubleshooting. Normalization writes a release-scoped candidate and does not publish latest current.
 6. Review the bronze JSON and Markdown reports for the resolved raw input path, output path, row count, identifier issues, missing dates, missing CNAEs, and run timestamp. Stop if the input path does not contain the intended release when using the default dated layout.
 7. Review the silver reports. Invalid or duplicate CNPJs reject publication; investigate the bronze snapshot instead of editing raw files or silently deduplicating.
-8. Inspect representative bronze, latest silver current, and change-event Parquet records before treating the refresh as usable.
+8. Inspect representative bronze, latest silver current, change-event, and release-summary Parquet records before treating the refresh as usable. For non-seed summaries, confirm `current - previous = inserted - removed`.
 
 Atlas publishes releases monotonically. If current is `2026-06`, normal refresh accepts `2026-07` or a later available month, but rejects `2026-06` and older releases before ingestion. Month gaps are allowed and history records the actual local `from_release` and `to_release`. A legacy current table without release metadata is rejected unless the operator has verified its age and explicitly passes `--allow-legacy-current`; events from that one migration retain a null `from_release`.
 
@@ -34,7 +34,7 @@ Atlas publishes releases monotonically. If current is `2026-06`, normal refresh 
 
 Use a full rebuild when current or history is inconsistent, when changing contracted transformation behavior, or when intentionally replacing the complete active establishment generation. Do not use `sbt clean`: it removes compiled build artifacts, not data. Do not manually delete current or history directories.
 
-The selected range becomes the complete active establishment dataset. Atlas recreates bronze, quality reports, latest silver current, statuses, and compact history from the available raw releases in chronological order. Existing generated establishment releases outside the range are also removed from active paths. Raw archives, extracted CSV files, and unrelated datasets are never moved.
+The selected range becomes the complete active establishment dataset. Atlas recreates bronze, quality reports, latest silver current, statuses, compact events, and one release summary per available raw release in chronological order. Existing generated establishment releases outside the range are also removed from active paths. Raw archives, extracted CSV files, and unrelated datasets are never moved.
 
 First run the default dry-run:
 
