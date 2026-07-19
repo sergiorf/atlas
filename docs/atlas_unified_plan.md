@@ -144,14 +144,14 @@ These sources are not early-version implementation targets.
 
 Atlas always preserves:
 
-- `cnpj_root`: the eight-digit company root;
-- `cnpj_branch`: the four-digit establishment order;
+- `cnpj_root`: the eight-character uppercase alphanumeric company root;
+- `cnpj_branch`: the four-character uppercase alphanumeric establishment order;
 - `cnpj_check`: the two check digits;
-- `cnpj_full`: the normalized fourteen-digit establishment identifier.
+- `cnpj_full`: the normalized fourteen-character establishment identifier.
 
 Company records are root-level. Establishment records are branch/location-level. Location, CNAE, status, contact, and opening-date searches are generally establishment-level. Atlas must not collapse those concepts into one ambiguous entity.
 
-Normalization removes punctuation, preserves digits, left-pads components to their official widths, and builds `cnpj_full` from root, branch, and check components. v0.1 validates length; checksum validation is a later enhancement.
+Normalization trims whitespace, uppercases letters, removes the standard `.`, `/`, and `-` display mask, left-pads under-width components with zeros, and builds `cnpj_full` from root, branch, and check components without numeric conversion. Numeric and alphanumeric identifiers coexist: only the first twelve positions may contain `0-9` or `A-Z`, while the two check positions remain numeric. Identifiers must remain strings. Atlas validates canonical structure but does not validate checksums.
 
 ## Target gold tables
 

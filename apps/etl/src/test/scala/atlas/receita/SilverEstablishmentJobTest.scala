@@ -106,6 +106,44 @@ class SilverEstablishmentJobTest extends AnyFunSuite with SparkSuite {
     assert(duplicateReport.duplicateRowCount === 2)
   }
 
+  test("accepts canonical alphanumeric identities and counts them") {
+    val alpha = bronzeFixture()
+      .withColumn("cnpj_root", lit("12ABC345"))
+      .withColumn("cnpj_branch", lit("01DE"))
+      .withColumn("cnpj_check", lit("35"))
+      .withColumn("cnpj_full", lit("12ABC34501DE35"))
+    val report = SilverQualityChecks.evaluate(SilverEstablishmentJob.prepare(alpha), qualityPaths(Files.createTempDirectory("atlas-silver-alpha")))
+    assert(report.validRowCount === 1)
+    assert(report.alphanumericCnpjCount === 1)
+    assert(report.invalidCnpjCount === 0)
+  }
+
+  test("quarantines noncanonical and structurally invalid CNPJ components") {
+    val invalid = Seq(
+      bronzeFixture().withColumn("cnpj_check", lit("A5")).withColumn("cnpj_full", lit("123456780001A5")),
+      bronzeFixture().withColumn("cnpj_root", lit("12abc345")).withColumn("cnpj_full", lit("12abc345000109")),
+      bronzeFixture().withColumn("cnpj_branch", lit("0_01")).withColumn("cnpj_full", lit("123456780_0109")),
+      bronzeFixture().withColumn("cnpj_root", lit(null).cast("string")),
+      bronzeFixture().withColumn("cnpj_branch", lit("00001")).withColumn("cnpj_full", lit("123456780000109"))
+    ).reduce(_.unionByName(_))
+    val prepared = SilverEstablishmentJob.prepare(invalid)
+    val report = SilverQualityChecks.evaluate(prepared, qualityPaths(Files.createTempDirectory("atlas-silver-invalid-alpha")))
+    assert(report.malformedRowCount === 5)
+    assert(report.validRowCount === 0)
+  }
+
+  test("rejects duplicate alphanumeric identities") {
+    val alpha = bronzeFixture()
+      .withColumn("cnpj_root", lit("12ABC345"))
+      .withColumn("cnpj_branch", lit("01DE"))
+      .withColumn("cnpj_check", lit("35"))
+      .withColumn("cnpj_full", lit("12ABC34501DE35"))
+    val report = SilverQualityChecks.evaluate(SilverEstablishmentJob.prepare(alpha.unionByName(alpha)), qualityPaths(Files.createTempDirectory("atlas-silver-alpha-duplicate")))
+    assert(report.duplicateKeyCount === 1)
+    assert(report.duplicateRowCount === 2)
+    assert(!report.accepted)
+  }
+
   test("publishes valid data and preserves the prior publication after a rejected rerun") {
     val root = Files.createTempDirectory("atlas-silver-job")
     val paths = DatasetPaths(

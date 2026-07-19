@@ -17,7 +17,7 @@ object SilverQualityChecks {
         count("*").as("row_count"),
         sumLong(col("_malformed_reason").isNull).as("valid_row_count"),
         sumLong(col("_malformed_reason").isNotNull).as("malformed_row_count"),
-        sumLong(col("cnpj_full").isNull || !col("cnpj_full").rlike("^[0-9]{14}$"))
+        sumLong(col("cnpj_full").isNull || !col("cnpj_full").rlike("^[0-9A-Z]{12}[0-9]{2}$"))
           .as("invalid_cnpj_count"),
         sumLong(col("opening_date").isNull).as("null_opening_date_count"),
         sumLong(col("_invalid_main_cnae")).as("invalid_main_cnae_count"),
@@ -40,6 +40,7 @@ object SilverQualityChecks {
       .head()
 
     val invalidCnpjCount = metrics.getAs[Long]("invalid_cnpj_count")
+    val alphanumericCnpjCount = valid.filter(col("cnpj_full").rlike("[A-Z]")).select("cnpj_full").count()
     val duplicateKeyCount = duplicates.getAs[Long]("duplicate_key_count")
     SilverQualityReport(
       "silver_establishment",
@@ -49,6 +50,7 @@ object SilverQualityChecks {
       metrics.getAs[Long]("valid_row_count"),
       metrics.getAs[Long]("malformed_row_count"),
       invalidCnpjCount,
+      alphanumericCnpjCount,
       duplicateKeyCount,
       duplicates.getAs[Long]("duplicate_row_count"),
       metrics.getAs[Long]("null_opening_date_count"),
@@ -84,6 +86,7 @@ object SilverQualityChecks {
     |  "valid_row_count": ${r.validRowCount},
     |  "malformed_row_count": ${r.malformedRowCount},
     |  "invalid_cnpj_count": ${r.invalidCnpjCount},
+    |  "alphanumeric_cnpj_count": ${r.alphanumericCnpjCount},
     |  "duplicate_key_count": ${r.duplicateKeyCount},
     |  "duplicate_row_count": ${r.duplicateRowCount},
     |  "null_opening_date_count": ${r.nullOpeningDateCount},
@@ -105,6 +108,7 @@ object SilverQualityChecks {
     || Valid rows | ${r.validRowCount} |
     || Quarantined malformed rows | ${r.malformedRowCount} |
     || Invalid CNPJ | ${r.invalidCnpjCount} |
+    || Valid alphanumeric CNPJs | ${r.alphanumericCnpjCount} |
     || Duplicate keys | ${r.duplicateKeyCount} |
     || Rows with duplicate keys | ${r.duplicateRowCount} |
     || Null opening date | ${r.nullOpeningDateCount} |

@@ -11,10 +11,10 @@ The silver table is a curated, rebuildable establishment model. It does not enri
 
 | Field | Spark type | Nullable | Meaning |
 | --- | --- | --- | --- |
-| `cnpj_root` | string | yes | Normalized eight-digit company root from bronze |
-| `cnpj_branch` | string | yes | Normalized four-digit establishment order |
+| `cnpj_root` | string | yes | Normalized eight-character uppercase alphanumeric company root from bronze |
+| `cnpj_branch` | string | yes | Normalized four-character uppercase alphanumeric establishment order |
 | `cnpj_check` | string | yes | Normalized two-digit check component |
-| `cnpj_full` | string | no | Unique fourteen-digit establishment identifier |
+| `cnpj_full` | string | no | Unique fourteen-character establishment identifier; never numeric |
 | `is_headquarters` | boolean | yes | Headquarters indicator inherited from bronze |
 | `trade_name` | string | yes | Trimmed establishment trade name |
 | `registration_status_code` | string | no | Receita registration-status code; one of `01`, `02`, `03`, `04`, or `08` |
@@ -50,7 +50,7 @@ The silver table is a curated, rebuildable establishment model. It does not enri
 | `release` | string | no | Operator-selected release when produced through the release refresh command |
 | `record_hash` | string | no | Deterministic hash of selected business fields for release-to-release comparison |
 
-Before this schema is produced, structural validation requires the CNPJ components to be exactly 8, 4, and 2 digits, `cnpj_full` to be exactly 14 digits, and the registration status to be one of `01`, `02`, `03`, `04`, or `08`. Malformed source-shaped bronze rows are written beneath `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows` and excluded. State is normalized to a valid Brazilian UF or null under the existing nullable contract, with invalid source values reported diagnostically.
+Schema/status version `2` expands identifier semantics without changing Spark field types or the physical table layout. Before this schema is produced, structural validation requires root and branch to match `[0-9A-Z]{8}` and `[0-9A-Z]{4}`, check to match `[0-9]{2}`, `cnpj_full` to match `[0-9A-Z]{12}[0-9]{2}`, and the registration status to be one of `01`, `02`, `03`, `04`, or `08`. Malformed source-shaped bronze rows are written beneath `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows` and excluded. State is normalized to a valid Brazilian UF or null under the existing nullable contract, with invalid source values reported diagnostically.
 
 The quality gate enforces unique `cnpj_full` values after malformed rows are excluded. Conflicting valid duplicates are reported beneath the snapshot quality directory and reject publication. The job does not validate the CNPJ checksum or silently deduplicate records. The release refresh command keeps this table as the latest full normalized state and writes older changes as compact deltas rather than retaining full historical copies.
 

@@ -10,6 +10,32 @@ import org.apache.spark.sql.functions._
 import org.scalatest.funsuite.AnyFunSuite
 
 class EstablishmentHistoryJobTest extends AnyFunSuite with SparkSuite {
+  test("tracks an alphanumeric establishment across insertion and update with stable event ids") {
+    val root = Files.createTempDirectory("atlas-history-alphanumeric")
+    val config = AtlasConfig(
+      SparkConfig("local[2]", "atlas-tests", 2, root.resolve("spark-tmp").toString),
+      CsvConfig(";", "UTF-8"),
+      ReceitaConfig("2026-07", root.resolve("raw").toString, root.resolve("bronze/receita").toString, root.resolve("silver/receita").toString),
+      root.resolve("_atlas/status").toString, "overwrite"
+    )
+    val paths = ReleasePaths(config)
+    val numeric = silver("2026-06", "12345678000109", "numeric@example.com", "Numeric")
+    val july = numeric.unionByName(silver("2026-07", "12ABC34501DE35", "alpha@example.com", "Alpha"))
+    val insertResult = EstablishmentHistoryJob.compareWithPrior(spark, config, numeric, july, paths)
+    val firstEventId = spark.read.parquet(paths.historyRelease.toString).filter(col("cnpj_full") === "12ABC34501DE35").head().getAs[String]("event_id")
+    EstablishmentHistoryJob.compareWithPrior(spark, config, numeric, july, paths)
+    val repeatedEventId = spark.read.parquet(paths.historyRelease.toString).filter(col("cnpj_full") === "12ABC34501DE35").head().getAs[String]("event_id")
+    val augustConfig = config.copy(receita = config.receita.copy(snapshot = "2026-08"))
+    val augustPaths = ReleasePaths(augustConfig)
+    val august = numeric.unionByName(silver("2026-08", "12ABC34501DE35", "updated@example.com", "Alpha"))
+    val updateResult = EstablishmentHistoryJob.compareWithPrior(spark, augustConfig, july, august, augustPaths)
+    assert(insertResult.insertedCount === 1)
+    assert(firstEventId === repeatedEventId)
+    assert(updateResult.updatedCount === 1)
+    assert(updateResult.insertedCount === 0)
+    assert(spark.read.parquet(augustPaths.historyRelease.toString).head().getAs[String]("cnpj_full") === "12ABC34501DE35")
+  }
+
   test("stores selected field deltas without full old records") {
     val root = Files.createTempDirectory("atlas-history")
     val config = AtlasConfig(

@@ -2,7 +2,7 @@
 
 ## Supported
 
-Atlas supports only the Receita Federal CNPJ `Estabelecimentos` file group. Bronze preserves establishment identity, registration, CNAE, address, contact, and special-status fields and adds normalized CNPJ identifiers and provenance.
+Atlas supports only the Receita Federal CNPJ `Estabelecimentos` file group. Bronze preserves establishment identity, registration, CNAE, address, contact, and special-status fields and adds normalized CNPJ identifiers and provenance. Numeric and alphanumeric CNPJs coexist in the same string key space; only the first twelve positions may contain uppercase letters, while check digits remain numeric.
 
 The implemented v0.2 slice adds a curated silver establishment table with unique identifiers,
 normalized status, CNAE, location and contact fields, retained bronze lineage, compact

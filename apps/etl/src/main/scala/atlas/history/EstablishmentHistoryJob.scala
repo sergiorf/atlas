@@ -427,7 +427,7 @@ object EstablishmentHistoryJob {
       if (warnings.isEmpty) "success" else "success_with_warnings",
       startedAt, finishedAt, Duration.between(startedAt, finishedAt).toNanos / 1000000000.0,
       Some(result.currentRowCount), Seq(paths.bronzeRelease.toString), Some(paths.silverCurrent.toString),
-      Seq("state"), Some("1"), Some(config.spark.appName), Some("refresh-receita-estabelecimentos"),
+      Seq("state"), Some("2"), Some(config.spark.appName), Some("refresh-receita-estabelecimentos"),
       inputRowCount = Some(report.rowCount), outputRowCount = Some(result.currentRowCount),
       quarantinedRowCount = Some(report.malformedRowCount), qualityWarnings = warnings,
       previousRowCount = result.previousRowCount,

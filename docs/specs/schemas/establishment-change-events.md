@@ -12,7 +12,7 @@ Atlas stores compact selected field deltas for release-to-release changes. It do
 | `event_id` | string | no | Deterministic hash of source, dataset, CNPJ, target release, and change type |
 | `source` | string | no | Currently `receita` |
 | `dataset` | string | no | Currently `estabelecimentos` |
-| `cnpj_full` | string | no | Fourteen-digit establishment identifier |
+| `cnpj_full` | string | no | Fourteen-character numeric or alphanumeric establishment identifier |
 | `from_release` | string | yes | Previous release when known |
 | `to_release` | string | no | Candidate release that produced the event |
 | `change_type` | string | no | `inserted`, `updated`, or `removed` |

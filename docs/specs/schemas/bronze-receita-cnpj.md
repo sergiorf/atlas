@@ -11,7 +11,7 @@ Bronze retains all raw fields after trimming and blank-to-null conversion. Most 
 - `opening_date`
 - `special_status_date`
 
-Atlas normalizes `cnpj_root`, `cnpj_branch`, and `cnpj_check` as nullable digit-only strings padded to widths 8, 4, and 2. It appends:
+Schema/status version `2` expands CNPJ string semantics without changing Spark field types or the physical table layout. Atlas normalizes `cnpj_root` and `cnpj_branch` as nullable uppercase alphanumeric strings padded to widths 8 and 4, and `cnpj_check` as a two-character numeric string. Normalization removes only standard display-mask characters and never truncates over-width values. It appends:
 
 | Field | Spark type | Nullable | Meaning |
 | --- | --- | --- | --- |

@@ -9,7 +9,8 @@ The silver job validates prepared data before invoking the silver Parquet writer
 | --- | --- | --- |
 | `row_count` | Count all prepared rows | Diagnostic |
 | `malformed_row_count` | Count rows with a nonconforming CNPJ component/full key or registration status outside `01`, `02`, `03`, `04`, `08` | Quarantine and exclude |
-| `invalid_cnpj_count` | Count null values or values not matching fourteen digits | Included in structural diagnostics |
+| `invalid_cnpj_count` | Count null values or values not matching `[0-9A-Z]{12}[0-9]{2}` | Included in structural diagnostics |
+| `alphanumeric_cnpj_count` | Count valid rows whose canonical `cnpj_full` contains an uppercase letter | Additive operational diagnostic |
 | `duplicate_key_count` | Count distinct valid `cnpj_full` values occurring more than once | Reject when nonzero |
 | `duplicate_row_count` | Count every row belonging to a duplicate key | Diagnostic accompanying rejection |
 | `null_opening_date_count` | Count null opening dates | Diagnostic |
@@ -18,4 +19,4 @@ The silver job validates prepared data before invoking the silver Parquet writer
 | `invalid_state_count` | Count non-null source states that are not valid Brazilian UF codes after uppercasing | Diagnostic; normalized output is null |
 | `null_municipality_code_count` | Count null municipality codes | Diagnostic |
 
-A date-like registration status such as `20250324` is malformed, not a business duplicate. An accepted run with quarantined rows publishes only valid rows and records `success_with_warnings`. Remaining duplicate valid keys write all involved rows to `data/_atlas/quality/receita/establishments/<snapshot>/duplicate_cnpj_full`, reject the run, and do not invoke the silver writer, so validation failures cannot replace an existing table. No duplicate is silently collapsed. A later storage failure can still prevent publication. CNPJ checksum validation is not implemented.
+Roots and branches must contain exactly 8 and 4 uppercase alphanumeric characters; checks must contain exactly 2 digits. Lowercase direct bronze values, invalid symbols, nulls, and incorrect widths are quarantined. A date-like registration status such as `20250324` is malformed, not a business duplicate. An accepted run with quarantined rows publishes only valid rows and records `success_with_warnings`. Remaining duplicate valid keys write all involved rows to `data/_atlas/quality/receita/establishments/<snapshot>/duplicate_cnpj_full`, reject the run, and do not invoke the silver writer, so validation failures cannot replace an existing table. No duplicate is silently collapsed. A later storage failure can still prevent publication. CNPJ checksum validation is not implemented.

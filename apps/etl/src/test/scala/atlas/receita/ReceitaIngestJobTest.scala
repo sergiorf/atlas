@@ -19,4 +19,14 @@ class ReceitaIngestJobTest extends AnyFunSuite with SparkSuite {
     assert(result.getAs[Boolean]("is_headquarters")); assert(result.getAs[String]("trade_name") === "Atlas")
     assert(result.getAs[Date]("opening_date") === Date.valueOf("2024-01-31")); assert(result.getAs[String]("source_name") === "receita_cnpj_estabelecimentos")
   }
+  test("ingests numeric and alphanumeric CNPJs in the same fixture") {
+    def row(root: String, branch: String, check: String): Row = Row(ReceitaSchemas.estabelecimentoColumns.map {
+      case "cnpj_root" => root; case "cnpj_branch" => branch; case "cnpj_check" => check; case _ => " "
+    }: _*)
+    val raw = spark.createDataFrame(spark.sparkContext.parallelize(Seq(
+      row("12.345.678", "1", "9"), row("12abc345", "01de", "35")
+    )), ReceitaSchemas.estabelecimentos)
+    val identifiers = ReceitaIngestJob.transform(raw).select("cnpj_full").collect().map(_.getString(0)).toSet
+    assert(identifiers === Set("12345678000109", "12ABC34501DE35"))
+  }
 }

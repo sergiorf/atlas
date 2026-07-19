@@ -155,10 +155,10 @@ object SilverEstablishmentJob {
         .as("_invalid_state"),
       concat_ws(
         "; ",
-        when(cleanedRoot.isNull || !cleanedRoot.rlike("^[0-9]{8}$"), lit("cnpj_root must be exactly 8 digits")),
-        when(cleanedBranch.isNull || !cleanedBranch.rlike("^[0-9]{4}$"), lit("cnpj_branch must be exactly 4 digits")),
+        when(cleanedRoot.isNull || !cleanedRoot.rlike("^[0-9A-Z]{8}$"), lit("cnpj_root must be exactly 8 uppercase alphanumeric characters")),
+        when(cleanedBranch.isNull || !cleanedBranch.rlike("^[0-9A-Z]{4}$"), lit("cnpj_branch must be exactly 4 uppercase alphanumeric characters")),
         when(cleanedCheck.isNull || !cleanedCheck.rlike("^[0-9]{2}$"), lit("cnpj_check must be exactly 2 digits")),
-        when(cleanedFull.isNull || !cleanedFull.rlike("^[0-9]{14}$"), lit("cnpj_full must be exactly 14 digits")),
+        when(cleanedFull.isNull || !cleanedFull.rlike("^[0-9A-Z]{12}[0-9]{2}$"), lit("cnpj_full must be exactly 12 uppercase alphanumeric characters followed by 2 digits")),
         when(cleanedStatus.isNull || !cleanedStatus.isin(validRegistrationStatuses: _*), lit("invalid registration_status_code"))
       ).as("_malformed_reason")
     )
@@ -192,7 +192,7 @@ object SilverEstablishmentJob {
     RunStatus(
       "receita", "establishments", config.receita.snapshot, "silver", runStatus,
       startedAt, finishedAt, Duration.between(startedAt, finishedAt).toNanos / 1000000000.0,
-      report.map(_.validRowCount), Seq(paths.input), Some(paths.output), Seq("state"), Some("1"),
+      report.map(_.validRowCount), Seq(paths.input), Some(paths.output), Seq("state"), Some("2"),
       Some(config.spark.appName), Some("normalize-receita-estabelecimentos"),
       error.map(_.getClass.getName), error.flatMap(value => Option(value.getMessage)),
       report.map(_.rowCount), report.map(_.validRowCount), report.map(_.malformedRowCount), warnings

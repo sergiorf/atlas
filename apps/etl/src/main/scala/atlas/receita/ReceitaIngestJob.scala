@@ -80,7 +80,7 @@ object ReceitaIngestJob {
       inputPaths = Seq(paths.input),
       outputPath = Some(paths.output),
       partitionColumns = Seq("state"),
-      schemaVersion = Some("1"),
+      schemaVersion = Some("2"),
       applicationName = Some(config.spark.appName),
       jobName = Some("ingest-receita-estabelecimentos"),
       errorType = error.map(_.getClass.getName),

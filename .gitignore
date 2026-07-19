@@ -36,6 +36,10 @@ apps/etl/target/
 apps/etl/project/target/
 apps/etl/project/project/
 
+# Python
+__pycache__/
+*.py[cod]
+
 # IDE
 .idea/
 .bsp/

@@ -10,6 +10,7 @@ final case class SilverQualityReport(
     validRowCount: Long,
     malformedRowCount: Long,
     invalidCnpjCount: Long,
+    alphanumericCnpjCount: Long,
     duplicateKeyCount: Long,
     duplicateRowCount: Long,
     nullOpeningDateCount: Long,

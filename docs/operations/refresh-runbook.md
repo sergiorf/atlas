@@ -27,8 +27,10 @@ Refreshes are manual and snapshot-based.
 
    The individual ingestion and normalization commands are for isolated troubleshooting. Normalization writes a release-scoped candidate and does not publish latest current.
 6. Review the bronze JSON and Markdown reports for the resolved raw input path, output path, row count, identifier issues, missing dates, missing CNAEs, and run timestamp. Stop if the input path does not contain the intended release when using the default dated layout.
-7. Review the silver reports. Invalid or duplicate CNPJs reject publication; investigate the bronze snapshot instead of editing raw files or silently deduplicating.
+7. Review the silver reports, including `alphanumeric_cnpj_count`. Invalid or duplicate CNPJs reject publication; investigate the bronze snapshot instead of editing raw files or silently deduplicating.
 8. Inspect representative bronze, latest silver current, change-event, and release-summary Parquet records before treating the refresh as usable. For non-seed summaries, confirm `current - previous = inserted - removed`.
+
+The alphanumeric compatibility change does not require rebuilding May or June or rewriting history: existing numeric keys are canonical members of the expanded string domain. Run the normal June-to-July (or next available) refresh. A zero `alphanumeric_cnpj_count` is plausible; for the first nonzero release, inspect representative accepted rows and confirm root `[0-9A-Z]{8}`, branch `[0-9A-Z]{4}`, numeric two-character check, and their exact concatenation. Stop publication if alphanumeric rows are unexpectedly quarantined, identifiers are truncated, duplicates appear, or current/history invariants fail.
 
 Atlas publishes releases monotonically. If current is `2026-06`, normal refresh accepts `2026-07` or a later available month, but rejects `2026-06` and older releases before ingestion. Month gaps are allowed and history records the actual local `from_release` and `to_release`. A legacy current table without release metadata is rejected unless the operator has verified its age and explicitly passes `--allow-legacy-current`; events from that one migration retain a null `from_release`.
 

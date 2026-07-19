@@ -113,7 +113,7 @@ The status registry reports the latest job attempts; it is not establishment his
 
 ## Look up establishments and companies
 
-Look up one establishment by its fourteen-digit CNPJ:
+Look up one establishment by its fourteen-character CNPJ:
 
 ```sql
 SELECT
@@ -131,7 +131,7 @@ FROM silver_establishments
 WHERE cnpj_full = '12345678000109';
 ```
 
-List every establishment belonging to one eight-digit company root:
+List every establishment belonging to one eight-character company root:
 
 ```sql
 SELECT
@@ -145,6 +145,8 @@ FROM silver_establishments
 WHERE cnpj_root = '12345678'
 ORDER BY cnpj_branch, cnpj_check;
 ```
+
+Numeric and alphanumeric CNPJs coexist. Keep every CNPJ field as a string: the first twelve positions may contain uppercase letters, the final two check positions remain numeric, and leading zeros are significant. Do not cast identifiers to numeric types.
 
 Atlas currently has an establishment table, not a complete company-profile table. Grouping by `cnpj_root` is useful for inspection but does not define company-level product semantics.
 
