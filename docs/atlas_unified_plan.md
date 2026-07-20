@@ -247,20 +247,38 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 - generate quality reports;
 - add DuckDB examples and architecture/product documentation.
 
-### v0.2 — normalized establishments and first lead export
+### v0.2 — normalized establishments and establishment history
 
 - build silver establishment normalization — implemented;
 - add local CLI, release status, lifecycle controls, compact establishment change events, and
   release summaries — implemented;
-- add municipality lookup support;
-- operationalize CNAE group filters;
-- ship the first export-leads command.
+- the implemented May–July establishment slice is complete;
+- municipality lookup, CNAE business groups, and `export-leads` are deferred to the company-product tranche.
 
-### v0.3 — complete Receita company spine
+### v0.3a — company-spine silver foundation (active next tranche)
 
-- ingest Empresas, Socios, and Simples;
-- add required Receita reference tables;
-- build company profile, partner-network, and new-company lead gold tables.
+- ingest monthly `Empresas` through raw, bronze, and `silver_company`;
+- ingest the six official Receita reference groups: CNAE, Municipios, Naturezas Juridicas,
+  Paises, Qualificacoes de Socios, and Motivos de Situacao Cadastral;
+- map Receita municipality codes through the official TOM table to the IBGE Localities hierarchy;
+- backfill May–July company state and compact company history;
+- publish establishments, companies, references, geography, and history as one coherent release bundle.
+
+This foundation is the immediate next priority. Its approved design target is documented in the
+[company-spine silver-foundation plan](plans/receita-company-spine-silver-foundation.md). The
+strategic decision is to establish reusable, joined data coverage before producing a
+customer-facing export. Nothing in v0.3a is implemented yet.
+
+### v0.3b — company products
+
+- ingest `Simples` and reviewed `Socios` data;
+- build gold company profiles and partner networks;
+- operationalize versioned CNAE business groups;
+- build gold lead products and expose controlled lead exports, including the deferred
+  `export-leads` command.
+
+Gold remains mandatory before any serving index, API, website, or public product consumes these
+data. Silver foundation tables are internal contracts, not customer-facing products.
 
 ### v0.4 — graph-ready products
 

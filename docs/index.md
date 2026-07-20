@@ -35,6 +35,21 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
 - [Run-status registry contract](specs/run-status.md)
 
+## Planned specifications
+
+These design targets are unsupported, are not compatibility commitments, and do not authorize
+implementation:
+
+- [Receita company and reference sources](specs/datasets/receita-company-reference-sources.md)
+- [Raw Receita empresas layout](specs/schemas/raw-receita-empresas.md)
+- [Bronze Receita empresas schema](specs/schemas/bronze-receita-empresas.md)
+- [Silver company schema](specs/schemas/silver-company.md)
+- [Company change events and release summaries](specs/schemas/company-change-history.md)
+- [Receita reference dimensions](specs/schemas/receita-reference-dimensions.md)
+- [Receita-to-IBGE municipality geography](specs/schemas/receita-ibge-municipality-geography.md)
+- [Company and geography quality rules](specs/quality/company-geography-quality-rules.md)
+- [Company-spine silver-foundation implementation plan](plans/receita-company-spine-silver-foundation.md)
+
 ## Planned work
 
 The [roadmap pointer](roadmap/release-roadmap.md) leads to the unified plan, which is the only
