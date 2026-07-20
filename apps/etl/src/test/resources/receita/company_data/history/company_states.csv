@@ -1,0 +1,6 @@
+release;cnpj_root;legal_name;share_capital;expected_change
+2026-05;12345678;ATLAS SERVICOS;0.00;seed
+2026-06;12345678;ATLAS DADOS;100.00;updated
+2026-07;12345678;ATLAS DADOS;100.00;unchanged
+2026-06;12ABC345;NOVA EMPRESA;10.00;inserted
+2026-07;12ABC345;;;removed

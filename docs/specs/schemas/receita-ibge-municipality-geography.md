@@ -8,6 +8,10 @@
 
 This table and path are not implemented or currently runnable.
 
+The five-field TOM source and nested IBGE municipality response are asserted by
+`CompanyDataSchemas.tomMunicipalitiesRaw` and `ibgeMunicipalityRaw`. These are declarative test
+contracts only and perform no capture, parsing job, join, or output write.
+
 The mapping uses the official Receita TOM municipality CSV to map a Receita/TOM municipality code
 to a seven-digit IBGE municipality code. That code joins exactly to a captured response from the
 IBGE Localities `/api/v1/localidades/municipios` endpoint. Names are descriptive and are never used
@@ -28,4 +32,3 @@ as fallback join keys.
 
 Unmatched or ambiguous codes reject publication after diagnostics; fuzzy matching is forbidden.
 Districts, subdistricts, coordinates, population, area, and boundaries are deferred.
-

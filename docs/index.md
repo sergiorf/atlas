@@ -48,7 +48,7 @@ implementation:
 - [Receita reference dimensions](specs/schemas/receita-reference-dimensions.md)
 - [Receita-to-IBGE municipality geography](specs/schemas/receita-ibge-municipality-geography.md)
 - [Company and geography quality rules](specs/quality/company-geography-quality-rules.md)
-- [Company-spine silver-foundation implementation plan](plans/receita-company-spine-silver-foundation.md)
+- [Receita company data foundation implementation plan](plans/receita-company-data-foundation.md)
 
 ## Planned work
 

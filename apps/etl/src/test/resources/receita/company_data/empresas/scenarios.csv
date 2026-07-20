@@ -1,0 +1,9 @@
+cnpj_root;share_capital_raw;expected
+12345678;0,00;accepted
+12ABC345;1234,56;accepted
+1234567;10,00;reject_root
+123456789;10,00;reject_root
+12AB-345;10,00;reject_root
+12345678;-1,00;reject_capital
+12345678;INVALIDO;reject_capital
+12345678;;accepted_null_capital

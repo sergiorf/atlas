@@ -255,7 +255,7 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 - the implemented May–July establishment slice is complete;
 - municipality lookup, CNAE business groups, and `export-leads` are deferred to the company-product tranche.
 
-### v0.3a — company-spine silver foundation (active next tranche)
+### v0.3a — Receita company data foundation (active next tranche)
 
 - ingest monthly `Empresas` through raw, bronze, and `silver_company`;
 - ingest the six official Receita reference groups: CNAE, Municipios, Naturezas Juridicas,
@@ -265,7 +265,7 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 - publish establishments, companies, references, geography, and history as one coherent release bundle.
 
 This foundation is the immediate next priority. Its approved design target is documented in the
-[company-spine silver-foundation plan](plans/receita-company-spine-silver-foundation.md). The
+[company data foundation plan](plans/receita-company-data-foundation.md). The
 strategic decision is to establish reusable, joined data coverage before producing a
 customer-facing export. Nothing in v0.3a is implemented yet.
 

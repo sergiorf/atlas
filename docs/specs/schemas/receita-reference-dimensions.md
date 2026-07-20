@@ -6,6 +6,12 @@
 
 These tables and paths are not implemented or currently runnable.
 
+The publisher source layout for every group is exactly two string positions: `code` and
+`description`. `CompanyDataSchemas.referenceRaw` records that shared source shape, while
+`referenceGroups` enumerates the six Atlas-owned dimension names. This shared declaration avoids
+six copies of an identical parser contract; each group remains separately manifested and
+versioned.
+
 Each monthly bundle would produce one release-scoped dimension for `cnae`, `municipality`,
 `legal_nature`, `country`, `partner_qualification`, and `registration_status_reason`. Each row
 contains the preserved string `code`, trimmed `description`, `release`, `source_name`,

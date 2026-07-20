@@ -1,8 +1,9 @@
-# Receita company-spine silver foundation
+# Receita company data foundation
 
 **Status: Planned**  
 **Roadmap owner: Atlas unified plan**  
-**Implementation authorization: Not implemented**
+**Implementation authorization: Not implemented**  
+**Current implementation slice: Contract and synthetic-fixture baseline**
 
 All paths, commands, schemas, configuration, and quality behavior in this document are design
 targets. They do not describe currently runnable Atlas behavior, create a compatibility
@@ -11,7 +12,7 @@ pipeline remains the only implemented data behavior.
 
 ## Decision and objective
 
-Atlas will prioritize reusable company-spine coverage before a customer-facing lead export. The
+Atlas will prioritize reusable company data coverage before a customer-facing lead export. The
 v0.3a objective is to produce a coherent, reproducible silver foundation for May, June, and July:
 root-level companies from `Empresas`; the six official Receita reference groups; a deterministic
 Receita/TOM-to-IBGE municipality hierarchy; compact company change history; and an atomic bundle
@@ -30,24 +31,13 @@ It does not change raw data, expose silver as a public product, or make redistri
 
 ## Source inventory and official evidence
 
-Required per CNPJ release:
-
-- all `Empresas` archives from the official [CNPJ open-data catalog](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/dados-abertos/cadastros);
-- `CNAE`, `Municipios`, `Naturezas`, `Paises`, `Qualificacoes`, and `Motivos` archives from the same
-  snapshot, interpreted using the official CNPJ layout;
-- the already-supported `Estabelecimentos` archives for the same release.
-
-Required captured geography references:
-
-- Receita's official [TOM municipality CSV](https://www.gov.br/receitafederal/dados/municipios.csv/view)
-  and [metadata](https://www.gov.br/receitafederal/dados/municipios-metadados.pdf/view), which provide
-  TOM-to-IBGE municipality codes;
-- the official [IBGE Localities API](https://servicodados.ibge.gov.br/api/docs/localidades)
-  municipality hierarchy response.
-
-Every input is stored immutably outside Git with URL, retrieval timestamp, byte count, SHA-256,
-publisher filename, and selected release or reference capture identifier. Exact license and
-redistribution treatment remains **review required**. No population or boundary input is included.
+The [source catalog](../source_catalog.md) owns the exact input inventory, support state, official
+evidence, cadence, and redistribution status. The [source interpretation
+contract](../specs/datasets/receita-company-reference-sources.md) owns layouts, snapshot agreement,
+manifest requirements, and the gate that must pass before bronze ingestion. In summary, a bundle
+requires same-release `Empresas`, the six Receita references, and supported `Estabelecimentos`, plus
+captured TOM and IBGE geography inputs. Runtime inputs remain immutable outside Git; population and
+boundaries are excluded.
 
 ## Planned data flow and outputs
 
@@ -87,24 +77,29 @@ A release bundle records one immutable bundle identifier and the exact release/h
 Consumers resolve a single `current_bundle` pointer and never assemble independently current
 tables. Gold and public consumers remain forbidden until their roadmap phase and contracts exist.
 
-## Proposed CLI interfaces
+## Proposed operator interfaces
 
-The following interfaces are proposed only; none is currently runnable:
+The following interfaces follow Atlas's current command hierarchy but are proposed only; none is
+currently runnable or listed in the current manual:
 
 ```text
-./atlas download receita company-spine --release YYYY-MM
-./atlas inspect receita company-spine --release YYYY-MM
-./atlas refresh receita company-spine --release YYYY-MM
-./atlas releases rebuild-company-spine --from-release 2026-05 --to-release 2026-07
+./atlas download receita company-data --release YYYY-MM
+./atlas ingest receita company-data --release YYYY-MM
+./atlas refresh receita company-data --release YYYY-MM
+./atlas releases rebuild-company-data --from-release 2026-05 --to-release 2026-07
 ./atlas releases inspect-bundle --release YYYY-MM
 ```
 
 `download` is the only command allowed network access. It acquires every required Receita group and
-captures the configured TOM and IBGE reference inputs. `inspect` validates manifests without
-publishing. `refresh` performs local-only transformation and publishes only a release newer than
-the current bundle. `rebuild-company-spine` requires an explicit inclusive range and reconstructs
-it chronologically. Existing establishment commands remain unchanged until implementation chooses
-and documents a migration.
+captures the configured TOM and IBGE reference inputs. `ingest` validates manifests and writes
+release-scoped bronze outputs without publishing. `refresh` performs local-only transformation and
+publishes only a release newer than the current bundle. `rebuild-company-data` requires an explicit
+inclusive range and reconstructs it chronologically. Existing establishment commands remain
+unchanged until implementation chooses and documents a migration.
+
+Command delivery follows capability delivery: acquisition and bronze own `download` and `ingest`;
+bundle publication owns `refresh`, `inspect-bundle`, and rebuild. Component transformations remain
+internal unless an operator need justifies a public command.
 
 ## May–July backfill
 
@@ -187,8 +182,8 @@ unsupported cases become implementation evidence in the owning specs and operati
 
 ## Implementation slices
 
-1. Contract and fixture baseline: finalize source/version details and failing fixture checks.
-2. Acquisition and bronze: add manifest-aware `Empresas` and reference inputs without refresh I/O.
+1. Contract and fixture baseline: finalize source/version details and executable fixture checks.
+2. Acquisition and bronze: add manifest-aware `Empresas` and reference inputs; only acquisition may use the network.
 3. Reference/geography: build versioned dimensions and exact TOM-to-IBGE hierarchy with gates.
 4. Company silver: normalize, resolve references, quarantine, and validate current company state.
 5. History: add compact May–July company events and summaries.
@@ -199,6 +194,11 @@ unsupported cases become implementation evidence in the owning specs and operati
 Each slice must update its owning specification and focused tests in the same change. An
 implementation request may deliver smaller coherent slices, but may not bypass a missing contract
 or present partially assembled state as a published bundle.
+
+Slice 1 precedes all new bronze ingestion. Its Scala declarations are side-effect-free schemas,
+and its committed inputs are synthetic fixtures. Completion requires green contract tests and a
+selected-release manifest with verified filenames, multiplicity, parser settings, and hashes.
+Until that release-specific evidence exists, slice 2 remains blocked even if the shape tests pass.
 
 ## Deferred work
 

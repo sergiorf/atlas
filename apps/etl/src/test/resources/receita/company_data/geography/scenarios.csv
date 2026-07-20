@@ -1,0 +1,5 @@
+receita_municipality_code;ibge_municipality_code;expected
+7107;3550308;accepted
+7107;3500000;reject_ambiguous
+9999;;reject_unmatched
+6001;9999999;reject_missing_parent

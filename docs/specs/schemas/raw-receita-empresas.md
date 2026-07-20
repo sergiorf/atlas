@@ -19,7 +19,8 @@ The planned parser assigns the seven official headerless `Empresas` positions, i
 | 6 | `company_size_code` | string | Receita company-size code |
 | 7 | `responsible_federative_entity` | string | Responsible federative entity name |
 
-The default delimiter is `;`, header is false, and parsing is string-first using the publisher
-encoding declared by the acquisition manifest. The parser preserves malformed rows for bronze
-diagnostics. Any publisher layout change requires revisiting this planned contract before code.
-
+The delimiter is `;`, header is false, and parsing is string-first using encoding, quote, and
+escape settings verified and declared by the acquisition manifest. The source contract is exposed
+declaratively as `CompanyDataSchemas.empresasRaw`; it has no production reader or writer. A future
+parser must preserve malformed rows for bronze diagnostics. Any publisher layout change requires
+revisiting this planned contract before ingestion code.

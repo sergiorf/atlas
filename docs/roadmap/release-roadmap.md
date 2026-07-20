@@ -3,7 +3,7 @@
 The [Atlas unified plan](../atlas_unified_plan.md#delivery-roadmap) is the only roadmap owner. It
 records implemented slices, active work, milestone sequencing, planned datasets, gold products,
 serving, graph, API, UI, and AI direction. Its
-[v0.3a company-spine silver foundation](../atlas_unified_plan.md#v03a--company-spine-silver-foundation-active-next-tranche)
+[v0.3a Receita company data foundation](../atlas_unified_plan.md#v03a--receita-company-data-foundation-active-next-tranche)
 is the currently named active next tranche; the detailed document remains a planned design, not
 runnable behavior.
 

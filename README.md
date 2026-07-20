@@ -34,11 +34,11 @@ sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 
 ## Next planned tranche
 
-The immediate next priority is the planned Receita company-spine silver foundation: `Empresas`,
+The immediate next priority is the planned Receita company data foundation: `Empresas`,
 official Receita reference dimensions, a Receita-to-IBGE municipality hierarchy, and compact
 May–July company history published with the existing establishment state as a coherent bundle.
-See the [unified plan](docs/atlas_unified_plan.md#v03a--company-spine-silver-foundation-active-next-tranche)
-and the [detailed foundation plan](docs/plans/receita-company-spine-silver-foundation.md).
+See the [unified plan](docs/atlas_unified_plan.md#v03a--receita-company-data-foundation-active-next-tranche)
+and the [detailed foundation plan](docs/plans/receita-company-data-foundation.md).
 
 None of these capabilities, paths, schemas, or proposed commands is implemented yet. Gold tables,
 lead exports, OpenSearch, API, and website work remain later phases.
