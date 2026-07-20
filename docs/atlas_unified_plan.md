@@ -267,7 +267,9 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 This foundation is the immediate next priority. Its approved design target is documented in the
 [company data foundation plan](plans/receita-company-data-foundation.md). The
 strategic decision is to establish reusable, joined data coverage before producing a
-customer-facing export. Nothing in v0.3a is implemented yet.
+customer-facing export. No v0.3a dataset or pipeline stage is implemented yet; only declarative
+schemas, synthetic fixtures, and a side-effect-free local source-manifest validator exist as the
+pre-bronze readiness baseline.
 
 ### v0.3b — company products
 

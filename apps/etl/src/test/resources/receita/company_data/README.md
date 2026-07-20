@@ -14,3 +14,6 @@ release; these fixtures do not assert that Receita publishes UTF-8.
 - `history/company_states.csv`: May seed plus June/July update, unchanged, and removal expectations.
 
 The files are contract fixtures only. No current Atlas job reads them in production.
+
+The Python manifest tests build temporary ZIP, TOM, IBGE, and manifest fixtures at runtime. No
+publisher archive, extracted member, checksum manifest, or generated data is committed here.

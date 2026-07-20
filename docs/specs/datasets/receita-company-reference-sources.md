@@ -7,6 +7,10 @@
 This specification is a design target. Its paths, schemas, and commands are not currently
 runnable behavior and do not authorize implementation.
 
+The separate [source-manifest contract](../schemas/receita-company-source-manifest.md) implements
+local, side-effect-free validation of already acquired inputs. It does not acquire a release or
+implement any raw, bronze, or later company-data pipeline stage.
+
 ## Source ownership and scope
 
 Receita Federal owns the monthly CNPJ bulk publication. The planned tranche reads `Empresas` and
@@ -53,6 +57,8 @@ Acquisition and bronze implementation may begin only when a selected publisher r
 
 The declarative Scala schemas and synthetic fixtures verify field shape only. They are not readers,
 writers, acquisition support, or evidence that a specific monthly snapshot is locally complete.
+The manifest validator likewise proves only the local inputs supplied to it. As of 2026-07-20, no
+real selected-release company-data manifest has been captured and accepted in this repository.
 
 `Estabelecimentos` retains its implemented specification. `Simples` and `Socios` are excluded from
 this tranche. Population, boundaries, gold products, and business-defined CNAE groups are also

@@ -3,7 +3,7 @@
 **Status: Planned**  
 **Roadmap owner: Atlas unified plan**  
 **Implementation authorization: Not implemented**  
-**Current implementation slice: Contract and synthetic-fixture baseline**
+**Current implementation slice: Contract, synthetic-fixture, and local manifest-validation baseline**
 
 All paths, commands, schemas, configuration, and quality behavior in this document are design
 targets. They do not describe currently runnable Atlas behavior, create a compatibility
@@ -196,9 +196,16 @@ implementation request may deliver smaller coherent slices, but may not bypass a
 or present partially assembled state as a published bundle.
 
 Slice 1 precedes all new bronze ingestion. Its Scala declarations are side-effect-free schemas,
-and its committed inputs are synthetic fixtures. Completion requires green contract tests and a
-selected-release manifest with verified filenames, multiplicity, parser settings, and hashes.
-Until that release-specific evidence exists, slice 2 remains blocked even if the shape tests pass.
+and its committed inputs are synthetic fixtures. The versioned
+[source-manifest contract](../specs/schemas/receita-company-source-manifest.md) now validates local
+archives, ZIP membership, hashes, strict parser behavior, TOM, and IBGE hierarchy without writing
+data. No public acquisition command was added and no publisher data was downloaded by this
+implementation.
+
+Slice 1 is not complete until an operator captures a selected real release and the validator
+accepts its verified filenames, multiplicity, parser settings, sizes, and hashes. Until that
+release-specific evidence exists, slice 2 remains blocked even though the schema and validator
+tests pass.
 
 ## Deferred work
 

@@ -34,6 +34,8 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Establishment release-summary schema](specs/schemas/establishment-release-summaries.md)
 - [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
 - [Run-status registry contract](specs/run-status.md)
+- [Receita company source manifest](specs/schemas/receita-company-source-manifest.md) — implemented
+  pre-bronze local validation only; no company dataset support
 
 ## Planned specifications
 
