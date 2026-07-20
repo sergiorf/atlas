@@ -1,4 +1,5 @@
 import importlib.util
+import gzip
 import json
 import sys
 import tempfile
@@ -50,7 +51,7 @@ class DownloadCompanyDataTest(unittest.TestCase):
     @staticmethod
     def fake_public_download(url, destination):
         destination.parent.mkdir(parents=True, exist_ok=True)
-        content = ibge_payload() if "ibge" in url else b"a;b;c;d;e\n"
+        content = gzip.compress(ibge_payload()) if "ibge" in url else b"a;b;c;d;e\n"
         destination.write_bytes(content)
         return len(content)
 
@@ -72,6 +73,7 @@ class DownloadCompanyDataTest(unittest.TestCase):
             manifest = json.loads(manifest_path.read_text())
             self.assertEqual({item["logical_name"] for item in manifest["datasets"]}, set(download_company_data.DATASET_PATTERNS))
             self.assertEqual(download_company_data.company_data_manifest.validate_manifest(manifest, manifest_path.parent), [])
+            self.assertEqual(manifest["references"]["ibge_localities"]["content_encoding"], "gzip")
             status = json.loads((root / "status/receita/company-data/2026-05/raw.json").read_text())
             self.assertEqual(status["status"], "success")
             self.assertEqual(status["file_count"], 9)

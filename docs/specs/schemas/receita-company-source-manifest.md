@@ -32,7 +32,8 @@ blocking mixed-release error.
 
 Each dataset declares `logical_name`, `release`, `parser`, and a non-empty `archives` array. A
 parser declares `encoding`, one-character `delimiter`, `header` fixed to `false`, one-character
-`quote`, one-character `escape`, and `expected_fields`. The expected count is seven for
+`quote`, one-character `escape`, and `expected_fields`. Receita uses `"` for both quote and escape,
+which means doubled-quote escaping; a literal backslash has no parser meaning. The expected count is seven for
 `empresas` and two for each reference group. These are release evidence, not universal defaults.
 
 Every archive declares:
@@ -54,7 +55,9 @@ against the declared field count, including quoted delimiters.
 SHA-256, and a five-field parser contract. It receives the same strict full-file parsing check.
 
 `references.ibge_localities` declares the same provenance fields except for a CSV parser. Its
-content must be a non-empty UTF-8 JSON array. Every municipality must expose an identifier and
+immutable capture may be plain UTF-8 JSON or gzip-encoded JSON; gzip bytes declare
+`content_encoding = "gzip"` and are hashed before decompression. The decoded content must be a
+non-empty JSON array. Every municipality must expose an identifier and
 identifiable immediate region, intermediate region, UF, and macroregion parents. A missing parent
 blocks readiness; name matching is never used.
 

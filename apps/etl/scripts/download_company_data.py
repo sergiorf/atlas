@@ -82,7 +82,7 @@ def parser(expected_fields: int, encoding: str) -> dict[str, object]:
         "delimiter": ";",
         "header": False,
         "quote": '"',
-        "escape": "\\",
+        "escape": '"',
         "expected_fields": expected_fields,
     }
 
@@ -189,6 +189,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             ibge_path, raw_root=raw_root, source_url=args.ibge_url,
             retrieved_at=retrieved_at, content_type="application/json"
         )
+        if ibge_path.read_bytes()[:2] == b"\x1f\x8b":
+            ibge["content_encoding"] = "gzip"
         manifest: dict[str, object] = {
             "manifest_version": company_data_manifest.MANIFEST_VERSION,
             "release": release,

@@ -1,4 +1,5 @@
 import hashlib
+import gzip
 import importlib.util
 import json
 import sys
@@ -22,7 +23,7 @@ class CompanyDataManifestTest(unittest.TestCase):
         datasets = []
         for name, fields in company_data_manifest.REQUIRED_DATASETS.items():
             rows = (
-                '12AB5678;"ACME; BRASIL";2062;49;123,45;03;\n'
+                '12AB5678;"ACME; BRASIL\\";2062;49;123,45;03;\n'
                 if name == "empresas"
                 else f'{name[:3]};"Description; {name}"\n'
             ).encode("utf-8")
@@ -107,7 +108,7 @@ class CompanyDataManifestTest(unittest.TestCase):
             "delimiter": ";",
             "header": False,
             "quote": '"',
-            "escape": "\\",
+            "escape": '"',
             "expected_fields": fields,
         }
 
@@ -133,6 +134,18 @@ class CompanyDataManifestTest(unittest.TestCase):
             root = Path(temporary)
             diagnostics = company_data_manifest.validate_manifest(self.fixture(root), root)
             self.assertEqual(diagnostics, [])
+
+    def test_accepts_gzip_encoded_ibge_capture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = self.fixture(root)
+            reference = manifest["references"]["ibge_localities"]
+            path = root / reference["path"]
+            path.write_bytes(gzip.compress(path.read_bytes()))
+            reference["bytes"] = path.stat().st_size
+            reference["sha256"] = self.digest(path.read_bytes())
+            reference["content_encoding"] = "gzip"
+            self.assertEqual(company_data_manifest.validate_manifest(manifest, root), [])
 
     def test_inspection_builds_archive_and_reference_evidence_without_extracting(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -49,6 +49,8 @@ every archive member through the source-manifest checks and writes
 `data/raw/receita/<release>/company-data/source-manifest.json`. A successful run records
 `receita / company-data / <release> / raw`; a failed verification records failure and does not
 authorize bronze ingestion. Rerunning preserves completed archives and reference captures.
+IBGE responses may be stored as publisher-served gzip bytes; the manifest records that encoding
+and validation decodes it without rewriting the capture.
 
 This command does not extract archives, write bronze, modify the existing establishment raw tree,
 or publish company tables. The separate `download receita estabelecimentos` command remains the

@@ -7,6 +7,7 @@ It verifies immutable local inputs before those capabilities are implemented.
 from __future__ import annotations
 
 import csv
+import gzip
 import hashlib
 import io
 import json
@@ -164,7 +165,10 @@ def _verify_csv(stream: BinaryIO, parser: dict[str, Any], expected_fields: int, 
             text,
             delimiter=parser["delimiter"],
             quotechar=parser["quote"],
-            escapechar=parser["escape"],
+            # Spark/Univocity represents doubled-quote escaping as escape == quote.
+            # Python's csv module represents the same convention with no escapechar.
+            escapechar=None if parser["escape"] == parser["quote"] else parser["escape"],
+            doublequote=parser["escape"] == parser["quote"],
             strict=True,
         )
         count = 0
@@ -257,7 +261,16 @@ def _verify_reference(raw_root: Path, name: str, item: Any, diagnostics: list[Di
                 _verify_csv(stream, parser, expected_fields, location, diagnostics)
     else:
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
+            content = path.read_bytes()
+            is_gzip = content.startswith(b"\x1f\x8b")
+            declared_encoding = item.get("content_encoding")
+            if declared_encoding not in (None, "gzip"):
+                raise ValueError("content_encoding must be gzip when present")
+            if is_gzip != (declared_encoding == "gzip"):
+                raise ValueError("content_encoding does not match the captured bytes")
+            if is_gzip:
+                content = gzip.decompress(content)
+            value = json.loads(content.decode("utf-8"))
             if not isinstance(value, list) or not value:
                 raise ValueError("top-level value must be a non-empty array")
             for index, municipality in enumerate(value):
@@ -268,7 +281,7 @@ def _verify_reference(raw_root: Path, name: str, item: Any, diagnostics: list[Di
                 if not all(isinstance(part, dict) and part.get("id") is not None for part in (municipality, immediate, intermediate, state, region)):
                     diagnostics.append(Diagnostic("CDM_IBGE_HIERARCHY", f"{location}[{index}]", "municipality or parent hierarchy identifier is missing"))
                     break
-        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+        except (OSError, UnicodeError, gzip.BadGzipFile, json.JSONDecodeError, ValueError) as error:
             diagnostics.append(Diagnostic("CDM_IBGE_JSON", location, str(error)))
 
 
