@@ -6,7 +6,11 @@ Atlas uses a medallion-style raw -> bronze -> silver -> gold -> serving/index da
 
 ## Current scope
 
-`apps/etl` reads the raw Receita snapshot, writes release-scoped bronze Parquet, builds the latest curated silver establishment table, produces JSON and Markdown quality reports, records run status as local JSON metadata, and stores selected field-level history deltas plus per-release summaries. Municipality enrichment, CNAE business groups, lead exports, API, UI, indexing, AI, sanctions, procurement, and other Receita datasets remain roadmap items.
+`apps/etl` reads the raw Receita establishment snapshot, writes release-scoped bronze Parquet,
+builds the latest curated silver establishment table, produces quality reports, records run status,
+and stores compact history. A separate pre-bronze command acquires and verifies the company-data
+source bundle. Company-data transformations, municipality enrichment, CNAE business groups, lead
+exports, API, UI, indexing, AI, sanctions, and procurement remain roadmap items.
 
 ## Atlas local CLI
 
@@ -15,6 +19,7 @@ From the repository root:
 ```bash
 ./atlas help
 ./atlas version
+./atlas download receita company-data --release 2026-05
 ./atlas ingest receita estabelecimentos
 ./atlas normalize receita estabelecimentos
 ./atlas refresh receita estabelecimentos --release 2026-07
@@ -32,16 +37,18 @@ The existing sbt commands remain supported from `apps/etl`, including:
 sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 ```
 
-## Next planned tranche
+## Company-data foundation
 
-The immediate next priority is the planned Receita company data foundation: `Empresas`,
+Atlas now implements the pre-bronze acquisition gate for the planned Receita company data
+foundation: `Empresas`,
 official Receita reference dimensions, a Receita-to-IBGE municipality hierarchy, and compact
 May–July company history published with the existing establishment state as a coherent bundle.
 See the [unified plan](docs/atlas_unified_plan.md#v03a--receita-company-data-foundation-active-next-tranche)
 and the [detailed foundation plan](docs/plans/receita-company-data-foundation.md).
 
-None of these capabilities, paths, schemas, or proposed commands is implemented yet. Gold tables,
-lead exports, OpenSearch, API, and website work remain later phases.
+`./atlas download receita company-data --release YYYY-MM` downloads and verifies the immutable
+source bundle and records raw status. Company-data bronze, silver, history, bundle publication,
+gold tables, lead exports, OpenSearch, API, and website work remain unimplemented.
 
 ## Layout
 

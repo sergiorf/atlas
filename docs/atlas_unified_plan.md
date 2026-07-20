@@ -205,7 +205,11 @@ publishing derived state. Exact fields, paths, quality behavior, commands, and r
 belong to the implemented [specifications](index.md#implemented-specifications) and
 [operations guides](operations/local-etl.md), rather than this product plan.
 
-Municipality lookup, CNAE business groups, lead exports, other Receita groups, gold, serving,
+The pre-bronze company-data acquisition gate is also implemented. An operator can download an
+explicitly selected `Empresas` and Receita-reference release plus TOM and IBGE Localities, verify a
+versioned source manifest, and inspect its raw status. It does not extract or ingest those sources.
+
+Municipality lookup, CNAE business groups, lead exports, company-data bronze and transformations, gold, serving,
 API, UI, search, AI, billing, sanctions, procurement, Docker, cloud deployment, streaming, and
 orchestration platforms remain outside the implemented boundary.
 
@@ -267,9 +271,9 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 This foundation is the immediate next priority. Its approved design target is documented in the
 [company data foundation plan](plans/receita-company-data-foundation.md). The
 strategic decision is to establish reusable, joined data coverage before producing a
-customer-facing export. No v0.3a dataset or pipeline stage is implemented yet; only declarative
-schemas, synthetic fixtures, and a side-effect-free local source-manifest validator exist as the
-pre-bronze readiness baseline.
+customer-facing export. No v0.3a bronze, silver, history, or bundle-publication stage is implemented
+yet. Declarative schemas, synthetic fixtures, and the raw acquisition and source-manifest
+verification command form the pre-bronze readiness baseline.
 
 ### v0.3b — company products
 

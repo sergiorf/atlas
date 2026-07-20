@@ -34,15 +34,16 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Establishment release-summary schema](specs/schemas/establishment-release-summaries.md)
 - [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
 - [Run-status registry contract](specs/run-status.md)
+- [Receita company and reference sources](specs/datasets/receita-company-reference-sources.md) —
+  implemented raw acquisition only; transformations remain planned
 - [Receita company source manifest](specs/schemas/receita-company-source-manifest.md) — implemented
-  pre-bronze local validation only; no company dataset support
+  pre-bronze acquisition and validation; no company table support
 
 ## Planned specifications
 
 These design targets are unsupported, are not compatibility commitments, and do not authorize
 implementation:
 
-- [Receita company and reference sources](specs/datasets/receita-company-reference-sources.md)
 - [Raw Receita empresas layout](specs/schemas/raw-receita-empresas.md)
 - [Bronze Receita empresas schema](specs/schemas/bronze-receita-empresas.md)
 - [Silver company schema](specs/schemas/silver-company.md)

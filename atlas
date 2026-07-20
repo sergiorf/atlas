@@ -17,6 +17,10 @@ Usage:
   atlas <command> [options]
 
 Pipeline commands:
+  download receita company-data --release YYYY-MM
+      Download or resume Empresas, six Receita reference groups, TOM, and IBGE Localities;
+      write and verify their immutable pre-bronze source manifest; and record raw status.
+
   download receita estabelecimentos [--release YYYY-MM|--latest] [--no-extract]
       Download or resume the Receita archives, extract them by default, preserve raw bytes, and
       record the raw stage in the Atlas status registry.
@@ -143,7 +147,24 @@ case "$1" in
     ;;
   download)
     shift
-    if [[ "${1:-}" == "receita" && "${2:-}" == "estabelecimentos" ]]; then
+    if [[ "${1:-}" == "receita" && "${2:-}" == "company-data" ]]; then
+      shift 2
+      company_data_args=(--status-dir "${ATLAS_STATUS_DIR:-data/_atlas/status}")
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --release)
+            [[ $# -ge 2 ]] || { echo "--release requires YYYY-MM." >&2; exit 2; }
+            company_data_args+=(--month "$2")
+            shift 2
+            ;;
+          *)
+            company_data_args+=("$1")
+            shift
+            ;;
+        esac
+      done
+      (cd "$ETL_DIR" && python3 scripts/download_company_data.py "${company_data_args[@]}")
+    elif [[ "${1:-}" == "receita" && "${2:-}" == "estabelecimentos" ]]; then
       shift 2
       download_args=(--status-dir "${ATLAS_STATUS_DIR:-data/_atlas/status}")
       download_extract=true
@@ -172,7 +193,7 @@ case "$1" in
       fi
       (cd "$ETL_DIR" && python3 scripts/download_receita.py "${download_args[@]}")
     else
-      echo "Usage: ./atlas download receita estabelecimentos [--release YYYY-MM|--latest] [--no-extract]" >&2
+      echo "Usage: ./atlas download receita <company-data|estabelecimentos> [options]" >&2
       exit 2
     fi
     ;;

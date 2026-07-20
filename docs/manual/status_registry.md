@@ -14,7 +14,8 @@ future: gold -> serving/index
 
 Today, Receita establishments have implemented raw acquisition, bronze, latest silver current,
 compact selected field-level history deltas, and release summaries. Instrumented jobs record
-status; release summaries are durable analytical data rather than status records. Gold,
+status. Company-data has a separate implemented raw acquisition and manifest-verification status;
+its bronze and later layers are not implemented. Release summaries are durable analytical data rather than status records. Gold,
 serving/index, and a web dashboard remain roadmap work, so their absence is not a failed run.
 
 From `apps/etl`, list recorded runs with:
@@ -39,6 +40,7 @@ Current identifiers intentionally reflect existing job contracts:
 | Operation | `source` | `dataset` | `layer` |
 | --- | --- | --- | --- |
 | Raw acquisition | `receita` | `estabelecimentos` | `raw` |
+| Company-data source acquisition and verification | `receita` | `company-data` | `raw` |
 | Bronze ingestion | `receita` | `estabelecimentos` | `bronze` |
 | Silver normalization/publication | `receita` | `establishments` | `silver` |
 | Compact change history | `receita` | `estabelecimentos_history` | `history` |
@@ -52,6 +54,9 @@ Successful refreshes and full rebuilds also record `receita / establishments / <
 An integrated download records `receita / estabelecimentos / <release> / raw`. A failed explicit
 release is recorded at the same identity. If `--latest` fails before Receita reports a release,
 there is no snapshot identity under which Atlas can record that attempt.
+
+The company-data downloader records `receita / company-data / <release> / raw` only after its
+source manifest validates. Failure uses the same identity and preserves diagnostics for `atlas status`.
 
 - `success`: the instrumented job completed its output and status publication.
 - `success_with_warnings`: the layer was produced, but rows were quarantined or quality warnings were recorded; inspect the warning report paths.

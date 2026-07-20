@@ -1,15 +1,15 @@
 # Receita company and reference source interpretation
 
-- **Status:** Planned
-- **Owner:** future `apps/etl/src/main/scala/atlas/receita` company data pipeline
+- **Status:** Implemented for raw acquisition and verification; transformation planned
+- **Owner:** raw acquisition in `apps/etl/scripts`; future transformation in `apps/etl/src/main/scala/atlas/receita`
 - **Roadmap:** v0.3a Receita company data foundation
 
-This specification is a design target. Its paths, schemas, and commands are not currently
-runnable behavior and do not authorize implementation.
+Only the raw acquisition behavior described below is runnable. Bronze and later paths, schemas,
+and behavior remain design targets and do not authorize implementation.
 
-The separate [source-manifest contract](../schemas/receita-company-source-manifest.md) implements
-local, side-effect-free validation of already acquired inputs. It does not acquire a release or
-implement any raw, bronze, or later company-data pipeline stage.
+The [source-manifest contract](../schemas/receita-company-source-manifest.md) owns the implemented
+restartable acquisition and strict local verification gate. It does not implement bronze or any
+later company-data pipeline stage.
 
 ## Source ownership and scope
 
@@ -56,9 +56,11 @@ Acquisition and bronze implementation may begin only when a selected publisher r
 - redistribution still marked review required unless a separate review changes it.
 
 The declarative Scala schemas and synthetic fixtures verify field shape only. They are not readers,
-writers, acquisition support, or evidence that a specific monthly snapshot is locally complete.
-The manifest validator likewise proves only the local inputs supplied to it. As of 2026-07-20, no
-real selected-release company-data manifest has been captured and accepted in this repository.
+writers, or evidence that a specific monthly snapshot is locally complete. The manifest validator
+proves only the local inputs supplied to it.
+
+The command makes selected-release capture reproducible, but full public-data acceptance remains
+an operator action and no downloaded manifest is committed to this repository.
 
 `Estabelecimentos` retains its implemented specification. `Simples` and `Socios` are excluded from
 this tranche. Population, boundaries, gold products, and business-defined CNAE groups are also

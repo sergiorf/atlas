@@ -17,6 +17,16 @@ From the repository root, run the supported end-to-end workflow:
 ./atlas status
 ```
 
+To prepare the next company-data release before bronze exists, run:
+
+```bash
+./atlas download receita company-data --release 2026-05
+./atlas status
+```
+
+This only acquires and verifies immutable raw inputs. It does not ingest `Empresas` or create new
+bronze or silver tables. See the [local ETL guide](../operations/local-etl.md#acquire-the-company-data-source-bundle).
+
 The refresh command ingests bronze, validates a silver candidate, records release history and a
 release summary, and publishes the release as latest current. To exercise individual ETL stages,
 run `sbt compile`, `sbt test`, and the corresponding `runMain` commands from `apps/etl`; see the

@@ -2,13 +2,13 @@
 
 **Status: Planned**  
 **Roadmap owner: Atlas unified plan**  
-**Implementation authorization: Not implemented**  
-**Current implementation slice: Contract, synthetic-fixture, and local manifest-validation baseline**
+**Implementation state: Partially implemented — raw acquisition and verification only**  
+**Current implementation slice: Pre-bronze acquisition and manifest-verification gate**
 
-All paths, commands, schemas, configuration, and quality behavior in this document are design
-targets. They do not describe currently runnable Atlas behavior, create a compatibility
-commitment, or authorize implementation. The existing May–July Receita `Estabelecimentos`
-pipeline remains the only implemented data behavior.
+Unless explicitly marked implemented below, paths, commands, schemas, configuration, and quality
+behavior in this document are design targets. The existing Receita `Estabelecimentos` pipeline
+remains the only implemented transformation behavior; company-data now has raw acquisition and
+manifest verification only.
 
 ## Decision and objective
 
@@ -79,8 +79,7 @@ tables. Gold and public consumers remain forbidden until their roadmap phase and
 
 ## Proposed operator interfaces
 
-The following interfaces follow Atlas's current command hierarchy but are proposed only; none is
-currently runnable or listed in the current manual:
+The first interface is implemented; the remaining interfaces are proposed only:
 
 ```text
 ./atlas download receita company-data --release YYYY-MM
@@ -198,14 +197,14 @@ or present partially assembled state as a published bundle.
 Slice 1 precedes all new bronze ingestion. Its Scala declarations are side-effect-free schemas,
 and its committed inputs are synthetic fixtures. The versioned
 [source-manifest contract](../specs/schemas/receita-company-source-manifest.md) now validates local
-archives, ZIP membership, hashes, strict parser behavior, TOM, and IBGE hierarchy without writing
-data. No public acquisition command was added and no publisher data was downloaded by this
-implementation.
+archives, ZIP membership, hashes, strict parser behavior, TOM, and IBGE hierarchy without altering
+raw data.
 
-Slice 1 is not complete until an operator captures a selected real release and the validator
-accepts its verified filenames, multiplicity, parser settings, sizes, and hashes. Until that
-release-specific evidence exists, slice 2 remains blocked even though the schema and validator
-tests pass.
+The acquisition portion of slice 2 is implemented as
+`./atlas download receita company-data --release YYYY-MM`. It resumes immutable downloads,
+captures TOM and IBGE, writes the manifest only after strict validation, and records status.
+Company-data bronze remains blocked until an operator runs and reviews a successful selected-release
+capture; the command implementation and synthetic tests are not substitutes for that evidence.
 
 ## Deferred work
 

@@ -1,13 +1,13 @@
 # Receita company source manifest
 
-- **Status:** Implemented for pre-bronze local validation only
-- **Owner:** `apps/etl/scripts/company_data_manifest.py`
+- **Status:** Implemented for pre-bronze acquisition and validation
+- **Owner:** `apps/etl/scripts/download_company_data.py` and `company_data_manifest.py`
 - **Contract version:** `manifest_version = 1`
 
-This contract does not make `Empresas`, Receita reference groups, TOM, or IBGE supported Atlas
-datasets. It provides a side-effect-free gate for inspecting already acquired immutable inputs.
-There is no downloader, public Atlas command, Spark reader, bronze writer, or published company
-table. The first real selected-release manifest has not yet been captured.
+This contract does not make `Empresas`, Receita reference groups, TOM, or IBGE supported bronze
+datasets. The public `./atlas download receita company-data --release YYYY-MM` command performs
+restartable raw acquisition and then applies this gate. There is no Spark reader, bronze writer,
+or published company table. Full-release acceptance remains an operator-run check.
 
 ## Root object
 
@@ -66,8 +66,14 @@ contract locations and never include source records.
 
 `inspect_archive(...)` and `inspect_file(...)` calculate the evidence records used to assemble a
 manifest. They read local inputs, stream SHA-256 calculation, and return in-memory values; they do
-not download, extract, or write anything. Parser settings remain an explicit reviewed declaration
+not download, extract, or write anything. The acquisition wrapper owns network and manifest/status
+writes. Parser settings remain an explicit declaration
 because Atlas must not infer them heuristically.
+
+The acquisition command stores inputs under
+`data/raw/receita/<release>/company-data`, writes `source-manifest.json` only after validation, and
+records `receita / company-data / <release> / raw` status. It declares `latin-1` for both CNPJ CSV
+members and the official TOM capture; validation disagreement fails visibly.
 
 This is a new, separate manifest version and does not read, rewrite, or migrate the implemented
 `Estabelecimentos` downloader manifest. A future acquisition implementation may generalize shared

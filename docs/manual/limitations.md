@@ -2,7 +2,8 @@
 
 Atlas currently:
 
-- supports only Receita `Estabelecimentos` bronze ingestion and silver normalization;
+- supports only Receita `Estabelecimentos` bronze ingestion and silver normalization; company-data
+  is limited to raw acquisition and manifest verification;
 - accepts coexisting numeric and uppercase alphanumeric CNPJs, validates their canonical structure but not their checksum;
 - converts valid `yyyyMMdd` dates and represents invalid or blank dates as null;
 - enforces unique fourteen-character string identifiers in silver but not referential integrity across other Receita files;

@@ -17,6 +17,7 @@ From the repository root, the same local operations are available through the sh
 ```bash
 ./atlas help
 ./atlas version
+./atlas download receita company-data --release 2026-05
 ./atlas download receita estabelecimentos --release 2026-07
 ./atlas ingest receita estabelecimentos
 ./atlas normalize receita estabelecimentos
@@ -32,6 +33,26 @@ Configuration is in `conf/application.conf`. Override raw, bronze, and silver pa
 Spark local storage defaults to `spark-tmp` relative to `apps/etl`. Spark uses this directory for shuffle spill, cached blocks, and other temporary working data, so keep it on a filesystem with ample free space. In WSL2, do not point it at `/tmp`: that path may be a tmpfs of only a few gigabytes even when the WSL root filesystem has hundreds of gigabytes free. Override the default with `ATLAS_SPARK_LOCAL_DIR=/home/<user>/spark-tmp` or set `atlas.spark.local-dir` in a custom HOCON file.
 
 Keep all CNPJ components and full identifiers as strings; numeric and alphanumeric keys share the same uniqueness domain, and leading zeros are significant. Silver quality reports include `alphanumeric_cnpj_count` for cutover monitoring.
+
+## Acquire the company-data source bundle
+
+Before any company-data bronze ingestion, acquire and verify one explicitly selected release:
+
+```bash
+./atlas download receita company-data --release 2026-05
+./atlas status
+```
+
+The command downloads or resumes `Empresas` and the six Receita reference archive groups, then
+captures the official TOM municipality CSV and IBGE Localities municipality hierarchy. It streams
+every archive member through the source-manifest checks and writes
+`data/raw/receita/<release>/company-data/source-manifest.json`. A successful run records
+`receita / company-data / <release> / raw`; a failed verification records failure and does not
+authorize bronze ingestion. Rerunning preserves completed archives and reference captures.
+
+This command does not extract archives, write bronze, modify the existing establishment raw tree,
+or publish company tables. The separate `download receita estabelecimentos` command remains the
+supported input workflow for the existing establishment pipeline.
 
 Do not call `collect()` on large frames, convert full datasets to local collections, or mix data layers. Both jobs use disk-backed persistence and state-partitioned Parquet. Silver validates structure first, writes malformed rows to `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows`, and checks duplicate keys only among valid candidates. A warning prints the quarantine count and path. Conflicting valid duplicates are written to the sibling `duplicate_cnpj_full` path and reject publication before the silver writer is invoked.
 
