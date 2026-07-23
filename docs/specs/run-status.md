@@ -17,9 +17,9 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 | Field | JSON type | Required | Meaning |
 | --- | --- | --- | --- |
 | `source` | string | yes | Stable source identifier, currently `receita` |
-| `dataset` | string | yes | Stable layer-specific dataset identifier: raw company bundle `company-data`, raw/bronze `estabelecimentos`, silver `establishments`, history `estabelecimentos_history` |
+| `dataset` | string | yes | Stable layer-specific dataset identifier: company bundle `company-data`, raw/bronze `estabelecimentos`, silver `establishments`, history `estabelecimentos_history` |
 | `snapshot` | string | yes | Operator-configured source snapshot, currently `2026-06` |
-| `layer` | string | yes | Layer attempted, currently `raw`, `bronze`, `silver`, or `history` |
+| `layer` | string | yes | Layer attempted: `raw`, `bronze`, `silver`, `history`, or atomic `bundle` |
 | `status` | string | yes | `success`, `success_with_warnings`, or `failed` |
 | `started_at` | string | yes | Run start as an ISO-8601 UTC instant |
 | `finished_at` | string | yes | Run finish as an ISO-8601 UTC instant |

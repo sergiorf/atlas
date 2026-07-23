@@ -4,7 +4,7 @@ import atlas.common.SparkSessionFactory
 import atlas.config.AtlasConfig
 import atlas.history.EstablishmentHistoryJob
 import atlas.receita.ReceitaIngestJob
-import atlas.release.{EstablishmentRebuildService, PublicationLock, ReleaseDropService, ReleaseId, ReleaseInventoryService, ReleaseLayer, StaleDerivedCleanupService, TrashPurgeService}
+import atlas.release.{CompanyBundleService, EstablishmentRebuildService, PublicationLock, ReleaseDropService, ReleaseId, ReleaseInventoryService, ReleaseLayer, StaleDerivedCleanupService, TrashPurgeService}
 import atlas.receita.SilverEstablishmentJob
 import atlas.status.{RunStatusRegistry, StatusTable}
 import java.nio.file.Paths
@@ -55,6 +55,15 @@ object Main {
           println(EstablishmentRebuildService.render(EstablishmentRebuildService.force(spark, config, plan)))
         }
         else println(EstablishmentRebuildService.render(plan))
+      case "releases-rebuild-company-data" =>
+        val from = ReleaseId.unsafe(cli.fromRelease.getOrElse(throw new IllegalArgumentException("Missing --from-release YYYY-MM")))
+        val to = ReleaseId.unsafe(cli.toRelease.getOrElse(throw new IllegalArgumentException("Missing --to-release YYYY-MM")))
+        val plan = CompanyBundleService.plan(config, from, to)
+        if (cli.force) withSpark(config) { spark => println(CompanyBundleService.render(CompanyBundleService.rebuild(spark, config, plan))) }
+        else println(CompanyBundleService.render(plan))
+      case "releases-inspect-bundle" =>
+        val release = cli.release.map(ReleaseId.unsafe)
+        println(CompanyBundleService.inspect(config, release).map(CompanyBundleService.render).getOrElse("No matching company-data bundle."))
       case "ingest-receita-estabelecimentos" =>
         withSpark(config) { spark =>
           val result = ReceitaIngestJob.run(spark, config)
@@ -86,6 +95,9 @@ object Main {
             )
           }
         }
+      case "refresh-receita-company-data" =>
+        val release = ReleaseId.unsafe(cli.release.getOrElse(config.receita.snapshot))
+        withSpark(config) { spark => println(CompanyBundleService.render(CompanyBundleService.refresh(spark, config, release))) }
       case unknown => throw new IllegalArgumentException(s"Unknown command: $unknown")
     }
   }
@@ -140,6 +152,14 @@ object Main {
       Cli("releases-rebuild-establishments", fromRelease = Some(from), toRelease = Some(to))
     case "releases" :: "rebuild-establishments" :: "--from-release" :: from :: "--to-release" :: to :: "--force" :: Nil =>
       Cli("releases-rebuild-establishments", force = true, fromRelease = Some(from), toRelease = Some(to))
+    case "releases" :: "rebuild-company-data" :: "--from-release" :: from :: "--to-release" :: to :: Nil =>
+      Cli("releases-rebuild-company-data", fromRelease = Some(from), toRelease = Some(to))
+    case "releases" :: "rebuild-company-data" :: "--from-release" :: from :: "--to-release" :: to :: "--dry-run" :: Nil =>
+      Cli("releases-rebuild-company-data", fromRelease = Some(from), toRelease = Some(to))
+    case "releases" :: "rebuild-company-data" :: "--from-release" :: from :: "--to-release" :: to :: "--force" :: Nil =>
+      Cli("releases-rebuild-company-data", force = true, fromRelease = Some(from), toRelease = Some(to))
+    case "releases" :: "inspect-bundle" :: Nil => Cli("releases-inspect-bundle")
+    case "releases" :: "inspect-bundle" :: "--release" :: release :: Nil => Cli("releases-inspect-bundle", release = Some(release))
     case _ =>
       throw new IllegalArgumentException(
         "Usage: atlas.Main <ingest-receita-estabelecimentos|normalize-receita-estabelecimentos|refresh-receita-estabelecimentos|status|help|version>"
@@ -180,6 +200,10 @@ object Main {
       |      write compact establishment change events, and publish the release as latest current.
       |      Releases must advance chronologically. Legacy current tables require --allow-legacy-current.
       |
+      |  refresh receita company-data --release YYYY-MM
+      |      Build matching company, establishment, reference, and geography silver data locally,
+      |      append compact history, validate the complete candidate, and atomically publish one bundle.
+      |
       |Status and release commands:
       |  status [--json]
       |      Show recorded local pipeline runs, or print the same registry as JSON for automation.
@@ -205,6 +229,13 @@ object Main {
       |  releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM [--dry-run|--force]
       |      Recreate all generated establishment data chronologically from protected raw releases.
       |      Dry-run is the default; --force stages and validates a replacement before activation.
+      |
+      |  releases rebuild-company-data --from-release YYYY-MM --to-release YYYY-MM [--dry-run|--force]
+      |      Rebuild company and establishment state, histories, references, and geography in order.
+      |      Dry-run is the default; --force publishes only after the entire bundle passes validation.
+      |
+      |  releases inspect-bundle [--release YYYY-MM]
+      |      Read current or release-selected atomic bundle metadata without starting Spark.
       |
       |Project commands:
       |  compile

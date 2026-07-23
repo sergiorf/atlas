@@ -1,12 +1,12 @@
 # Company change events and release summaries
 
-- **Status:** Planned
-- **Owner:** future Receita company refresh workflow
-- **Contract level:** Internal history design target
-- **Event output target:** `data/silver/receita/company_change_events/to_release=YYYY-MM`
-- **Summary output target:** `data/silver/receita/company_release_summaries/release=YYYY-MM`
+- **Status:** Implemented
+- **Owner:** Receita company refresh workflow
+- **Contract level:** Internal history contract
+- **Event output target:** bundle-relative `data/silver/receita/company_change_events/to_release=YYYY-MM`
+- **Summary output target:** bundle-relative `data/silver/receita/company_release_summaries/to_release=YYYY-MM`
 
-These tables and paths are not implemented or currently runnable.
+These tables are implemented within atomic bundle generations.
 
 Company events mirror the compact establishment-history pattern. Each event has a deterministic
 `event_id`, `cnpj_root`, nullable `from_release`, non-null `to_release`, `change_type` (`inserted`,
@@ -23,4 +23,3 @@ counts, reference-miss counts, bundle identifier, outcome, and processing timest
 
 History is append-only within an active bundle generation. Rebuild stages a complete chronological
 replacement and swaps it only after every release passes validation.
-

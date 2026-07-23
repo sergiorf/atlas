@@ -35,14 +35,13 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
 - [Run-status registry contract](specs/run-status.md)
 - [Receita company and reference sources](specs/datasets/receita-company-reference-sources.md) —
-  implemented raw acquisition only; transformations remain planned
+  implemented through atomic silver; full-data acceptance pending
 - [Receita company source manifest](specs/schemas/receita-company-source-manifest.md) — implemented
-  pre-bronze acquisition and validation; no company table support
+  raw acquisition and validation gate
 
-## Planned specifications
+## Company-data specifications
 
-These design targets are unsupported, are not compatibility commitments, and do not authorize
-implementation:
+These internal contracts are implemented by the atomic company-data bundle workflow:
 
 - [Raw Receita empresas layout](specs/schemas/raw-receita-empresas.md)
 - [Bronze Receita empresas schema](specs/schemas/bronze-receita-empresas.md)
@@ -52,6 +51,8 @@ implementation:
 - [Receita-to-IBGE municipality geography](specs/schemas/receita-ibge-municipality-geography.md)
 - [Company and geography quality rules](specs/quality/company-geography-quality-rules.md)
 - [Receita company data foundation implementation plan](plans/receita-company-data-foundation.md)
+- [Company-data and atomic silver bundle runbook](operations/company-data-pipeline.md) — implemented
+  commands and May–July acceptance workflow
 
 ## Planned work
 

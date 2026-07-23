@@ -4,10 +4,10 @@
 - **Owner:** `apps/etl/scripts/download_company_data.py` and `company_data_manifest.py`
 - **Contract version:** `manifest_version = 1`
 
-This contract does not make `Empresas`, Receita reference groups, TOM, or IBGE supported bronze
-datasets. The public `./atlas download receita company-data --release YYYY-MM` command performs
-restartable raw acquisition and then applies this gate. There is no Spark reader, bronze writer,
-or published company table. Full-release acceptance remains an operator-run check.
+The public `./atlas download receita company-data --release YYYY-MM` command performs restartable
+raw acquisition and applies this gate. Bundle refresh revalidates manifest release agreement,
+required inputs, paths, and SHA-256 values before extraction or Spark work. Full-release acceptance
+remains an operator-run check.
 
 ## Root object
 
@@ -53,6 +53,8 @@ against the declared field count, including quoted delimiters.
 
 `references.tom` declares source URL, relative path, retrieval timestamp, content type, byte count,
 SHA-256, and a five-field parser contract. It receives the same strict full-file parsing check.
+The parser deliberately treats the publisher heading as a record so validation covers every source
+row; the silver geography transformation removes only the exact official five-value heading.
 
 `references.ibge_localities` declares the same provenance fields except for a CSV parser. Its
 immutable capture may be plain UTF-8 JSON or gzip-encoded JSON; gzip bytes declare

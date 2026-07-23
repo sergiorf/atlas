@@ -1,11 +1,11 @@
 # Receita company and reference source interpretation
 
-- **Status:** Implemented for raw acquisition and verification; transformation planned
-- **Owner:** raw acquisition in `apps/etl/scripts`; future transformation in `apps/etl/src/main/scala/atlas/receita`
+- **Status:** Implemented through atomic silver bundle; full-data acceptance pending
+- **Owner:** raw acquisition in `apps/etl/scripts`; transformation in `apps/etl/src/main/scala/atlas/receita`
 - **Roadmap:** v0.3a Receita company data foundation
 
-Only the raw acquisition behavior described below is runnable. Bronze and later paths, schemas,
-and behavior remain design targets and do not authorize implementation.
+Raw acquisition, bronze, reference, geography, company silver, history, and atomic bundle behavior
+are runnable. Full-data acceptance remains an explicit operator step.
 
 The [source-manifest contract](../schemas/receita-company-source-manifest.md) owns the implemented
 restartable acquisition and strict local verification gate. It does not implement bronze or any
@@ -13,7 +13,7 @@ later company-data pipeline stage.
 
 ## Source ownership and scope
 
-Receita Federal owns the monthly CNPJ bulk publication. The planned tranche reads `Empresas` and
+Receita Federal owns the monthly CNPJ bulk publication. The implemented tranche reads `Empresas` and
 the snapshot's six reference groups: `CNAE`, `Municipios`, `Naturezas`, `Paises`, `Qualificacoes`,
 and `Motivos`. Atlas retains publisher filenames, archive hashes, retrieval timestamps, selected
 release, and source URLs in immutable raw manifests. Redistribution remains review required.
@@ -42,7 +42,9 @@ municipality code, TOM name, IBGE name, and UF abbreviation. The captured IBGE L
 `/api/v1/localidades/municipios` response supplies municipality, immediate region, intermediate
 region, state, and macroregion identifiers and names. Retrieval time, source URL, byte count, and
 content hash are part of the bundle manifest. Identifiers are exact join keys; fuzzy name matching
-is not permitted.
+is not permitted. Its exact five-value heading row is excluded during transformation. The official
+`9707 / 0 / EXTERIOR / EX` row is retained with `is_exterior = true` and nullable Brazilian
+municipality, state, and region hierarchy fields; any other unmatched TOM row blocks publication.
 
 ## Contract-baseline readiness gate
 

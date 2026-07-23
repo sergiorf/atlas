@@ -205,11 +205,13 @@ publishing derived state. Exact fields, paths, quality behavior, commands, and r
 belong to the implemented [specifications](index.md#implemented-specifications) and
 [operations guides](operations/local-etl.md), rather than this product plan.
 
-The pre-bronze company-data acquisition gate is also implemented. An operator can download an
-explicitly selected `Empresas` and Receita-reference release plus TOM and IBGE Localities, verify a
-versioned source manifest, and inspect its raw status. It does not extract or ingest those sources.
+The v0.3a company-data foundation is implemented through atomic silver publication. An operator can
+download a selected `Empresas` and Receita-reference release plus TOM and IBGE Localities, combine
+it with the matching establishment release, build company and reference bronze, normalize company
+and geography silver, create compact history, and publish one immutable same-release bundle. The
+May–July full-data acceptance remains operator-run.
 
-Municipality lookup, CNAE business groups, lead exports, company-data bronze and transformations, gold, serving,
+CNAE business groups, lead exports, gold, serving,
 API, UI, search, AI, billing, sanctions, procurement, Docker, cloud deployment, streaming, and
 orchestration platforms remain outside the implemented boundary.
 
@@ -268,12 +270,11 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 - backfill May–July company state and compact company history;
 - publish establishments, companies, references, geography, and history as one coherent release bundle.
 
-This foundation is the immediate next priority. Its approved design target is documented in the
-[company data foundation plan](plans/receita-company-data-foundation.md). The
-strategic decision is to establish reusable, joined data coverage before producing a
-customer-facing export. No v0.3a bronze, silver, history, or bundle-publication stage is implemented
-yet. Declarative schemas, synthetic fixtures, and the raw acquisition and source-manifest
-verification command form the pre-bronze readiness baseline.
+This foundation is implemented and documented in the [company data foundation
+plan](plans/receita-company-data-foundation.md). The remaining v0.3a activity is the operator-run
+May–July full-data acceptance, including counts, quality evidence, resource observations, and
+representative bundle queries. It establishes reusable joined silver coverage before a
+customer-facing export.
 
 ### v0.3b — company products
 

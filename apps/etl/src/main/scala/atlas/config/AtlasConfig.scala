@@ -14,7 +14,8 @@ final case class ReceitaConfig(
     snapshot: String,
     rawDir: String,
     bronzeDir: String,
-    silverDir: String
+    silverDir: String,
+    companyDataRawDir: String = ""
 )
 final case class AtlasConfig(
     spark: SparkConfig,
@@ -39,7 +40,8 @@ object AtlasConfig {
         c.getString("receita.snapshot"),
         c.getString("receita.raw-dir"),
         c.getString("receita.bronze-dir"),
-        c.getString("receita.silver-dir")
+        c.getString("receita.silver-dir"),
+        if (c.hasPath("receita.company-data-raw-dir")) c.getString("receita.company-data-raw-dir") else ""
       ),
       c.getString("status-dir"),
       c.getString("output.write-mode")

@@ -1,12 +1,12 @@
 # Bronze Receita empresas schema
 
-- **Status:** Planned
-- **Owner:** future Receita company bronze transformation
-- **Contract level:** Internal design target
-- **Output target:** `data/bronze/receita/empresas/release=YYYY-MM`
+- **Status:** Implemented
+- **Owner:** Receita company bronze transformation
+- **Contract level:** Internal contract
+- **Output target:** bundle-relative `data/bronze/receita/empresas/release=YYYY-MM`
 - **Partition target:** none unless full-data evidence requires one
 
-This schema and path are not implemented or currently runnable.
+The bundle workflow produces this release-scoped schema inside its immutable generation.
 
 Bronze retains the seven source fields from the raw layout after trimming and blank-to-null
 conversion. It adds `share_capital` while retaining `share_capital_raw`, so the target contains
@@ -22,5 +22,4 @@ and invalid source-shaped values are preserved for the silver quality gate. Atla
 left-pad ambiguous under-width roots until official evidence and fixtures establish that behavior.
 Writes are release-scoped and rebuildable from the raw manifest.
 
-`CompanyDataSchemas.empresasBronze` is currently an executable shape assertion only. No Atlas job
-produces this schema or path.
+`CompanyDataSchemas.empresasBronze` is the executable shape assertion used by the implementation.

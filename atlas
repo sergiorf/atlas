@@ -38,6 +38,10 @@ Pipeline commands:
       write compact establishment change events, and publish the release as latest current.
       Releases must advance chronologically. Legacy current tables require --allow-legacy-current.
 
+  refresh receita company-data --release YYYY-MM
+      Locally build matching company, establishment, reference, and geography silver data,
+      append compact history, and atomically publish the validated bundle.
+
 Status and release commands:
   status [--json]
       Show recorded local pipeline runs, or print the same registry as JSON for automation.
@@ -63,6 +67,12 @@ Status and release commands:
   releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM [--dry-run|--force]
       Recreate all generated establishment data chronologically from protected raw releases.
       Dry-run is the default; --force stages and validates a replacement before activation.
+
+  releases rebuild-company-data --from-release YYYY-MM --to-release YYYY-MM [--dry-run|--force]
+      Rebuild all company-data bundle components chronologically. Dry-run is the default.
+
+  releases inspect-bundle [--release YYYY-MM]
+      Inspect current or release-selected bundle metadata without starting Spark.
 
 Project commands:
   compile
@@ -222,8 +232,11 @@ case "$1" in
     if [[ "${1:-}" == "receita" && "${2:-}" == "estabelecimentos" ]]; then
       shift 2
       run_main refresh-receita-estabelecimentos "$@"
+    elif [[ "${1:-}" == "receita" && "${2:-}" == "company-data" ]]; then
+      shift 2
+      run_main refresh-receita-company-data "$@"
     else
-      echo "Usage: ./atlas refresh receita estabelecimentos --release YYYY-MM" >&2
+      echo "Usage: ./atlas refresh receita <company-data|estabelecimentos> --release YYYY-MM" >&2
       exit 2
     fi
     ;;

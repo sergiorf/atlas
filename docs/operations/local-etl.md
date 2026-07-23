@@ -22,6 +22,8 @@ From the repository root, the same local operations are available through the sh
 ./atlas ingest receita estabelecimentos
 ./atlas normalize receita estabelecimentos
 ./atlas refresh receita estabelecimentos --release 2026-07
+./atlas releases rebuild-company-data --from-release 2026-05 --to-release 2026-07
+./atlas releases inspect-bundle
 ./atlas refresh receita estabelecimentos --release 2026-07 --memory 10G
 ./atlas releases rebuild-establishments --from-release 2026-05 --to-release 2026-07
 ./atlas status
@@ -55,6 +57,10 @@ and validation decodes it without rewriting the capture.
 This command does not extract archives, write bronze, modify the existing establishment raw tree,
 or publish company tables. The separate `download receita estabelecimentos` command remains the
 supported input workflow for the existing establishment pipeline.
+
+After both source groups are available, follow the [company-data and atomic silver bundle
+runbook](company-data-pipeline.md). Its rebuild command is dry-run by default, builds releases in
+chronological order with `--force`, and publishes only after the complete candidate passes.
 
 Do not call `collect()` on large frames, convert full datasets to local collections, or mix data layers. Both jobs use disk-backed persistence and state-partitioned Parquet. Silver validates structure first, writes malformed rows to `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows`, and checks duplicate keys only among valid candidates. A warning prints the quarantine count and path. Conflicting valid duplicates are written to the sibling `duplicate_cnpj_full` path and reject publication before the silver writer is invoked.
 

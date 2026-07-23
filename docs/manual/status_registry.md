@@ -8,14 +8,16 @@ Status follows the implemented pipeline structure:
 raw -> bronze -> silver latest current
                   |-> change events
                   `-> release summaries
+                         |
+                         `-> atomic bundle
 
 future: gold -> serving/index
 ```
 
-Today, Receita establishments have implemented raw acquisition, bronze, latest silver current,
-compact selected field-level history deltas, and release summaries. Instrumented jobs record
-status. Company-data has a separate implemented raw acquisition and manifest-verification status;
-its bronze and later layers are not implemented. Release summaries are durable analytical data rather than status records. Gold,
+Receita establishments and company data have implemented raw acquisition, bronze and silver
+transformations, compact history, release summaries, and atomic bundle publication. Instrumented
+jobs record raw and bundle status; component reports and summaries remain inside the immutable
+bundle generation. Release summaries are durable analytical data rather than status records. Gold,
 serving/index, and a web dashboard remain roadmap work, so their absence is not a failed run.
 
 From `apps/etl`, list recorded runs with:
@@ -44,6 +46,7 @@ Current identifiers intentionally reflect existing job contracts:
 | Bronze ingestion | `receita` | `estabelecimentos` | `bronze` |
 | Silver normalization/publication | `receita` | `establishments` | `silver` |
 | Compact change history | `receita` | `estabelecimentos_history` | `history` |
+| Atomic company-data publication | `receita` | `company-data` | `bundle` |
 
 The Portuguese source identifier and English silver identifier are established internal status
 identities. Consumers should use the full tuple rather than infer data-layer semantics from the
@@ -57,6 +60,8 @@ there is no snapshot identity under which Atlas can record that attempt.
 
 The company-data downloader records `receita / company-data / <release> / raw` only after its
 source manifest validates. Failure uses the same identity and preserves diagnostics for `atlas status`.
+Successful atomic publication records `receita / company-data / <release> / bundle` and points to
+the immutable generation selected by `current_bundle.json`.
 
 - `success`: the instrumented job completed its output and status publication.
 - `success_with_warnings`: the layer was produced, but rows were quarantined or quality warnings were recorded; inspect the warning report paths.

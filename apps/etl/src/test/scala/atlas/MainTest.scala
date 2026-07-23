@@ -56,6 +56,19 @@ class MainTest extends AnyFunSuite {
       Main.parseArgs(List("releases", "rebuild-establishments", "--from-release", "2026-05", "--to-release", "2026-06", "--force")) ===
         Main.Cli("releases-rebuild-establishments", force = true, fromRelease = Some("2026-05"), toRelease = Some("2026-06"))
     )
+    assert(
+      Main.parseArgs(List("releases", "rebuild-company-data", "--from-release", "2026-05", "--to-release", "2026-07", "--force")) ===
+        Main.Cli("releases-rebuild-company-data", force = true, fromRelease = Some("2026-05"), toRelease = Some("2026-07"))
+    )
+    assert(Main.parseArgs(List("releases", "inspect-bundle")) === Main.Cli("releases-inspect-bundle"))
+    assert(
+      Main.parseArgs(List("releases", "inspect-bundle", "--release", "2026-07")) ===
+        Main.Cli("releases-inspect-bundle", release = Some("2026-07"))
+    )
+    assert(
+      Main.parseArgs(List("refresh-receita-company-data", "--release", "2026-08")) ===
+        Main.Cli("refresh-receita-company-data", release = Some("2026-08"))
+    )
   }
 
   test("parses release lifecycle commands") {

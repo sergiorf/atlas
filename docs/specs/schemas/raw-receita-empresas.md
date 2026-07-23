@@ -1,13 +1,13 @@
 # Raw Receita empresas layout
 
-- **Status:** Planned
-- **Owner:** future Receita company raw acquisition
-- **Contract level:** Source layout design target
+- **Status:** Implemented
+- **Owner:** Receita company raw acquisition and bronze reader
+- **Contract level:** Source layout contract
 
-This is not implemented or currently runnable. Raw archives and extracted bytes remain immutable
-and outside Git.
+Raw archives remain immutable and outside Git. Bundle refresh streams their members into a derived
+staging area before Spark parsing; it never extracts into or rewrites the raw tree.
 
-The planned parser assigns the seven official headerless `Empresas` positions, in order:
+The parser assigns the seven official headerless `Empresas` positions, in order:
 
 | Position | Field | Type before parsing | Meaning |
 | ---: | --- | --- | --- |

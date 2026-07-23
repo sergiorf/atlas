@@ -2,11 +2,16 @@
 
 ## Supported
 
-Atlas supports only the Receita Federal CNPJ `Estabelecimentos` file group. Bronze preserves establishment identity, registration, CNAE, address, contact, and special-status fields and adds normalized CNPJ identifiers and provenance. Numeric and alphanumeric CNPJs coexist in the same string key space; only the first twelve positions may contain uppercase letters, while check digits remain numeric.
+Atlas supports transformed Receita Federal CNPJ `Estabelecimentos`, `Empresas`, and the six
+reference groups used by the atomic company-data foundation. Establishment bronze preserves
+identity, registration, CNAE, address, contact, and special-status fields and adds normalized CNPJ
+identifiers and provenance. Numeric and alphanumeric CNPJs coexist in the same string key space;
+only the first twelve positions may contain uppercase letters, while check digits remain numeric.
 
-Atlas can also acquire and verify the raw company-data source bundle (`Empresas`, six Receita
-references, TOM, and IBGE Localities). Raw readiness is not dataset support: no company-data
-bronze, silver, or queryable table exists yet.
+Atlas can acquire, verify, and transform the company-data source bundle (`Empresas`, six Receita
+references, TOM, and IBGE Localities) together with matching establishments. It publishes company,
+reference, geography, history, and establishment components through one atomic silver bundle.
+Full May–July acceptance remains operator-run, and silver is not a public query product.
 
 The implemented v0.2 slice adds a curated silver establishment table with unique identifiers,
 normalized status, CNAE, location and contact fields, retained bronze lineage, compact
@@ -18,8 +23,9 @@ release-to-release change events, and one analytical summary per published relea
 
 The canonical [Dataset and source catalog](../source_catalog.md) uses three classes:
 
-- **Supported** means implemented behavior covered by an active specification. Today this is only
-  Receita CNPJ `Estabelecimentos`.
+- **Supported** means implemented behavior covered by an active specification. This includes
+  Receita CNPJ `Estabelecimentos` and the v0.3a company-data foundation, whose large May–July
+  acceptance evidence remains pending.
 - **Planned** means approved roadmap work through v0.6 that remains unsupported until implemented.
 - **Candidate** means a demand-dependent later source with no implementation commitment.
 

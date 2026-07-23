@@ -1,14 +1,15 @@
 # Silver company schema
 
-- **Status:** Planned
-- **Owner:** future Receita company silver transformation
-- **Contract level:** Internal design target
-- **Input target:** bronze Receita `empresas` plus planned reference dimensions
-- **Output target:** `data/silver/receita/companies_current`
+- **Status:** Implemented
+- **Owner:** Receita company silver transformation
+- **Contract level:** Internal contract
+- **Input target:** bronze Receita `empresas` plus versioned reference dimensions
+- **Output target:** bundle-relative `data/silver/receita/companies_current`
 - **Primary key:** `cnpj_root`
 - **Partition target:** none
 
-This table and path are not implemented or currently runnable. Silver is not a public product.
+The bundle workflow produces this table within the immutable generation selected by
+`current_bundle.json`. Silver is not a public product.
 
 | Field | Spark type | Nullable | Meaning |
 | --- | --- | --- | --- |
@@ -32,3 +33,9 @@ roots, negative or unparseable capital, and duplicate valid roots are quarantine
 reject publication rather than being silently selected. The table does not join establishments,
 derive a company profile, or retain full historical snapshots.
 
+Unknown optional reference codes do not reject the bundle because Receita may retain a code in
+`Empresas` that is absent from the same release's reference file. Each affected company is written
+to the bundle-relative quality diagnostic
+`data/_atlas/quality/receita/company-data/YYYY-MM/missing_reference_descriptions` with
+`cnpj_root`, `dimension`, `code`, and `release`. Blank or conflicting rows inside a reference
+dimension remain hard failures.

@@ -2,7 +2,9 @@
 
 Atlas uses a one-way medallion-style flow: `raw -> bronze -> silver -> gold -> serving/index`.
 
-Each layer has a distinct contract. Paths are relative to `apps/etl`. Atlas currently implements Receita `estabelecimentos` through bronze and silver; gold and serving/index remain roadmap layers.
+Each layer has a distinct contract. Paths are relative to `apps/etl`. Atlas implements Receita
+`estabelecimentos` and the company-data foundation through atomic silver; gold and serving/index
+remain roadmap layers.
 
 ## Raw
 
@@ -19,6 +21,11 @@ Parsing, blank-to-null conversion, safe source typing, identifier assembly, prov
 Silver contains cleaned, validated, standardized tables with stable schemas. Reusable normalization, quality gates, deduplication, and joins between contracted Receita entities belong here.
 
 The implemented `data/silver/receita/establishments_current` table standardizes state, postal and contact fields, CNAEs, and active status; preserves provenance; and validates unique `cnpj_full` identifiers. Bronze may contain malformed source-shaped rows. Silver quarantines rows with invalid CNPJ structure or registration status (valid codes are `01`, `02`, `03`, `04`, `08`) before checking uniqueness among valid rows. Quarantine reports are generated quality outputs, not committed data. Compact release-to-release field deltas live under `data/silver/receita/establishment_change_events`, and durable per-release metrics live under `data/silver/receita/establishment_release_summaries`. Future contracted tables beneath `data/silver/receita` may represent companies, establishments, partners, municipalities, and CNAE codes. These examples do not authorize implementation without contracts. UI-specific reports, lead lists, and rankings do not belong in silver.
+
+The company-data foundation publishes companies, establishments, reference dimensions,
+geography, and compact history as one atomic silver bundle. A bundle is not a new data layer and is
+not gold: it is a versioned consistency boundary that prevents readers from mixing releases. Its
+current pointer changes only after every required component and quality gate succeeds.
 
 ## Gold
 
