@@ -1,6 +1,6 @@
 # Atlas run-status registry contract
 
-- **Status:** Implemented for Receita establishments raw acquisition, bronze, silver, and history jobs
+- **Status:** Implemented for Receita establishment and atomic company-data pipeline components
 - **Owner:** `apps/etl/src/main/scala/atlas/status`
 - **Contract version:** `4` (additive raw-file metrics; versions 1 through 3 remain readable)
 
@@ -17,7 +17,7 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 | Field | JSON type | Required | Meaning |
 | --- | --- | --- | --- |
 | `source` | string | yes | Stable source identifier, currently `receita` |
-| `dataset` | string | yes | Stable layer-specific dataset identifier: company bundle `company-data`, raw/bronze `estabelecimentos`, silver `establishments`, history `estabelecimentos_history` |
+| `dataset` | string | yes | Stable layer-specific identifier, including existing establishment identities plus `companies`, `company-references`, `municipality-geography`, and bundle `company-data` |
 | `snapshot` | string | yes | Operator-configured source snapshot, currently `2026-06` |
 | `layer` | string | yes | Layer attempted: `raw`, `bronze`, `silver`, `history`, or atomic `bundle` |
 | `status` | string | yes | `success`, `success_with_warnings`, or `failed` |
@@ -55,8 +55,18 @@ extraction is complete, and the manifest is current. An explicit-release failure
 A latest-release discovery failure cannot be assigned a snapshot and therefore cannot create a
 snapshot-scoped record.
 
-The bronze job writes `success` only after Parquet and quality reports have been written. Standalone silver normalization writes a release-scoped candidate and records `success_with_warnings` when malformed rows were quarantined; it does not publish current. A successful release refresh records both the published latest-current silver table and compact history after current is committed. Full rebuild stages bronze, published-silver, and history statuses with the replacement generation, rewrites their generated paths to active locations, and activates them only after validation. Existing establishment statuses outside the selected rebuild range are quarantined with the replaced generation. If a job throws after metadata is known, it makes a best-effort write of `failed` and rethrows the original exception. A registry-write error is attached to the original failure rather than replacing it.
+The bronze job writes `success` only after Parquet and quality reports have been written. Standalone silver normalization writes a release-scoped candidate and records `success_with_warnings` when malformed rows were quarantined; it does not publish current. Company-data refresh measures company bronze, aggregated reference bronze and silver, municipality-geography silver, company silver, and company history. Malformed or duplicate company failures include warning evidence and a diagnostic path; missing reference descriptions are a non-blocking `success_with_warnings`.
 
-The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. `row_count` remains the history event count and `output_row_count` remains the current establishment count. Durable analytical metrics live in the silver release-summary dataset. Missing means no run was recorded. No files are created for unimplemented gold, serving/index, or dashboard work.
+Bundle component records are first written inside the candidate generation. After the complete
+generation passes validation and the atomic pointer is readable, Atlas rewrites staged paths to
+the immutable generation and activates the component records together with bundle success. An
+activation failure restores the previous pointer and component status files. A failed candidate
+therefore cannot replace active component status; its diagnostics remain with the retained
+candidate generation with canonical retained paths, while the canonical bundle identity records
+the failed publication attempt and uses `output_path` for that retained candidate when available.
+The same staged-then-activate rule applies to full rebuild. If a job throws after metadata is
+known, it makes a best-effort write of `failed` and rethrows the original exception.
+
+The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. History component `row_count` and `output_row_count` are event counts; silver component counts are produced rows. Durable analytical metrics live in the silver release-summary datasets. Missing means no run was recorded. No files are created for unimplemented gold, serving/index, or dashboard work.
 
 Changing field meaning, identity/path conventions, required fields, status values, or replacement semantics requires compatibility analysis and a contract-version decision. Generated registry files remain local and are ignored by Git.

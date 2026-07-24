@@ -55,17 +55,13 @@ object CompanyBundleService {
         plan.releases.foreach(release => buildRelease(spark, withRelease(stagedConfig, release), bundleId))
         validateBundle(spark, withRelease(stagedConfig, plan.toRelease), plan.releases)
         writeManifest(withRelease(stagedConfig, plan.toRelease), staging, bundleId, plan.releases, None)
-        publish(config, staging, bundleId, plan.toRelease)
-        recordBundleStatus(config, bundleId, plan.toRelease)
+        publish(config, staging, bundleId, plan.toRelease, generation =>
+          activateStatuses(config, staging, generation, bundleId, plan.toRelease))
         plan.copy(dryRun = false, publishedBundleId = Some(bundleId))
       } catch {
         case error: Throwable =>
-          if (Files.exists(staging)) {
-            val failed = bundleRoot(config).resolve("failed").resolve(bundleId)
-            try { Files.createDirectories(failed.getParent); move(staging, failed) }
-            catch { case cleanup: Throwable => error.addSuppressed(cleanup) }
-          }
-          recordBundleFailure(config, plan.toRelease, error)
+          val failed = retainFailedCandidate(config, staging, bundleId, error)
+          recordBundleFailure(config, plan.toRelease, error, failed)
           throw error
       }
     }
@@ -84,17 +80,13 @@ object CompanyBundleService {
         buildRelease(spark, withRelease(stagedConfig, release), bundleId)
         validateBundle(spark, withRelease(stagedConfig, release), Seq(release))
         writeManifest(withRelease(stagedConfig, release), staging, bundleId, Seq(release), Some(current.bundleId))
-        publish(config, staging, bundleId, release)
-        recordBundleStatus(config, bundleId, release)
+        publish(config, staging, bundleId, release, generation =>
+          activateStatuses(config, staging, generation, bundleId, release))
         checked.copy(dryRun = false, publishedBundleId = Some(bundleId))
       } catch {
         case error: Throwable =>
-          if (Files.exists(staging)) {
-            val failed = bundleRoot(config).resolve("failed").resolve(bundleId)
-            try { Files.createDirectories(failed.getParent); move(staging, failed) }
-            catch { case cleanup: Throwable => error.addSuppressed(cleanup) }
-          }
-          recordBundleFailure(config, release, error)
+          val failed = retainFailedCandidate(config, staging, bundleId, error)
+          recordBundleFailure(config, release, error, failed)
           throw error
       }
     }
@@ -115,7 +107,12 @@ object CompanyBundleService {
           val value = field(body, "release")
           Some(BundleInspection(id, value, path, currentId.contains(id), body))
         }
-      }.filter(value => release.forall(_.value == value.release)).toSeq.sortBy(_.release).lastOption
+      }.filter { value =>
+        release match {
+          case Some(selected) => selected.value == value.release
+          case None => currentId.contains(value.bundleId)
+        }
+      }.toSeq.sortBy(value => (value.release, value.bundleId)).lastOption
     } finally stream.close()
   }
 
@@ -134,7 +131,31 @@ object CompanyBundleService {
     ReceitaIngestJob.run(spark, config)
     EstablishmentHistoryJob.refresh(spark, config)
     CompanyDataPipeline.build(spark, config)
-    CompanyHistoryJob.refresh(spark, config, bundleId)
+    val history = try CompanyHistoryJob.refresh(spark, config, bundleId)
+    catch {
+      case error: Throwable =>
+        val failedAt = Instant.now()
+        RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
+          "receita", "companies", config.receita.snapshot, "history", "failed",
+          failedAt, failedAt, 0.0, None,
+          Seq(CompanyDataPaths.silverCompanyCandidate(config).toString), None, Seq.empty, Some("1"),
+          Some(config.spark.appName), Some("refresh-receita-company-data"),
+          Some(error.getClass.getName), Option(error.getMessage)
+        ))
+        throw error
+    }
+    val now = Instant.now()
+    RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
+      "receita", "companies", config.receita.snapshot, "history", "success", now, now, 0.0,
+      Some(history.eventCount), Seq(CompanyDataPaths.silverCompanyCandidate(config).toString),
+      Some(CompanyHistoryJob.eventRelease(config).toString), Seq.empty, Some("1"),
+      Some(config.spark.appName), Some("refresh-receita-company-data"),
+      inputRowCount = Some(history.currentRows), outputRowCount = Some(history.eventCount),
+      previousRowCount = history.previousRows,
+      netRowDelta = history.previousRows.map(history.currentRows - _),
+      insertedRowCount = Some(history.inserted), updatedRowCount = Some(history.updated),
+      removedRowCount = Some(history.removed)
+    ))
     deleteTree(ReleasePaths(config).atlasRoot.resolve("work"))
   }
 
@@ -212,7 +233,13 @@ object CompanyBundleService {
     Files.writeString(staging.resolve("bundle-manifest.json"), body + "\n", StandardCharsets.UTF_8)
   }
 
-  private[release] def publish(config: AtlasConfig, staging: Path, bundleId: String, release: ReleaseId): Unit = {
+  private[release] def publish(
+      config: AtlasConfig,
+      staging: Path,
+      bundleId: String,
+      release: ReleaseId,
+      afterSwitch: Path => Unit = _ => ()
+  ): Unit = {
     val generations = bundleRoot(config).resolve("generations")
     Files.createDirectories(generations)
     val generation = generations.resolve(bundleId)
@@ -229,6 +256,7 @@ object CompanyBundleService {
     try {
       val observed = inspect(config, None).getOrElse(throw new IllegalStateException("Published bundle pointer is unreadable"))
       if (observed.bundleId != bundleId) throw new IllegalStateException("Published bundle pointer failed read-after-switch")
+      afterSwitch(generation)
     } catch {
       case error: Throwable =>
         val rollback = bundleRoot(config).resolve(s"current_bundle.json.${UUID.randomUUID()}.rollback")
@@ -244,10 +272,10 @@ object CompanyBundleService {
     }
   }
 
-  private def recordBundleStatus(config: AtlasConfig, bundleId: String, release: ReleaseId): Unit = {
+  private def bundleStatus(config: AtlasConfig, bundleId: String, release: ReleaseId): RunStatus = {
     val now = Instant.now()
     val generation = bundleRoot(config).resolve("generations").resolve(bundleId)
-    RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
+    RunStatus(
       "receita", "company-data", release.value, "bundle", "success", now, now, 0.0, None,
       Seq(
         Paths.get(ReleasePaths.rawDirForRelease(config.receita.rawDir, release)).toString,
@@ -255,10 +283,85 @@ object CompanyBundleService {
       ),
       Some(generation.toString), Seq.empty, Some(ManifestVersion.toString), Some(config.spark.appName),
       Some("refresh-receita-company-data")
-    ))
+    )
   }
 
-  private def recordBundleFailure(config: AtlasConfig, release: ReleaseId, error: Throwable): Unit = {
+  private def activateStatuses(
+      config: AtlasConfig,
+      staging: Path,
+      generation: Path,
+      bundleId: String,
+      release: ReleaseId
+  ): Unit = {
+    val stagedRoot = generation.resolve("data/_atlas/status")
+    val scan = RunStatusRegistry.scan(stagedRoot)
+    if (scan.errors.nonEmpty)
+      throw new IllegalStateException(s"Candidate component status is unreadable: ${scan.errors.head.path}: ${scan.errors.head.message}")
+    val canonical = scan.statuses.map(status => canonicalizeStatus(status, staging, generation)) :+
+      bundleStatus(config, bundleId, release)
+    val root = Paths.get(config.statusDir)
+    val previous = canonical.map(status => {
+      val path = RunStatusRegistry.statusPath(root, status)
+      path -> (if (Files.isRegularFile(path)) Some(Files.readAllBytes(path)) else None)
+    }).toMap
+    try canonical.foreach(RunStatusRegistry.write(root, _))
+    catch {
+      case error: Throwable =>
+        previous.foreach {
+          case (path, Some(bytes)) =>
+            try Files.write(path, bytes) catch { case restore: Throwable => error.addSuppressed(restore) }
+          case (path, None) =>
+            try Files.deleteIfExists(path) catch { case restore: Throwable => error.addSuppressed(restore) }
+        }
+        throw error
+    }
+  }
+
+  private def canonicalizeStatus(status: RunStatus, staging: Path, generation: Path): RunStatus = {
+    def path(value: String): String =
+      if (Paths.get(value).normalize().startsWith(staging.normalize()))
+        generation.resolve(staging.normalize().relativize(Paths.get(value).normalize())).toString
+      else value
+    status.copy(
+      inputPaths = status.inputPaths.map(path),
+      outputPath = status.outputPath.map(path),
+      qualityWarnings = status.qualityWarnings.map(warning => warning.copy(reportPath = path(warning.reportPath)))
+    )
+  }
+
+  private def retainFailedCandidate(
+      config: AtlasConfig,
+      staging: Path,
+      bundleId: String,
+      error: Throwable
+  ): Option[Path] = {
+    if (!Files.exists(staging)) return None
+    val failed = bundleRoot(config).resolve("failed").resolve(bundleId)
+    try {
+      Files.createDirectories(failed.getParent)
+      move(staging, failed)
+      val statusRoot = failed.resolve("data/_atlas/status")
+      val scan = RunStatusRegistry.scan(statusRoot)
+      scan.errors.foreach(readError =>
+        error.addSuppressed(new IllegalStateException(
+          s"Failed candidate status is unreadable: ${readError.path}: ${readError.message}"
+        )))
+      scan.statuses.foreach(status =>
+        RunStatusRegistry.write(statusRoot, canonicalizeStatus(status, staging, failed)))
+      Some(failed)
+    } catch {
+      case cleanup: Throwable =>
+        error.addSuppressed(cleanup)
+        if (Files.isDirectory(failed)) Some(failed) else None
+    }
+  }
+
+  private def recordBundleFailure(
+      config: AtlasConfig,
+      release: ReleaseId,
+      error: Throwable,
+      diagnosticPath: Option[Path]
+  ): Unit = {
     val now = Instant.now()
     try RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
       "receita", "company-data", release.value, "bundle", "failed", now, now, 0.0, None,
@@ -266,7 +369,7 @@ object CompanyBundleService {
         Paths.get(ReleasePaths.rawDirForRelease(config.receita.rawDir, release)).toString,
         CompanyDataPaths.rawRoot(withRelease(config, release)).toString
       ),
-      None, Seq.empty, Some(ManifestVersion.toString), Some(config.spark.appName),
+      diagnosticPath.map(_.toString), Seq.empty, Some(ManifestVersion.toString), Some(config.spark.appName),
       Some("refresh-receita-company-data"), Some(error.getClass.getName), Option(error.getMessage)
     )) catch { case statusError: Throwable => error.addSuppressed(statusError) }
   }

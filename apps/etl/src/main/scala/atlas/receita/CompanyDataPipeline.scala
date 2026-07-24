@@ -2,6 +2,7 @@ package atlas.receita
 
 import atlas.config.AtlasConfig
 import atlas.release.{ReleaseId, ReleasePaths}
+import atlas.status.{QualityWarning, RunStatus, RunStatusRegistry}
 import com.typesafe.config.{Config, ConfigFactory}
 import java.io.{BufferedInputStream, BufferedOutputStream}
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
@@ -38,6 +39,14 @@ final case class CompanyDataBuildResult(
     geography: Path,
     manifest: CompanyDataManifest
 )
+
+private[receita] final case class CompanySilverMetrics(rowCount: Long, missingReferenceCount: Long)
+private[receita] final case class CompanyQualityException(
+    message: String,
+    warningType: String,
+    rowCount: Long,
+    reportPath: Path
+) extends IllegalStateException(message)
 
 object CompanyDataPaths {
   def rawRoot(config: AtlasConfig): Path = {
@@ -138,22 +147,123 @@ object CompanyDataPipeline {
   def build(spark: SparkSession, config: AtlasConfig): CompanyDataBuildResult = {
     val manifest = CompanyDataManifestReader.readAndValidate(config)
     val extracted = extract(manifest, config)
-    val bronzeCompanies = writeBronzeCompanies(spark, config, extracted("empresas"))
-    val references = SourceToDimension.keys.toSeq.sorted.map { dimension =>
+    val (bronzeCompanies, _) = stage(config, "companies", "bronze",
+      extracted("empresas").map(_.toString), CompanyDataPaths.bronzeCompanies(config)) {
+      val frame = writeBronzeCompanies(spark, config, extracted("empresas"))
+      frame -> frame.count()
+    }
+    val referenceInputs = manifest.datasets.filterKeys(_ != "empresas").values.flatten.map(_.toString).toSeq
+    val references = try SourceToDimension.keys.toSeq.sorted.map { dimension =>
       dimension -> writeReference(spark, config, dimension, extracted(dimension))
-    }.toMap
-    val geography = writeGeography(spark, config, manifest)
-    val companyCount = writeSilverCompanies(spark, config, bronzeCompanies, references)
+    }.toMap catch {
+      case error: Throwable =>
+        recordFailure(config, "company-references", "bronze", referenceInputs,
+          Some(Paths.get(config.receita.bronzeDir).resolve("references")), error)
+        recordFailure(config, "company-references", "silver",
+          Seq(Paths.get(config.receita.bronzeDir).resolve("references").toString),
+          Some(Paths.get(config.receita.silverDir).resolve("references")), error)
+        throw error
+    }
+    val referenceCounts = references.map { case (name, frame) => name -> frame.count() }
+    val bronzeReferenceCount = references.keys.toSeq.map { name =>
+      spark.read.parquet(CompanyDataPaths.bronzeReference(config, name).toString).count()
+    }.sum
+    val referenceTotal = referenceCounts.values.sum
+    recordSuccess(config, "company-references", "bronze", referenceInputs,
+      Paths.get(config.receita.bronzeDir).resolve("references"), bronzeReferenceCount)
+    recordSuccess(config, "company-references", "silver", Seq(Paths.get(config.receita.bronzeDir).resolve("references").toString),
+      Paths.get(config.receita.silverDir).resolve("references"), referenceTotal)
+    val (_, geographyCount) = stage(config, "municipality-geography", "silver", Seq(manifest.tom.toString, manifest.ibge.toString),
+      CompanyDataPaths.geography(config)) {
+      val frame = writeGeography(spark, config, manifest)
+      frame -> frame.count()
+    }
+    val silverMetrics = try {
+      val value = writeSilverCompaniesWithMetrics(spark, config, bronzeCompanies, references)
+      val warning = if (value.missingReferenceCount == 0) Seq.empty else Seq(QualityWarning(
+        "missing_reference_descriptions", value.missingReferenceCount,
+        "Company codes are absent from the same-release reference dimension",
+        CompanyDataPaths.qualityRoot(config).resolve("missing_reference_descriptions").toString
+      ))
+      recordSuccess(config, "companies", "silver", Seq(CompanyDataPaths.bronzeCompanies(config).toString),
+        CompanyDataPaths.silverCompanyCandidate(config), value.rowCount, warning)
+      value
+    } catch {
+      case error: CompanyQualityException =>
+        recordFailure(config, "companies", "silver", Seq(CompanyDataPaths.bronzeCompanies(config).toString),
+          Some(error.reportPath), error, Some(error.rowCount), Seq(QualityWarning(
+            error.warningType, error.rowCount, error.getMessage, error.reportPath.toString)))
+        throw error
+      case error: Throwable =>
+        recordFailure(config, "companies", "silver", Seq(CompanyDataPaths.bronzeCompanies(config).toString), None, error)
+        throw error
+    }
     CompanyDataBuildResult(
       config.receita.snapshot,
-      companyCount,
-      references.map { case (name, frame) => name -> frame.count() },
-      geography.count(),
+      silverMetrics.rowCount,
+      referenceCounts,
+      geographyCount,
       CompanyDataPaths.bronzeCompanies(config),
       CompanyDataPaths.silverCompanyCandidate(config),
       CompanyDataPaths.geography(config),
       manifest
     )
+  }
+
+  private def stage(
+      config: AtlasConfig,
+      dataset: String,
+      layer: String,
+      inputs: Seq[String],
+      output: Path
+  )(run: => (DataFrame, Long)): (DataFrame, Long) = {
+    try {
+      val (frame, count) = run
+      recordSuccess(config, dataset, layer, inputs, output, count)
+      frame -> count
+    } catch {
+      case error: Throwable =>
+        recordFailure(config, dataset, layer, inputs, Some(output), error)
+        throw error
+    }
+  }
+
+  private def recordSuccess(
+      config: AtlasConfig,
+      dataset: String,
+      layer: String,
+      inputs: Seq[String],
+      output: Path,
+      count: Long,
+      warnings: Seq[QualityWarning] = Seq.empty
+  ): Unit = {
+    val now = Instant.now()
+    RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
+      "receita", dataset, config.receita.snapshot, layer,
+      if (warnings.isEmpty) "success" else "success_with_warnings",
+      now, now, 0.0, Some(count), inputs, Some(output.toString), Seq.empty, Some("1"),
+      Some(config.spark.appName), Some("refresh-receita-company-data"),
+      outputRowCount = Some(count), qualityWarnings = warnings
+    ))
+  }
+
+  private def recordFailure(
+      config: AtlasConfig,
+      dataset: String,
+      layer: String,
+      inputs: Seq[String],
+      output: Option[Path],
+      error: Throwable,
+      quarantined: Option[Long] = None,
+      warnings: Seq[QualityWarning] = Seq.empty
+  ): Unit = {
+    val now = Instant.now()
+    RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
+      "receita", dataset, config.receita.snapshot, layer, "failed", now, now, 0.0, None,
+      inputs, output.map(_.toString), Seq.empty, Some("1"), Some(config.spark.appName),
+      Some("refresh-receita-company-data"), Some(error.getClass.getName), Option(error.getMessage),
+      quarantinedRowCount = quarantined, qualityWarnings = warnings
+    ))
   }
 
   private[atlas] def writeBronzeCompanies(spark: SparkSession, config: AtlasConfig, inputs: Seq[Path]): DataFrame = {
@@ -263,7 +373,14 @@ object CompanyDataPipeline {
       config: AtlasConfig,
       bronze: DataFrame,
       references: Map[String, DataFrame]
-  ): Long = {
+  ): Long = writeSilverCompaniesWithMetrics(spark, config, bronze, references).rowCount
+
+  private def writeSilverCompaniesWithMetrics(
+      spark: SparkSession,
+      config: AtlasConfig,
+      bronze: DataFrame,
+      references: Map[String, DataFrame]
+  ): CompanySilverMetrics = {
     val candidate = bronze
       .withColumn("_invalid", coalesce(
         col("cnpj_root").isNull || !col("cnpj_root").rlike("^[0-9A-Z]{8}$") ||
@@ -277,10 +394,26 @@ object CompanyDataPipeline {
       if (malformedCount > 0)
         malformed.drop("_invalid").write.mode("overwrite").parquet(CompanyDataPaths.qualityRoot(config).resolve("malformed_companies").toString)
       if (malformedCount > 0)
-        throw new IllegalStateException(s"Company quality gate rejected $malformedCount malformed rows")
+        throw CompanyQualityException(
+          s"Company quality gate rejected $malformedCount malformed rows",
+          "malformed_companies", malformedCount,
+          CompanyDataPaths.qualityRoot(config).resolve("malformed_companies")
+        )
       val valid = candidate.filter(!col("_invalid")).drop("_invalid")
-      if (valid.groupBy("cnpj_root").count().filter(col("count") > 1).limit(1).count() > 0)
-        throw new IllegalStateException("Company quality gate rejected duplicate cnpj_root values")
+      val duplicates = valid.groupBy("cnpj_root").count().filter(col("count") > 1)
+        .persist(StorageLevel.DISK_ONLY)
+      try {
+        val duplicateCount =
+          duplicates.select(coalesce(sum(col("count")), lit(0L))).first().getLong(0)
+        if (duplicateCount > 0) {
+          val path = CompanyDataPaths.qualityRoot(config).resolve("duplicate_companies")
+          duplicates.write.mode("overwrite").parquet(path.toString)
+          throw CompanyQualityException(
+            s"Company quality gate rejected $duplicateCount rows with duplicate cnpj_root values",
+            "duplicate_companies", duplicateCount, path
+          )
+        }
+      } finally duplicates.unpersist()
       val legal = references("legal_nature").select(col("code").as("legal_ref_code"), col("description").as("legal_nature_description"))
       val qualification = references("partner_qualification").select(col("code").as("qualification_ref_code"), col("description").as("responsible_qualification_description"))
       val enriched = valid.join(legal, col("legal_nature_code") === col("legal_ref_code"), "left")
@@ -303,7 +436,8 @@ object CompanyDataPipeline {
         .filter(col("code").isNotNull && col("description").isNull)
         .drop("description")
         .withColumn("release", lit(config.receita.snapshot))
-      if (missingReferences.limit(1).count() > 0)
+      val missingReferenceCount = missingReferences.count()
+      if (missingReferenceCount > 0)
         missingReferences.write.mode("overwrite")
           .parquet(CompanyDataPaths.qualityRoot(config).resolve("missing_reference_descriptions").toString)
       val published = enriched.select(
@@ -316,7 +450,7 @@ object CompanyDataPipeline {
         "company_size_code", "responsible_federative_entity"
       ).map(name => coalesce(col(name).cast("string"), lit("∅"))): _*), 256))
       published.write.mode("overwrite").parquet(CompanyDataPaths.silverCompanyCandidate(config).toString)
-      published.count()
+      CompanySilverMetrics(published.count(), missingReferenceCount)
     } finally candidate.unpersist()
   }
 

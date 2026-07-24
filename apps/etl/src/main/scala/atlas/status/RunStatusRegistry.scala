@@ -2,7 +2,7 @@ package atlas.status
 
 import com.typesafe.config.{Config, ConfigFactory}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, StandardCopyOption}
 import java.time.Instant
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
@@ -25,7 +25,14 @@ object RunStatusRegistry {
     )
     val target = statusPath(root, status)
     Option(target.getParent).foreach(Files.createDirectories(_))
-    Files.write(target, json(status).getBytes(StandardCharsets.UTF_8))
+    val temporary = target.resolveSibling(s".${target.getFileName}.${java.util.UUID.randomUUID()}.tmp")
+    Files.write(temporary, json(status).getBytes(StandardCharsets.UTF_8))
+    try Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+    catch {
+      case _: java.nio.file.AtomicMoveNotSupportedException =>
+        Files.deleteIfExists(temporary)
+        throw new IllegalStateException(s"Atomic status replacement is not supported at $target")
+    }
     target
   }
 
@@ -164,11 +171,11 @@ object RunStatusRegistry {
 }
 
 object StatusTable {
-  private val Headers = Seq(
+  private val PipelineHeaders = Seq(
     "source",
     "dataset",
     "snapshot",
-    "layer",
+    "stage",
     "status",
     "rows_out",
     "raw_files",
@@ -178,25 +185,59 @@ object StatusTable {
     "finished_at",
     "output_path"
   )
+  private val BundleHeaders = Seq("source", "package", "snapshot", "status", "finished_at", "output_path", "error")
+
   def render(statuses: Seq[RunStatus]): String = {
-    val rows = statuses.sortBy(s => (s.source, s.dataset, s.snapshot, s.layer)).map { s =>
+    val (bundles, pipeline) = statuses.partition(_.layer == "bundle")
+    val sections = Seq(
+      renderPipeline(pipeline),
+      renderBundles(bundles)
+    ).filter(_.nonEmpty)
+    sections.mkString("\n\n")
+  }
+
+  private def renderPipeline(statuses: Seq[RunStatus]): String = {
+    if (statuses.isEmpty) return ""
+    val rows = statuses.sortBy(s =>
+      (s.source, displayDataset(s.dataset), s.snapshot, stageOrder(s.layer), s.layer)
+    ).map { s =>
       Seq(
         s.source,
-        s.dataset,
+        displayDataset(s.dataset),
         s.snapshot,
         s.layer,
         s.status,
         s.outputRowCount.orElse(s.rowCount).fold("-")(_.toString),
         renderRawFiles(s),
         renderChanges(s),
-        s.quarantinedRowCount.fold("0")(_.toString),
+        s.quarantinedRowCount.fold("-")(_.toString),
         if (s.qualityWarnings.isEmpty) "-" else s.qualityWarnings.map(_.warningType).mkString(","),
         s.finishedAt.toString,
         s.outputPath.getOrElse("-")
       )
     }
-    val widths = Headers.indices.map(i => (Headers +: rows).map(_(i).length).max)
-    (Headers +: rows)
+    "DATA PIPELINE\n" + renderTable(PipelineHeaders, rows)
+  }
+
+  private def renderBundles(statuses: Seq[RunStatus]): String = {
+    if (statuses.isEmpty) return ""
+    val rows = statuses.sortBy(s => (s.source, s.dataset, s.snapshot)).map { s =>
+      Seq(
+        s.source,
+        displayDataset(s.dataset),
+        s.snapshot,
+        s.status,
+        s.finishedAt.toString,
+        s.outputPath.getOrElse("-"),
+        conciseError(s.errorMessage)
+      )
+    }
+    "ATOMIC PUBLICATION\n" + renderTable(BundleHeaders, rows)
+  }
+
+  private def renderTable(headers: Seq[String], rows: Seq[Seq[String]]): String = {
+    val widths = headers.indices.map(i => (headers +: rows).map(_(i).length).max)
+    (headers +: rows)
       .map(row =>
         row.indices
           .map(i => row(i).padTo(widths(i), ' ').mkString)
@@ -205,6 +246,24 @@ object StatusTable {
       )
       .mkString("\n")
   }
+
+  private def displayDataset(dataset: String): String = dataset match {
+    case "estabelecimentos" | "establishments" | "estabelecimentos_history" => "establishments"
+    case value => value
+  }
+
+  private def stageOrder(stage: String): Int = stage match {
+    case "raw" => 0
+    case "bronze" => 1
+    case "silver" => 2
+    case "history" => 3
+    case _ => 4
+  }
+
+  private def conciseError(error: Option[String]): String = error.map(_.replaceAll("\\s+", " ").trim)
+    .filter(_.nonEmpty)
+    .map(value => if (value.length <= 120) value else value.take(117) + "...")
+    .getOrElse("-")
 
   private def renderRawFiles(s: RunStatus): String = s.fileCount match {
     case None => "-"

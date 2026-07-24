@@ -105,6 +105,58 @@ class RunStatusRegistryTest extends AnyFunSuite {
     assert(StatusTable.render(Seq(status)).contains("10/1.5MiB/10 extracted"))
   }
 
+  test("human status separates pipeline and publication and normalizes establishment labels") {
+    val pipeline = sample("success", Some(0L)).copy(
+      dataset = "estabelecimentos_history",
+      layer = "history",
+      outputRowCount = Some(0L),
+      quarantinedRowCount = None
+    )
+    val bundle = sample("failed", None).copy(
+      dataset = "company-data",
+      layer = "bundle",
+      outputPath = None,
+      errorMessage = Some("quality gate failed")
+    )
+
+    val table = StatusTable.render(Seq(bundle, pipeline))
+
+    assert(table.contains("DATA PIPELINE"))
+    assert(table.contains("ATOMIC PUBLICATION"))
+    assert(table.contains("source"))
+    assert(table.contains("package"))
+    assert(table.contains("receita"))
+    assert(table.contains("establishments"))
+    assert(!table.contains("estabelecimentos_history"))
+    assert(table.contains("quality gate failed"))
+    val pipelineLine = table.split("\n").find(line =>
+      line.contains("establishments") && line.contains("history")
+    ).get
+    assert(pipelineLine.contains("  0"))
+    assert(pipelineLine.contains("  -"))
+    val bundleSection = table.substring(table.indexOf("ATOMIC PUBLICATION"))
+    assert(!bundleSection.contains("quarantined"))
+    assert(!bundleSection.contains("rows_out"))
+  }
+
+  test("human status orders known pipeline stages and shortens publication errors") {
+    val stages = Seq("history", "silver", "raw", "bronze").map(layer =>
+      sample("success", Some(1L)).copy(layer = layer)
+    )
+    val longError = ("publication failed " * 20).trim
+    val bundle = sample("failed", None).copy(
+      dataset = "company-data", layer = "bundle", errorMessage = Some(longError)
+    )
+
+    val table = StatusTable.render(stages :+ bundle)
+    val pipeline = table.substring(0, table.indexOf("ATOMIC PUBLICATION"))
+
+    val renderedStages = pipeline.split("\n").filter(_.startsWith("receita")).map(_.split("\\s+")(3)).toSeq
+    assert(renderedStages === Seq("raw", "bronze", "silver", "history"))
+    assert(!table.contains(longError))
+    assert(table.contains("..."))
+  }
+
   private def sample(status: String, rowCount: Option[Long]): RunStatus = RunStatus(
     source = "receita",
     dataset = "estabelecimentos",

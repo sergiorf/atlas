@@ -80,6 +80,9 @@ previous bundle and the selected release is complete.
 ## Failure and recovery
 
 - Preflight, transformation, or validation failure leaves `current_bundle` unchanged.
+- Component status is staged with the candidate. Failed candidates retain those diagnostics but
+  do not replace the active component rows shown by `atlas status`; bundle failure remains visible
+  and points to the retained failed candidate when available.
 - A failed read after pointer switch restores the recorded previous pointer.
 - Retry creates a new generation; it never overwrites failed output or raw inputs.
 - Rebuild publishes only after the complete requested range succeeds; it never splices partial new

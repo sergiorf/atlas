@@ -56,6 +56,34 @@ class CompanyBundleServiceTest extends AnyFunSuite {
     assert(!Files.exists(staging))
   }
 
+  test("restores the previous pointer when post-switch status activation fails") {
+    val root = Files.createTempDirectory("atlas-company-bundle-status-rollback")
+    val config = testConfig(root, "2026-07")
+    val bundleRoot = root.resolve("_atlas/bundles")
+    val previous = bundleRoot.resolve("generations/bundle-june")
+    Files.createDirectories(previous)
+    Files.writeString(previous.resolve("bundle-manifest.json"),
+      "{\"manifest_version\":1,\"bundle_id\":\"bundle-june\",\"release\":\"2026-06\"}\n")
+    Files.writeString(bundleRoot.resolve("current_bundle.json"),
+      "{\"bundle_id\":\"bundle-june\",\"release\":\"2026-06\"}\n")
+    val staging = bundleRoot.resolve("staging/bundle-july")
+    Files.createDirectories(staging)
+    Files.writeString(staging.resolve("bundle-manifest.json"),
+      "{\"manifest_version\":1,\"bundle_id\":\"bundle-july\",\"release\":\"2026-07\"}\n")
+
+    assertThrows[IllegalStateException](
+      CompanyBundleService.publish(
+        config,
+        staging,
+        "bundle-july",
+        ReleaseId.unsafe("2026-07"),
+        _ => throw new IllegalStateException("status activation failed")
+      )
+    )
+
+    assert(CompanyBundleService.inspect(config, None).get.bundleId === "bundle-june")
+  }
+
   private def writeCompanyManifest(config: AtlasConfig, declaredRelease: String): Unit = {
     val raw = Path.of(config.receita.companyDataRawDir)
     Files.createDirectories(raw)

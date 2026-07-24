@@ -16,8 +16,9 @@ future: gold -> serving/index
 
 Receita establishments and company data have implemented raw acquisition, bronze and silver
 transformations, compact history, release summaries, and atomic bundle publication. Instrumented
-jobs record raw and bundle status; component reports and summaries remain inside the immutable
-bundle generation. Release summaries are durable analytical data rather than status records. Gold,
+jobs record raw, component, and bundle status. Candidate component evidence remains inside its
+generation until successful atomic publication activates canonical records. Release summaries are
+durable analytical data rather than status records. Gold,
 serving/index, and a web dashboard remain roadmap work, so their absence is not a failed run.
 
 From `apps/etl`, list recorded runs with:
@@ -33,7 +34,13 @@ From the repository root, use:
 ./atlas status --json
 ```
 
-The command reads `data/_atlas/status` and prints source, dataset, snapshot, layer, status, output rows, raw archive/byte/extraction metrics, compact signed delta/insert/update/remove metrics when available, quarantined rows, warning types, finish time, and output path. It starts no Spark session. Missing additive fields in older records display as zero/`-`. A custom registry root can be set with `ATLAS_STATUS_DIR` or a custom configuration file.
+The command reads `data/_atlas/status` and prints two human-readable sections. `DATA PIPELINE`
+contains component stages and measured row, file, change, quarantine, and warning evidence.
+`ATOMIC PUBLICATION` contains only bundle outcome, finish time, generation path, and a concise
+failure message. Existing establishment dataset spellings are displayed uniformly as
+`establishments`; stored JSON identities do not change. An absent quarantine measurement displays
+as `-`, while a measured zero displays as `0`. `--json` remains the unmodified registry array.
+The command starts no Spark session.
 
 Registry files follow `data/_atlas/status/<source>/<dataset>/<snapshot>/<layer>.json`. For example: `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`.
 
@@ -46,6 +53,10 @@ Current identifiers intentionally reflect existing job contracts:
 | Bronze ingestion | `receita` | `estabelecimentos` | `bronze` |
 | Silver normalization/publication | `receita` | `establishments` | `silver` |
 | Compact change history | `receita` | `estabelecimentos_history` | `history` |
+| Company bronze and silver | `receita` | `companies` | `bronze`, `silver` |
+| Company change history | `receita` | `companies` | `history` |
+| Company reference dimensions | `receita` | `company-references` | `bronze`, `silver` |
+| Municipality geography | `receita` | `municipality-geography` | `silver` |
 | Atomic company-data publication | `receita` | `company-data` | `bundle` |
 
 The Portuguese source identifier and English silver identifier are established internal status
@@ -61,7 +72,10 @@ there is no snapshot identity under which Atlas can record that attempt.
 The company-data downloader records `receita / company-data / <release> / raw` only after its
 source manifest validates. Failure uses the same identity and preserves diagnostics for `atlas status`.
 Successful atomic publication records `receita / company-data / <release> / bundle` and points to
-the immutable generation selected by `current_bundle.json`.
+the immutable generation selected by `current_bundle.json`. Component rows and diagnostics are
+measured during staging but become canonical only after that same generation is selected.
+A failed publication points to its retained failed candidate when one was produced; embedded
+component status and warning paths are rewritten to that retained location.
 
 - `success`: the instrumented job completed its output and status publication.
 - `success_with_warnings`: the layer was produced, but rows were quarantined or quality warnings were recorded; inspect the warning report paths.
