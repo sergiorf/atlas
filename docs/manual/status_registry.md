@@ -86,3 +86,9 @@ component status and warning paths are rewritten to that retained location.
 A malformed file is reported separately while other valid records remain visible. Each file represents the latest recorded attempt for its source, dataset, snapshot, and layer, not an append-only run ledger or a check that output files still exist. Establishment business history is stored separately as compact change-event and release-summary Parquet under silver.
 
 Durable analytical release metrics live in `data/silver/receita/establishment_release_summaries`; status remains latest-attempt operational metadata. Status JSON is generated operational metadata. It can contain local paths and failure messages, changes whenever jobs run, and is reproducible by running the job. It therefore remains outside Git along with raw input and generated bronze/silver data. See the [run-status contract](../specs/run-status.md) for field-level behavior.
+
+For company silver, `malformed_companies` reports structurally invalid rows and
+`duplicate_companies` reports every source row for roots that occurred more than once. Duplicate
+groups do not block the bundle: all rows in the group are excluded, the remaining table is
+published uniquely, and status is `success_with_warnings`. The displayed quarantine total combines
+malformed and duplicate rows; each warning retains its own count and diagnostic path.

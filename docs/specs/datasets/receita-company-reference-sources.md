@@ -30,6 +30,14 @@ trim, uppercase, and remove display punctuation, but it must retain invalid sour
 for diagnostics. Silver alone enforces canonical `[0-9A-Z]{8}` roots. Reference codes remain
 strings so padding and publisher semantics are preserved.
 
+Receita `Empresas` archives can contain conflicting rows for one otherwise valid root. Atlas does
+not have publisher evidence that authorizes choosing one variant. Silver therefore quarantines
+every row for a duplicated root and publishes the remaining unique companies with a quality
+warning. This is a deliberate uniqueness-over-completeness decision: Atlas never edits raw input,
+silently chooses a survivor, or represents a quarantined root as a closed company. The diagnostic
+preserves every conflicting row and its source-file lineage so operators can review recurrence
+across releases.
+
 ## Snapshot interpretation
 
 All CNPJ inputs in a company data bundle must belong to the same operator-selected `YYYY-MM`

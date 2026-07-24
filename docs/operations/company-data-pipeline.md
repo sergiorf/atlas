@@ -73,6 +73,13 @@ that Receita uses in `Empresas` but omits from the same release's reference dime
 company preserves the code and publishes a null description; operators should compare counts and
 codes between releases. Blank or conflicting reference-dimension rows still block publication.
 
+The `duplicate_companies` diagnostic is also non-blocking. When structurally valid `Empresas` rows
+share a `cnpj_root`, Atlas writes every source row in the group to the diagnostic and excludes the
+entire root from `companies_current`. It never selects a survivor. Review both quarantined row
+counts and distinct key counts because one omitted company can account for several source rows.
+An establishment that no longer matches a company may be explained by this quarantine and must
+not be interpreted as proof that the company closed.
+
 For later months, explicitly download both source groups and run one refresh. Refresh
 rejects equal or older releases. A month gap is permitted only when history records the actual
 previous bundle and the selected release is complete.
@@ -144,6 +151,20 @@ SELECT dimension, code, COUNT(*) AS companies
 FROM read_parquet('<quality_path>/missing_reference_descriptions/**/*.parquet')
 GROUP BY 1, 2
 ORDER BY companies DESC;
+```
+
+Inspect quarantined duplicate companies when that path exists:
+
+```sql
+SELECT
+  cnpj_root,
+  duplicate_group_size,
+  duplicate_business_variant_count,
+  COUNT(*) AS quarantined_rows,
+  list(DISTINCT source_file) AS source_files
+FROM read_parquet('<quality_path>/duplicate_companies/**/*.parquet')
+GROUP BY 1, 2, 3
+ORDER BY quarantined_rows DESC, cnpj_root;
 ```
 
 Verify non-seed company history arithmetic:

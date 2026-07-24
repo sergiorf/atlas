@@ -130,8 +130,8 @@ object CompanyBundleService {
   private def buildRelease(spark: SparkSession, config: AtlasConfig, bundleId: String): Unit = {
     ReceitaIngestJob.run(spark, config)
     EstablishmentHistoryJob.refresh(spark, config)
-    CompanyDataPipeline.build(spark, config)
-    val history = try CompanyHistoryJob.refresh(spark, config, bundleId)
+    val companyBuild = CompanyDataPipeline.build(spark, config)
+    val history = try CompanyHistoryJob.refresh(spark, config, bundleId, companyBuild.quality)
     catch {
       case error: Throwable =>
         val failedAt = Instant.now()

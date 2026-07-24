@@ -55,6 +55,98 @@ class CompanyDataPipelineTest extends AnyFunSuite with SparkSuite {
     assert(diagnostic.getAs[String]("release") === "2026-07")
   }
 
+  test("quarantines every row for duplicate company roots and publishes unaffected companies") {
+    val root = Files.createTempDirectory("atlas-company-duplicates")
+    val config = testConfig(root)
+    val empresas = root.resolve("empresas.csv")
+    Files.writeString(empresas,
+      "08314885;FLAVIO PAVAO DE SOUZA;4120;59;0,00;05;\n" +
+        "08314885;;0000;00;0,00;;\n" +
+        "12345678;ALPHA;2062;49;1234,56;05;\n",
+      StandardCharsets.ISO_8859_1)
+    val bronze = CompanyDataPipeline.writeBronzeCompanies(spark, config, Seq(empresas))
+    val references = Map(
+      "legal_nature" -> reference(Seq("2062" -> "SOCIEDADE EMPRESARIA LIMITADA")),
+      "partner_qualification" -> reference(Seq("49" -> "SOCIO-ADMINISTRADOR"))
+    )
+
+    val metrics = CompanyDataPipeline.writeSilverCompaniesWithMetrics(spark, config, bronze, references)
+    val companies = spark.read.parquet(CompanyDataPaths.silverCompanyCandidate(config).toString)
+    val duplicates = spark.read.parquet(
+      CompanyDataPaths.qualityRoot(config).resolve("duplicate_companies").toString)
+
+    assert(metrics.inputRowCount === 3L)
+    assert(metrics.rowCount === 1L)
+    assert(metrics.duplicateRowCount === 2L)
+    assert(metrics.duplicateKeyCount === 1L)
+    assert(metrics.quarantinedRowCount === 2L)
+    assert(companies.select("cnpj_root").collect().map(_.getString(0)).toSeq === Seq("12345678"))
+    assert(duplicates.count() === 2L)
+    assert(duplicates.select("cnpj_root").distinct().head().getString(0) === "08314885")
+    assert(duplicates.select("duplicate_group_size").distinct().head().getLong(0) === 2L)
+    assert(duplicates.select("duplicate_business_variant_count").distinct().head().getLong(0) === 2L)
+    assert(duplicates.select("quality_reason").distinct().head().getString(0) === "duplicate_cnpj_root")
+  }
+
+  test("quarantines identical duplicate company rows without selecting a survivor") {
+    val root = Files.createTempDirectory("atlas-company-identical-duplicates")
+    val config = testConfig(root)
+    val empresas = root.resolve("empresas.csv")
+    val row = "12345678;ALPHA;2062;49;1234,56;05;\n"
+    Files.writeString(empresas, row + row, StandardCharsets.ISO_8859_1)
+    val bronze = CompanyDataPipeline.writeBronzeCompanies(spark, config, Seq(empresas))
+    val references = Map(
+      "legal_nature" -> reference(Seq("2062" -> "SOCIEDADE EMPRESARIA LIMITADA")),
+      "partner_qualification" -> reference(Seq("49" -> "SOCIO-ADMINISTRADOR"))
+    )
+
+    val metrics = CompanyDataPipeline.writeSilverCompaniesWithMetrics(spark, config, bronze, references)
+    val companies = spark.read.parquet(CompanyDataPaths.silverCompanyCandidate(config).toString)
+    val duplicates = spark.read.parquet(
+      CompanyDataPaths.qualityRoot(config).resolve("duplicate_companies").toString)
+
+    assert(metrics.rowCount === 0L)
+    assert(metrics.duplicateRowCount === 2L)
+    assert(metrics.duplicateKeyCount === 1L)
+    assert(companies.count() === 0L)
+    assert(duplicates.select("duplicate_business_variant_count").distinct().head().getLong(0) === 1L)
+  }
+
+  test("counts malformed rows and multiple duplicate groups without overlap") {
+    val root = Files.createTempDirectory("atlas-company-quality-counts")
+    val config = testConfig(root)
+    val empresas = root.resolve("empresas.csv")
+    Files.writeString(empresas,
+      "11111111;DUPLICATE A;2062;49;1,00;05;\n" +
+        "11111111;DUPLICATE B;2062;49;1,00;05;\n" +
+        "22222222;DUPLICATE C;2062;49;1,00;05;\n" +
+        "22222222;DUPLICATE D;2062;49;1,00;05;\n" +
+        "BAD;MALFORMED;2062;49;1,00;05;\n" +
+        "33333333;ACCEPTED;2062;49;1,00;05;\n",
+      StandardCharsets.ISO_8859_1)
+    val bronze = CompanyDataPipeline.writeBronzeCompanies(spark, config, Seq(empresas))
+    val references = Map(
+      "legal_nature" -> reference(Seq("2062" -> "SOCIEDADE EMPRESARIA LIMITADA")),
+      "partner_qualification" -> reference(Seq("49" -> "SOCIO-ADMINISTRADOR"))
+    )
+
+    val metrics = CompanyDataPipeline.writeSilverCompaniesWithMetrics(spark, config, bronze, references)
+    val malformed = spark.read.parquet(
+      CompanyDataPaths.qualityRoot(config).resolve("malformed_companies").toString)
+    val duplicates = spark.read.parquet(
+      CompanyDataPaths.qualityRoot(config).resolve("duplicate_companies").toString)
+
+    assert(metrics.inputRowCount === 6L)
+    assert(metrics.rowCount === 1L)
+    assert(metrics.malformedRowCount === 1L)
+    assert(metrics.duplicateRowCount === 4L)
+    assert(metrics.duplicateKeyCount === 2L)
+    assert(metrics.quarantinedRowCount === 5L)
+    assert(malformed.count() === 1L)
+    assert(duplicates.count() === 4L)
+    assert(duplicates.select("cnpj_root").distinct().count() === 2L)
+  }
+
   test("builds exact TOM to IBGE geography with pinned hashes") {
     val root = Files.createTempDirectory("atlas-company-geography")
     val config = testConfig(root)

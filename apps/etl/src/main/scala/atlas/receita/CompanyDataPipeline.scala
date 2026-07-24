@@ -37,16 +37,20 @@ final case class CompanyDataBuildResult(
     bronzeCompanies: Path,
     silverCompanies: Path,
     geography: Path,
-    manifest: CompanyDataManifest
+    manifest: CompanyDataManifest,
+    quality: CompanySilverMetrics
 )
 
-private[receita] final case class CompanySilverMetrics(rowCount: Long, missingReferenceCount: Long)
-private[receita] final case class CompanyQualityException(
-    message: String,
-    warningType: String,
+private[atlas] final case class CompanySilverMetrics(
+    inputRowCount: Long,
     rowCount: Long,
-    reportPath: Path
-) extends IllegalStateException(message)
+    malformedRowCount: Long,
+    duplicateRowCount: Long,
+    duplicateKeyCount: Long,
+    missingReferenceCount: Long
+) {
+  def quarantinedRowCount: Long = malformedRowCount + duplicateRowCount
+}
 
 object CompanyDataPaths {
   def rawRoot(config: AtlasConfig): Path = {
@@ -180,20 +184,23 @@ object CompanyDataPipeline {
     }
     val silverMetrics = try {
       val value = writeSilverCompaniesWithMetrics(spark, config, bronzeCompanies, references)
-      val warning = if (value.missingReferenceCount == 0) Seq.empty else Seq(QualityWarning(
-        "missing_reference_descriptions", value.missingReferenceCount,
-        "Company codes are absent from the same-release reference dimension",
-        CompanyDataPaths.qualityRoot(config).resolve("missing_reference_descriptions").toString
-      ))
+      val warnings =
+        (if (value.malformedRowCount == 0) Seq.empty else Seq(QualityWarning(
+          "malformed_companies", value.malformedRowCount, "Structurally invalid company rows were quarantined",
+          CompanyDataPaths.qualityRoot(config).resolve("malformed_companies").toString))) ++
+        (if (value.duplicateRowCount == 0) Seq.empty else Seq(QualityWarning(
+          "duplicate_companies", value.duplicateRowCount,
+          s"All rows for ${value.duplicateKeyCount} duplicate cnpj_root values were quarantined",
+          CompanyDataPaths.qualityRoot(config).resolve("duplicate_companies").toString))) ++
+        (if (value.missingReferenceCount == 0) Seq.empty else Seq(QualityWarning(
+          "missing_reference_descriptions", value.missingReferenceCount,
+          "Company codes are absent from the same-release reference dimension",
+          CompanyDataPaths.qualityRoot(config).resolve("missing_reference_descriptions").toString)))
       recordSuccess(config, "companies", "silver", Seq(CompanyDataPaths.bronzeCompanies(config).toString),
-        CompanyDataPaths.silverCompanyCandidate(config), value.rowCount, warning)
+        CompanyDataPaths.silverCompanyCandidate(config), value.rowCount, warnings,
+        Some(value.inputRowCount), Some(value.quarantinedRowCount))
       value
     } catch {
-      case error: CompanyQualityException =>
-        recordFailure(config, "companies", "silver", Seq(CompanyDataPaths.bronzeCompanies(config).toString),
-          Some(error.reportPath), error, Some(error.rowCount), Seq(QualityWarning(
-            error.warningType, error.rowCount, error.getMessage, error.reportPath.toString)))
-        throw error
       case error: Throwable =>
         recordFailure(config, "companies", "silver", Seq(CompanyDataPaths.bronzeCompanies(config).toString), None, error)
         throw error
@@ -206,7 +213,8 @@ object CompanyDataPipeline {
       CompanyDataPaths.bronzeCompanies(config),
       CompanyDataPaths.silverCompanyCandidate(config),
       CompanyDataPaths.geography(config),
-      manifest
+      manifest,
+      silverMetrics
     )
   }
 
@@ -235,7 +243,9 @@ object CompanyDataPipeline {
       inputs: Seq[String],
       output: Path,
       count: Long,
-      warnings: Seq[QualityWarning] = Seq.empty
+      warnings: Seq[QualityWarning] = Seq.empty,
+      inputRowCount: Option[Long] = None,
+      quarantinedRowCount: Option[Long] = None
   ): Unit = {
     val now = Instant.now()
     RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
@@ -243,7 +253,8 @@ object CompanyDataPipeline {
       if (warnings.isEmpty) "success" else "success_with_warnings",
       now, now, 0.0, Some(count), inputs, Some(output.toString), Seq.empty, Some("1"),
       Some(config.spark.appName), Some("refresh-receita-company-data"),
-      outputRowCount = Some(count), qualityWarnings = warnings
+      inputRowCount = inputRowCount, outputRowCount = Some(count),
+      quarantinedRowCount = quarantinedRowCount, qualityWarnings = warnings
     ))
   }
 
@@ -375,7 +386,7 @@ object CompanyDataPipeline {
       references: Map[String, DataFrame]
   ): Long = writeSilverCompaniesWithMetrics(spark, config, bronze, references).rowCount
 
-  private def writeSilverCompaniesWithMetrics(
+  private[atlas] def writeSilverCompaniesWithMetrics(
       spark: SparkSession,
       config: AtlasConfig,
       bronze: DataFrame,
@@ -389,36 +400,40 @@ object CompanyDataPipeline {
       ))
       .persist(StorageLevel.DISK_ONLY)
     try {
+      val inputRowCount = candidate.count()
       val malformed = candidate.filter(col("_invalid"))
       val malformedCount = malformed.count()
       if (malformedCount > 0)
         malformed.drop("_invalid").write.mode("overwrite").parquet(CompanyDataPaths.qualityRoot(config).resolve("malformed_companies").toString)
-      if (malformedCount > 0)
-        throw CompanyQualityException(
-          s"Company quality gate rejected $malformedCount malformed rows",
-          "malformed_companies", malformedCount,
-          CompanyDataPaths.qualityRoot(config).resolve("malformed_companies")
-        )
       val valid = candidate.filter(!col("_invalid")).drop("_invalid")
-      val duplicates = valid.groupBy("cnpj_root").count().filter(col("count") > 1)
+      val businessHash = sha2(concat_ws("|", Seq(
+        "legal_name", "legal_nature_code", "responsible_qualification_code", "share_capital",
+        "company_size_code", "responsible_federative_entity"
+      ).map(name => coalesce(col(name).cast("string"), lit("∅"))): _*), 256)
+      val duplicateKeys = valid.withColumn("_business_hash", businessHash).groupBy("cnpj_root").agg(
+        count(lit(1)).as("duplicate_group_size"),
+        countDistinct(col("_business_hash")).as("duplicate_business_variant_count")
+      ).filter(col("duplicate_group_size") > 1)
         .persist(StorageLevel.DISK_ONLY)
       try {
-        val duplicateCount =
-          duplicates.select(coalesce(sum(col("count")), lit(0L))).first().getLong(0)
-        if (duplicateCount > 0) {
+        val duplicateMetrics = duplicateKeys.agg(
+          coalesce(sum(col("duplicate_group_size")), lit(0L)).as("duplicate_rows"),
+          count(lit(1)).as("duplicate_keys")
+        ).first()
+        val duplicateRowCount = duplicateMetrics.getAs[Long]("duplicate_rows")
+        val duplicateKeyCount = duplicateMetrics.getAs[Long]("duplicate_keys")
+        if (duplicateRowCount > 0) {
           val path = CompanyDataPaths.qualityRoot(config).resolve("duplicate_companies")
-          duplicates.write.mode("overwrite").parquet(path.toString)
-          throw CompanyQualityException(
-            s"Company quality gate rejected $duplicateCount rows with duplicate cnpj_root values",
-            "duplicate_companies", duplicateCount, path
-          )
+          valid.join(duplicateKeys, Seq("cnpj_root"), "inner")
+            .withColumn("quality_reason", lit("duplicate_cnpj_root"))
+            .write.mode("overwrite").parquet(path.toString)
         }
-      } finally duplicates.unpersist()
-      val legal = references("legal_nature").select(col("code").as("legal_ref_code"), col("description").as("legal_nature_description"))
-      val qualification = references("partner_qualification").select(col("code").as("qualification_ref_code"), col("description").as("responsible_qualification_description"))
-      val enriched = valid.join(legal, col("legal_nature_code") === col("legal_ref_code"), "left")
-        .join(qualification, col("responsible_qualification_code") === col("qualification_ref_code"), "left")
-      val missingReferences = enriched
+        val accepted = valid.join(duplicateKeys.select("cnpj_root"), Seq("cnpj_root"), "left_anti")
+        val legal = references("legal_nature").select(col("code").as("legal_ref_code"), col("description").as("legal_nature_description"))
+        val qualification = references("partner_qualification").select(col("code").as("qualification_ref_code"), col("description").as("responsible_qualification_description"))
+        val enriched = accepted.join(legal, col("legal_nature_code") === col("legal_ref_code"), "left")
+          .join(qualification, col("responsible_qualification_code") === col("qualification_ref_code"), "left")
+        val missingReferences = enriched
         .select(
           col("cnpj_root"),
           explode(array(
@@ -436,11 +451,11 @@ object CompanyDataPipeline {
         .filter(col("code").isNotNull && col("description").isNull)
         .drop("description")
         .withColumn("release", lit(config.receita.snapshot))
-      val missingReferenceCount = missingReferences.count()
-      if (missingReferenceCount > 0)
-        missingReferences.write.mode("overwrite")
-          .parquet(CompanyDataPaths.qualityRoot(config).resolve("missing_reference_descriptions").toString)
-      val published = enriched.select(
+        val missingReferenceCount = missingReferences.count()
+        if (missingReferenceCount > 0)
+          missingReferences.write.mode("overwrite")
+            .parquet(CompanyDataPaths.qualityRoot(config).resolve("missing_reference_descriptions").toString)
+        val published = enriched.select(
         col("cnpj_root"), col("legal_name"), col("legal_nature_code"), col("legal_nature_description"),
         col("responsible_qualification_code"), col("responsible_qualification_description"), col("share_capital"),
         col("company_size_code"), col("responsible_federative_entity"), col("source_file"), col("ingestion_timestamp"),
@@ -449,8 +464,13 @@ object CompanyDataPipeline {
         "legal_name", "legal_nature_code", "responsible_qualification_code", "share_capital",
         "company_size_code", "responsible_federative_entity"
       ).map(name => coalesce(col(name).cast("string"), lit("∅"))): _*), 256))
-      published.write.mode("overwrite").parquet(CompanyDataPaths.silverCompanyCandidate(config).toString)
-      CompanySilverMetrics(published.count(), missingReferenceCount)
+        published.write.mode("overwrite").parquet(CompanyDataPaths.silverCompanyCandidate(config).toString)
+        val rowCount = published.count()
+        if (published.groupBy("cnpj_root").count().filter(col("count") > 1).limit(1).count() > 0)
+          throw new IllegalStateException("Accepted companies contain duplicate cnpj_root values")
+        CompanySilverMetrics(inputRowCount, rowCount, malformedCount, duplicateRowCount,
+          duplicateKeyCount, missingReferenceCount)
+      } finally duplicateKeys.unpersist()
     } finally candidate.unpersist()
   }
 

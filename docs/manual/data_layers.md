@@ -26,6 +26,10 @@ The company-data foundation publishes companies, establishments, reference dimen
 geography, and compact history as one atomic silver bundle. A bundle is not a new data layer and is
 not gold: it is a versioned consistency boundary that prevents readers from mixing releases. Its
 current pointer changes only after every required component and quality gate succeeds.
+Company silver excludes all source rows belonging to a duplicated `cnpj_root` and reports them as
+a non-blocking quarantine. This preserves primary-key uniqueness without choosing an arbitrary
+company record, but it can leave establishments without a matching accepted company. Such absence
+must not be interpreted as legal closure.
 
 ## Gold
 
