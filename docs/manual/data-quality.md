@@ -14,3 +14,8 @@ carried-forward mappings. The geography coverage report counts establishments by
 source. Unresolved or conflicting municipality codes reject the candidate and leave the active
 bundle unchanged. Absence from a TOM snapshot is not treated as retirement because the publisher
 does not provide lifecycle fields.
+
+An establishment UF that disagrees with the official state of its resolved municipality is
+reported as `state_conflict` but does not reject the complete bundle. Atlas preserves the
+establishment UF and municipality code as published and preserves the independently verified
+geography mapping; it does not silently repair either value.

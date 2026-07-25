@@ -33,6 +33,28 @@ class CompanyGeographyCoverageTest extends AnyFunSuite with SparkSuite {
       .contains("\"unresolved_establishment_rows\":2"))
   }
 
+  test("records establishment-state conflicts without rejecting the bundle candidate") {
+    val root = Files.createTempDirectory("atlas-geography-state-conflict")
+    val config = testConfig(root)
+    val session = spark
+    import session.implicits._
+    val establishments = Seq(
+      ("39868640000153", "6969", "PA")
+    ).toDF("cnpj_full", "municipality_code", "state")
+    val geography = Seq(
+      ("6969", "SP", "current_tom")
+    ).toDF("receita_municipality_code", "state_abbreviation", "mapping_source")
+
+    CompanyBundleService.validateGeographyCoverage(establishments, geography, config)
+
+    val diagnostic = spark.read.parquet(CompanyDataPaths.geographyCoverage(config).toString).head()
+    assert(diagnostic.getAs[String]("coverage_status") === "state_conflict")
+    assert(diagnostic.getAs[Long]("establishment_count") === 1L)
+    val summary = Files.readString(CompanyDataPaths.geographyCoverageSummary(config))
+    assert(summary.contains("\"state_conflict_codes\":1"))
+    assert(summary.contains("\"state_conflict_establishment_rows\":1"))
+  }
+
   private def testConfig(root: java.nio.file.Path): AtlasConfig = AtlasConfig(
     SparkConfig("local[1]", "test", 1, root.resolve("spark").toString),
     CsvConfig(";", "ISO-8859-1"),

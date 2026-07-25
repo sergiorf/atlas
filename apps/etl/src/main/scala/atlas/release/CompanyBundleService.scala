@@ -261,12 +261,6 @@ object CompanyBundleService {
             s"${metrics.getAs[Long]("unresolved_establishment_rows")} establishment(s); examples=[$examples]; " +
             s"report=${CompanyDataPaths.geographyCoverage(config)}"
         )
-      if (stateConflictCodeCount > 0)
-        throw new IllegalStateException(
-          s"Candidate geography has $stateConflictCodeCount municipality code(s) with establishment-state conflicts affecting " +
-            s"${metrics.getAs[Long]("state_conflict_establishment_rows")} establishment(s); " +
-            s"report=${CompanyDataPaths.geographyCoverage(config)}"
-        )
     } finally coverage.unpersist()
   }
 

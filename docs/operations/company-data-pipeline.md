@@ -86,6 +86,11 @@ adjacent Parquet diagnostic when coverage fails. The report separates current TO
 override, carried-forward, and unresolved establishment counts and includes bounded unresolved
 examples. Do not edit the captured TOM CSV or establishment data to make the gate pass.
 
+Rows with `coverage_status = 'state_conflict'` are diagnostic-only. They identify establishment
+rows whose non-null UF disagrees with the official state of the resolved municipality. Review
+their counts and source records, but do not rewrite either source value; these rows do not block
+an otherwise complete bundle.
+
 Short numeric TOM values are normalized to four digits automatically. A mapping omitted from the
 current TOM capture may be carried from the latest earlier bundle only when the current capture
 does not contradict it and the selected IBGE capture still contains its IBGE municipality.
