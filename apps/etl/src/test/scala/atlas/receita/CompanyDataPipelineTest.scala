@@ -178,6 +178,89 @@ class CompanyDataPipelineTest extends AnyFunSuite with SparkSuite {
     assert(exterior.isNullAt(exterior.fieldIndex("ibge_municipality_name")))
   }
 
+  test("canonicalizes short TOM codes and records current-source provenance") {
+    val root = Files.createTempDirectory("atlas-company-geography-padding")
+    val config = testConfig(root)
+    val tom = root.resolve("tom.csv")
+    Files.writeString(tom, "3;1100205;PORTO VELHO;Porto Velho;RO\n", StandardCharsets.ISO_8859_1)
+    val ibge = root.resolve("ibge.json")
+    Files.writeString(ibge, ibgeRow("1100205", "Porto Velho", "11", "RO", "Rondônia", "1", "N", "Norte"),
+      StandardCharsets.UTF_8)
+    val manifest = CompanyDataManifest("2026-07", root.resolve("manifest.json"), "manifest", Map.empty,
+      tom, "tom-hash", ibge, "ibge-hash", None)
+
+    val row = CompanyDataPipeline.writeGeography(spark, config, manifest).head()
+    assert(row.getAs[String]("receita_municipality_code") === "0003")
+    assert(row.getAs[String]("mapping_source") === "current_tom")
+    assert(row.getAs[String]("mapping_source_release") === "2026-07")
+    assert(row.getAs[Boolean]("current_tom_present"))
+  }
+
+  test("uses the reviewed Boa Esperanca do Norte override when TOM omits it") {
+    val root = Files.createTempDirectory("atlas-company-geography-override")
+    val config = testConfig(root)
+    val tom = root.resolve("tom.csv")
+    Files.writeString(tom, "7107;3550308;SAO PAULO;São Paulo;SP\n", StandardCharsets.ISO_8859_1)
+    val ibge = root.resolve("ibge.json")
+    Files.writeString(ibge, "[" +
+      ibgeObject("3550308", "São Paulo", "35", "SP", "São Paulo", "3", "SE", "Sudeste") + "," +
+      ibgeObject("5101837", "Boa Esperança do Norte", "51", "MT", "Mato Grosso", "5", "CO", "Centro-Oeste") +
+      "]", StandardCharsets.UTF_8)
+    val manifest = CompanyDataManifest("2026-07", root.resolve("manifest.json"), "manifest", Map.empty,
+      tom, "tom-hash", ibge, "ibge-hash", None)
+
+    val row = CompanyDataPipeline.writeGeography(spark, config, manifest)
+      .filter("receita_municipality_code = '1182'").head()
+    assert(row.getAs[String]("ibge_municipality_code") === "5101837")
+    assert(row.getAs[String]("mapping_source") === "verified_override")
+    assert(!row.getAs[Boolean]("current_tom_present"))
+    assert(row.getAs[String]("evidence_reference").contains("boaesperancadonorte.mt.gov.br"))
+  }
+
+  test("rejects a current TOM mapping that contradicts a reviewed override") {
+    val root = Files.createTempDirectory("atlas-company-geography-override-conflict")
+    val config = testConfig(root)
+    val tom = root.resolve("tom.csv")
+    Files.writeString(tom, "1182;3550308;CONFLICT;São Paulo;SP\n", StandardCharsets.ISO_8859_1)
+    val ibge = root.resolve("ibge.json")
+    Files.writeString(ibge, "[" +
+      ibgeObject("3550308", "São Paulo", "35", "SP", "São Paulo", "3", "SE", "Sudeste") + "," +
+      ibgeObject("5101837", "Boa Esperança do Norte", "51", "MT", "Mato Grosso", "5", "CO", "Centro-Oeste") +
+      "]", StandardCharsets.UTF_8)
+    val manifest = CompanyDataManifest("2026-07", root.resolve("manifest.json"), "manifest", Map.empty,
+      tom, "tom-hash", ibge, "ibge-hash", None)
+
+    val error = intercept[IllegalStateException] {
+      CompanyDataPipeline.writeGeography(spark, config, manifest)
+    }
+    assert(error.getMessage === "Current TOM conflicts with a reviewed municipality override")
+  }
+
+  test("carries forward an uncontradicted mapping from the previous geography version") {
+    val root = Files.createTempDirectory("atlas-company-geography-carry-forward")
+    val june = testConfig(root, "2026-06")
+    val juneTom = root.resolve("june-tom.csv")
+    Files.writeString(juneTom, "3;1100205;PORTO VELHO;Porto Velho;RO\n", StandardCharsets.ISO_8859_1)
+    val ibge = root.resolve("ibge.json")
+    Files.writeString(ibge, ibgeRow("1100205", "Porto Velho", "11", "RO", "Rondônia", "1", "N", "Norte"),
+      StandardCharsets.UTF_8)
+    CompanyDataPipeline.writeGeography(spark, june,
+      CompanyDataManifest("2026-06", root.resolve("manifest.json"), "manifest", Map.empty,
+        juneTom, "june-tom-hash", ibge, "ibge-hash", None))
+
+    val july = testConfig(root, "2026-07")
+    val julyTom = root.resolve("july-tom.csv")
+    Files.writeString(julyTom, "9707;0;EXTERIOR;;EX\n", StandardCharsets.ISO_8859_1)
+    val row = CompanyDataPipeline.writeGeography(spark, july,
+      CompanyDataManifest("2026-07", root.resolve("manifest.json"), "manifest", Map.empty,
+        julyTom, "july-tom-hash", ibge, "ibge-hash", None))
+      .filter("receita_municipality_code = '0003'").head()
+
+    assert(row.getAs[String]("mapping_source") === "carried_forward")
+    assert(row.getAs[String]("mapping_source_release") === "2026-06")
+    assert(!row.getAs[Boolean]("current_tom_present"))
+  }
+
   test("rejects unmatched TOM municipalities other than the official exterior sentinel") {
     val root = Files.createTempDirectory("atlas-company-geography-unmatched")
     val config = testConfig(root)
@@ -192,7 +275,7 @@ class CompanyDataPipelineTest extends AnyFunSuite with SparkSuite {
     val error = intercept[IllegalStateException] {
       CompanyDataPipeline.writeGeography(spark, config, manifest)
     }
-    assert(error.getMessage === "TOM-to-IBGE geography contains unmatched or parentless municipalities")
+    assert(error.getMessage === "TOM contains malformed canonical municipality codes")
   }
 
   private def reference(rows: Seq[(String, String)]): DataFrame = {
@@ -201,15 +284,26 @@ class CompanyDataPipelineTest extends AnyFunSuite with SparkSuite {
     rows.toDF("code", "description")
   }
 
-  private def testConfig(root: Path): AtlasConfig = AtlasConfig(
+  private def ibgeRow(
+      code: String, name: String, stateCode: String, state: String, stateName: String,
+      regionCode: String, region: String, regionName: String
+  ): String = "[" + ibgeObject(code, name, stateCode, state, stateName, regionCode, region, regionName) + "]"
+
+  private def ibgeObject(
+      code: String, name: String, stateCode: String, state: String, stateName: String,
+      regionCode: String, region: String, regionName: String
+  ): String =
+    s"""{"id":"$code","nome":"$name","regiao-imediata":{"id":"x","nome":"Immediate","regiao-intermediaria":{"id":"y","nome":"Intermediate","UF":{"id":"$stateCode","sigla":"$state","nome":"$stateName","regiao":{"id":"$regionCode","sigla":"$region","nome":"$regionName"}}}}}"""
+
+  private def testConfig(root: Path, release: String = "2026-07"): AtlasConfig = AtlasConfig(
     SparkConfig("local[1]", "test", 1, root.resolve("spark").toString),
     CsvConfig(";", "ISO-8859-1"),
     ReceitaConfig(
-      "2026-07",
-      root.resolve("raw/receita/2026-07/estabelecimentos/extracted").toString,
+      release,
+      root.resolve(s"raw/receita/$release/estabelecimentos/extracted").toString,
       root.resolve("bronze/receita").toString,
       root.resolve("silver/receita").toString,
-      root.resolve("raw/receita/2026-07/company-data").toString
+      root.resolve(s"raw/receita/$release/company-data").toString
     ),
     root.resolve("_atlas/status").toString,
     "overwrite"

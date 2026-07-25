@@ -50,9 +50,18 @@ municipality code, TOM name, IBGE name, and UF abbreviation. The captured IBGE L
 `/api/v1/localidades/municipios` response supplies municipality, immediate region, intermediate
 region, state, and macroregion identifiers and names. Retrieval time, source URL, byte count, and
 content hash are part of the bundle manifest. Identifiers are exact join keys; fuzzy name matching
-is not permitted. Its exact five-value heading row is excluded during transformation. The official
+is not permitted. Raw TOM identifiers remain source-faithful; silver canonicalizes numeric TOM
+codes to four characters because CNPJ establishments use four-character municipality codes. Its
+exact five-value heading row is excluded during transformation. The official
 `9707 / 0 / EXTERIOR / EX` row is retained with `is_exterior = true` and nullable Brazilian
 municipality, state, and region hierarchy fields; any other unmatched TOM row blocks publication.
+
+The TOM publication exposes no validity, retirement, or replacement fields. Atlas therefore never
+interprets omission from a later capture as retirement. Resolution prefers the selected TOM
+capture, then a release-bounded reviewed mapping with authoritative evidence, then an
+uncontradicted earlier Atlas observation that remains present in the selected IBGE capture.
+Contradictions block publication. Reviewed mappings are product configuration and never modify
+captured raw files.
 
 ## Contract-baseline readiness gate
 

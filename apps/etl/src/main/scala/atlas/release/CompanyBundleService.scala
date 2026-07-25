@@ -9,7 +9,8 @@ import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.time.Instant
 import java.util.UUID
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.{coalesce, col, count, lit, sum, when}
+import org.apache.spark.storage.StorageLevel
 import scala.collection.JavaConverters._
 
 final case class CompanyBundlePlan(
@@ -180,7 +181,7 @@ object CompanyBundleService {
     }
   }
 
-  private def validateBundle(spark: SparkSession, config: AtlasConfig, releases: Seq[ReleaseId]): Unit = {
+  private[atlas] def validateBundle(spark: SparkSession, config: AtlasConfig, releases: Seq[ReleaseId]): Unit = {
     val companies = spark.read.parquet(CompanyDataPaths.silverCompanies(config).toString)
     val establishments = spark.read.parquet(ReleasePaths(config).silverCurrent.toString)
     val companyReleases = companies.select("release").distinct().collect().map(_.getString(0)).toSeq
@@ -191,10 +192,7 @@ object CompanyBundleService {
       throw new IllegalStateException("Candidate companies contain duplicate cnpj_root")
     if (establishments.groupBy("cnpj_full").count().filter(col("count") > 1).limit(1).count() > 0)
       throw new IllegalStateException("Candidate establishments contain duplicate cnpj_full")
-    val geography = spark.read.parquet(CompanyDataPaths.geography(config).toString).select("receita_municipality_code")
-    if (establishments.filter(col("municipality_code").isNotNull)
-        .join(geography, col("municipality_code") === col("receita_municipality_code"), "left_anti").limit(1).count() > 0)
-      throw new IllegalStateException("Candidate geography does not cover all used establishment municipality codes")
+    validateGeographyCoverage(establishments, spark.read.parquet(CompanyDataPaths.geography(config).toString), config)
     releases.foreach { release =>
       val releaseConfig = withRelease(config, release)
       val companySummary = CompanyHistoryJob.summaryRelease(releaseConfig)
@@ -202,6 +200,74 @@ object CompanyBundleService {
       if (!Files.exists(companySummary) || !Files.exists(establishmentSummary))
         throw new IllegalStateException(s"Missing release summary for $release")
     }
+  }
+
+  private[atlas] def validateGeographyCoverage(
+      establishments: org.apache.spark.sql.DataFrame,
+      geography: org.apache.spark.sql.DataFrame,
+      config: AtlasConfig
+  ): Unit = {
+    val coverage = establishments.filter(col("municipality_code").isNotNull)
+      .join(
+        geography.select(
+          col("receita_municipality_code"),
+          col("state_abbreviation").as("geography_state"),
+          col("mapping_source")
+        ),
+        col("municipality_code") === col("receita_municipality_code"),
+        "left"
+      )
+      .withColumn("coverage_status",
+        when(col("receita_municipality_code").isNull, lit("unresolved"))
+          .when(col("state").isNotNull && col("state") =!= col("geography_state"), lit("state_conflict"))
+          .otherwise(lit("resolved")))
+      .withColumn("mapping_source", coalesce(col("mapping_source"), lit("unresolved")))
+      .groupBy("municipality_code", "state", "coverage_status", "mapping_source")
+      .agg(count(lit(1)).as("establishment_count"))
+      .persist(StorageLevel.DISK_ONLY)
+    try {
+      coverage.write.mode("overwrite").parquet(CompanyDataPaths.geographyCoverage(config).toString)
+      val metrics = coverage.agg(
+        sum("establishment_count").as("used_establishment_rows"),
+        sum(when(col("coverage_status") === "unresolved", col("establishment_count")).otherwise(lit(0L)))
+          .as("unresolved_establishment_rows"),
+        sum(when(col("coverage_status") === "state_conflict", col("establishment_count")).otherwise(lit(0L)))
+          .as("state_conflict_establishment_rows"),
+        sum(when(col("mapping_source") === "verified_override", col("establishment_count")).otherwise(lit(0L)))
+          .as("override_establishment_rows"),
+        sum(when(col("mapping_source") === "carried_forward", col("establishment_count")).otherwise(lit(0L)))
+          .as("carried_forward_establishment_rows"),
+        sum(when(col("mapping_source") === "current_tom", col("establishment_count")).otherwise(lit(0L)))
+          .as("current_tom_establishment_rows")
+      ).head()
+      val unresolved = coverage.filter(col("coverage_status") === "unresolved")
+      val unresolvedCodeCount = unresolved.select("municipality_code").distinct().count()
+      val stateConflictCodeCount = coverage.filter(col("coverage_status") === "state_conflict")
+        .select("municipality_code").distinct().count()
+      val examples = unresolved.orderBy(col("establishment_count").desc, col("municipality_code"))
+        .limit(20).collect().map { row =>
+          val code = escape(row.getAs[String]("municipality_code"))
+          val state = Option(row.getAs[String]("state"))
+            .fold("null")(value => "\"" + escape(value) + "\"")
+          s"""{"municipality_code":"$code","state":$state,"establishment_count":${row.getAs[Long]("establishment_count")}}"""
+        }.mkString(",")
+      val body =
+        s"""{"release":"${escape(config.receita.snapshot)}","used_establishment_rows":${metrics.getAs[Long]("used_establishment_rows")},"current_tom_establishment_rows":${metrics.getAs[Long]("current_tom_establishment_rows")},"override_establishment_rows":${metrics.getAs[Long]("override_establishment_rows")},"carried_forward_establishment_rows":${metrics.getAs[Long]("carried_forward_establishment_rows")},"unresolved_codes":$unresolvedCodeCount,"unresolved_establishment_rows":${metrics.getAs[Long]("unresolved_establishment_rows")},"state_conflict_codes":$stateConflictCodeCount,"state_conflict_establishment_rows":${metrics.getAs[Long]("state_conflict_establishment_rows")},"unresolved_examples":[$examples]}"""
+      Files.createDirectories(CompanyDataPaths.geographyCoverageSummary(config).getParent)
+      Files.writeString(CompanyDataPaths.geographyCoverageSummary(config), body + "\n", StandardCharsets.UTF_8)
+      if (unresolvedCodeCount > 0)
+        throw new IllegalStateException(
+          s"Candidate geography has $unresolvedCodeCount unresolved municipality code(s) affecting " +
+            s"${metrics.getAs[Long]("unresolved_establishment_rows")} establishment(s); examples=[$examples]; " +
+            s"report=${CompanyDataPaths.geographyCoverage(config)}"
+        )
+      if (stateConflictCodeCount > 0)
+        throw new IllegalStateException(
+          s"Candidate geography has $stateConflictCodeCount municipality code(s) with establishment-state conflicts affecting " +
+            s"${metrics.getAs[Long]("state_conflict_establishment_rows")} establishment(s); " +
+            s"report=${CompanyDataPaths.geographyCoverage(config)}"
+        )
+    } finally coverage.unpersist()
   }
 
   private def writeManifest(

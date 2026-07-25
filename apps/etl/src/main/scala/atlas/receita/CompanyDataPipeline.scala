@@ -4,7 +4,7 @@ import atlas.config.AtlasConfig
 import atlas.release.{ReleaseId, ReleasePaths}
 import atlas.status.{QualityWarning, RunStatus, RunStatusRegistry}
 import com.typesafe.config.{Config, ConfigFactory}
-import java.io.{BufferedInputStream, BufferedOutputStream}
+import java.io.{BufferedInputStream, BufferedOutputStream, InputStream}
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import java.security.MessageDigest
 import java.sql.Timestamp
@@ -16,6 +16,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.storage.StorageLevel
 import scala.collection.JavaConverters._
+import scala.io.Source
 
 final case class CompanyDataManifest(
     release: String,
@@ -74,6 +75,8 @@ object CompanyDataPaths {
   def silverReference(config: AtlasConfig, dimension: String): Path = Paths.get(config.receita.silverDir).resolve("references").resolve(dimension).resolve(s"release=${config.receita.snapshot}")
   def geography(config: AtlasConfig): Path = Paths.get(config.receita.silverDir).resolve("geography/municipalities").resolve(s"version=${config.receita.snapshot}")
   def qualityRoot(config: AtlasConfig): Path = atlasRoot(config).resolve("quality/receita/company-data").resolve(config.receita.snapshot)
+  def geographyCoverage(config: AtlasConfig): Path = qualityRoot(config).resolve("municipality_geography_coverage")
+  def geographyCoverageSummary(config: AtlasConfig): Path = qualityRoot(config).resolve("municipality_geography_coverage.json")
 }
 
 object CompanyDataManifestReader {
@@ -139,6 +142,18 @@ object CompanyDataManifestReader {
 }
 
 object CompanyDataPipeline {
+  private final case class GeographyOverride(
+      tomCode: String,
+      ibgeCode: String,
+      state: String,
+      municipalityName: String,
+      validFromRelease: String,
+      validToRelease: Option[String],
+      evidenceReference: String
+  )
+
+  private val GeographyOverridesResource = "/atlas/receita/tom-municipality-overrides.csv"
+
   private val SourceToDimension = Map(
     "cnae" -> "cnae",
     "municipality" -> "municipality",
@@ -337,6 +352,10 @@ object CompanyDataPipeline {
         col("ibge_municipality_name") === "MUNICÍPIO - IBGE" &&
         col("state_abbreviation") === "UF"
     val tom = tomRows.filter(!coalesce(officialHeader, lit(false)))
+      .withColumn("receita_municipality_code",
+        when(col("receita_municipality_code").rlike("^[0-9]{1,4}$"),
+          lpad(col("receita_municipality_code"), 4, "0"))
+          .otherwise(col("receita_municipality_code")))
       .withColumn("is_exterior", coalesce(
         col("receita_municipality_code") === "9707" &&
           col("ibge_municipality_code") === "0" &&
@@ -358,11 +377,76 @@ object CompanyDataPipeline {
         col("`regiao-imediata`.`regiao-intermediaria`.UF.regiao.sigla").as("region_abbreviation"),
         col("`regiao-imediata`.`regiao-intermediaria`.UF.regiao.nome").as("region_name")
       )
-    if (tom.groupBy("receita_municipality_code").count().filter(col("count") > 1).limit(1).count() > 0)
+      .persist(StorageLevel.DISK_ONLY)
+    if (tom.filter(
+        !col("receita_municipality_code").rlike("^[0-9]{4}$") ||
+          (!col("is_exterior") && !col("ibge_municipality_code").rlike("^[0-9]{7}$"))
+      ).limit(1).count() > 0)
+      throw new IllegalStateException("TOM contains malformed canonical municipality codes")
+    if (tom.groupBy("receita_municipality_code")
+        .agg(countDistinct(struct(col("ibge_municipality_code"), col("state_abbreviation"))).as("mappings"))
+        .filter(col("mappings") > 1).limit(1).count() > 0)
       throw new IllegalStateException("TOM contains ambiguous Receita municipality codes")
     if (ibge.groupBy("ibge_code").count().filter(col("count") > 1).limit(1).count() > 0)
       throw new IllegalStateException("IBGE contains duplicate municipality codes")
-    val joined = tom.join(ibge, tom("ibge_municipality_code") === ibge("ibge_code"), "left")
+    val currentMappings = tom.select(
+      col("receita_municipality_code"), col("ibge_municipality_code"), col("receita_municipality_name"),
+      col("state_abbreviation"), lit("current_tom").as("mapping_source"),
+      lit(config.receita.snapshot).as("mapping_source_release"), lit(true).as("current_tom_present"),
+      lit(null).cast("string").as("evidence_reference"), col("is_exterior")
+    ).dropDuplicates("receita_municipality_code", "ibge_municipality_code", "state_abbreviation")
+
+    val overrides = geographyOverrides(config.receita.snapshot)
+    val overrideMappings = {
+      import spark.implicits._
+      overrides.map(value => (
+        value.tomCode, value.ibgeCode, value.municipalityName, value.state, "verified_override",
+        value.validFromRelease, false, value.evidenceReference
+      )).toDF(
+        "receita_municipality_code", "ibge_municipality_code", "receita_municipality_name",
+        "state_abbreviation", "mapping_source", "mapping_source_release", "current_tom_present",
+        "evidence_reference"
+      ).withColumn("is_exterior", lit(false))
+        .join(ibge.select(col("ibge_code")), col("ibge_municipality_code") === col("ibge_code"), "left_semi")
+    }
+
+    val conflictingOverrides = currentMappings.as("current").join(overrideMappings.as("override"),
+      col("current.receita_municipality_code") === col("override.receita_municipality_code"))
+      .filter(
+        col("current.ibge_municipality_code") =!= col("override.ibge_municipality_code") ||
+          col("current.state_abbreviation") =!= col("override.state_abbreviation")
+      )
+    if (conflictingOverrides.limit(1).count() > 0)
+      throw new IllegalStateException("Current TOM conflicts with a reviewed municipality override")
+
+    val withoutCurrentOverrides = overrideMappings.join(
+      currentMappings.select("receita_municipality_code"), Seq("receita_municipality_code"), "left_anti")
+    val previousMappings = previousGeographyMappings(spark, config)
+    previousMappings.foreach { previous =>
+      val conflict = currentMappings.as("current").join(previous.as("previous"),
+        col("current.receita_municipality_code") === col("previous.receita_municipality_code"))
+        .filter(
+          col("current.ibge_municipality_code") =!= col("previous.ibge_municipality_code") ||
+            col("current.state_abbreviation") =!= col("previous.state_abbreviation")
+        )
+      if (conflict.limit(1).count() > 0)
+        throw new IllegalStateException("Current TOM conflicts with a previously observed municipality mapping")
+    }
+    val priorMappings = previousMappings
+      .map(_.join(currentMappings.select("receita_municipality_code"), Seq("receita_municipality_code"), "left_anti")
+        .join(withoutCurrentOverrides.select("receita_municipality_code"), Seq("receita_municipality_code"), "left_anti")
+        .join(ibge.select(col("ibge_code")), col("ibge_municipality_code") === col("ibge_code"), "left_semi"))
+    val resolvedMappings = priorMappings
+      .map(currentMappings.unionByName(withoutCurrentOverrides).unionByName(_))
+      .getOrElse(currentMappings.unionByName(withoutCurrentOverrides))
+
+    val resolvedWithIbge = resolvedMappings.join(ibge,
+      resolvedMappings("ibge_municipality_code") === ibge("ibge_code"), "left")
+    if (resolvedWithIbge.filter(
+        !col("is_exterior") && col("state_abbreviation") =!= col("official_state_abbreviation")
+      ).limit(1).count() > 0)
+      throw new IllegalStateException("Resolved municipality mapping conflicts with the IBGE state")
+    val joined = resolvedWithIbge
       .select(
         col("receita_municipality_code"), col("receita_municipality_name"), col("ibge_municipality_code"),
         col("official_name").as("ibge_municipality_name"), col("immediate_region_code"), col("immediate_region_name"),
@@ -370,13 +454,73 @@ object CompanyDataPipeline {
         when(col("is_exterior"), col("state_abbreviation")).otherwise(col("official_state_abbreviation")).as("state_abbreviation"),
         col("state_name"), col("region_code"),
         col("region_abbreviation"), col("region_name"), lit(manifest.tomHash).as("tom_source_hash"),
-        lit(manifest.ibgeHash).as("ibge_source_hash"), col("is_exterior"), current_timestamp().as("reference_as_of")
+        lit(manifest.ibgeHash).as("ibge_source_hash"), col("is_exterior"),
+        col("mapping_source"), col("mapping_source_release"), col("current_tom_present"),
+        col("evidence_reference"), current_timestamp().as("reference_as_of")
       )
     if (joined.filter(!col("is_exterior") &&
         (col("ibge_municipality_name").isNull || col("state_code").isNull || col("region_code").isNull)).limit(1).count() > 0)
       throw new IllegalStateException("TOM-to-IBGE geography contains unmatched or parentless municipalities")
     joined.write.mode("overwrite").parquet(CompanyDataPaths.geography(config).toString)
+    ibge.unpersist()
     spark.read.parquet(CompanyDataPaths.geography(config).toString)
+  }
+
+  private def geographyOverrides(release: String): Seq[GeographyOverride] = {
+    val stream = Option(getClass.getResourceAsStream(GeographyOverridesResource))
+      .getOrElse(throw new IllegalStateException(s"Missing reviewed geography registry: $GeographyOverridesResource"))
+    parseGeographyOverrides(stream).filter(value =>
+      value.validFromRelease <= release && value.validToRelease.forall(release <= _))
+  }
+
+  private def parseGeographyOverrides(stream: InputStream): Seq[GeographyOverride] = {
+    val source = Source.fromInputStream(stream, "UTF-8")
+    try source.getLines().drop(1).filter(_.trim.nonEmpty).map { line =>
+      val values = line.split(",", -1).map(_.trim)
+      if (values.length != 7)
+        throw new IllegalStateException(s"Invalid reviewed geography registry row: $line")
+      val value = GeographyOverride(
+        values(0), values(1), values(2), values(3), values(4),
+        Option(values(5)).filter(_.nonEmpty), values(6)
+      )
+      if (!value.tomCode.matches("^[0-9]{4}$") || !value.ibgeCode.matches("^[0-9]{7}$") ||
+          !value.state.matches("^[A-Z]{2}$") || !value.validFromRelease.matches("^[0-9]{4}-[0-9]{2}$"))
+        throw new IllegalStateException(s"Invalid reviewed geography registry values: $line")
+      value
+    }.toVector finally source.close()
+  }
+
+  private def previousGeographyMappings(spark: SparkSession, config: AtlasConfig): Option[DataFrame] = {
+    val current = CompanyDataPaths.geography(config)
+    val root = current.getParent
+    if (!Files.isDirectory(root)) None
+    else {
+      val stream = Files.list(root)
+      val previous = try stream.iterator().asScala
+        .filter(Files.isDirectory(_))
+        .filter(_.getFileName.toString.startsWith("version="))
+        .filter(_.getFileName.toString.stripPrefix("version=") < config.receita.snapshot)
+        .toSeq.sortBy(_.getFileName.toString).lastOption
+      finally stream.close()
+      previous.map { path =>
+        val frame = spark.read.parquet(path.toString)
+        val sourceRelease =
+          if (frame.columns.contains("mapping_source_release")) col("mapping_source_release")
+          else lit(path.getFileName.toString.stripPrefix("version="))
+        val evidence =
+          if (frame.columns.contains("evidence_reference")) col("evidence_reference")
+          else lit(null).cast("string")
+        frame.select(
+          when(col("receita_municipality_code").rlike("^[0-9]{1,4}$"),
+            lpad(col("receita_municipality_code"), 4, "0"))
+            .otherwise(col("receita_municipality_code")).as("receita_municipality_code"),
+          col("ibge_municipality_code"), col("receita_municipality_name"),
+          col("state_abbreviation"), lit("carried_forward").as("mapping_source"),
+          sourceRelease.as("mapping_source_release"), lit(false).as("current_tom_present"),
+          evidence.as("evidence_reference"), col("is_exterior")
+        )
+      }
+    }
   }
 
   private[atlas] def writeSilverCompanies(

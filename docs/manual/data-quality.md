@@ -7,3 +7,10 @@ Silver normalization first checks uppercase alphanumeric root and branch widths,
 The additive `alphanumeric_cnpj_count` metric counts accepted rows containing letters, allowing operators to detect post-cutover identifiers. Duplicate `cnpj_full` checks run only on structurally valid candidates. Any remaining duplicated valid key writes the involved rows to `duplicate_cnpj_full`, rejects publication, and leaves the prior silver output untouched. Silver also reports malformed CNAEs, invalid states, and missing municipality codes under their existing contract behavior.
 
 Review reports after each command and compare them with the intended source snapshot. Passing the silver gate does not certify source completeness, CNPJ checksum validity, or business correctness. See the [bronze rules](../specs/quality/receita-cnpj-quality-rules.md) and [silver rules](../specs/quality/silver-establishment-quality-rules.md) for exact behavior.
+
+Company-bundle publication also requires exact municipality coverage. Atlas canonicalizes TOM
+codes to four digits, prefers the current captured TOM mapping, and visibly labels reviewed or
+carried-forward mappings. The geography coverage report counts establishments by resolution
+source. Unresolved or conflicting municipality codes reject the candidate and leave the active
+bundle unchanged. Absence from a TOM snapshot is not treated as retirement because the publisher
+does not provide lifecycle fields.

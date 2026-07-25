@@ -80,6 +80,20 @@ counts and distinct key counts because one omitted company can account for sever
 An establishment that no longer matches a company may be explained by this quarantine and must
 not be interpreted as proof that the company closed.
 
+Municipality geography is bundle-blocking. Inspect
+`data/_atlas/quality/receita/company-data/<release>/municipality_geography_coverage.json` and the
+adjacent Parquet diagnostic when coverage fails. The report separates current TOM, reviewed
+override, carried-forward, and unresolved establishment counts and includes bounded unresolved
+examples. Do not edit the captured TOM CSV or establishment data to make the gate pass.
+
+Short numeric TOM values are normalized to four digits automatically. A mapping omitted from the
+current TOM capture may be carried from the latest earlier bundle only when the current capture
+does not contradict it and the selected IBGE capture still contains its IBGE municipality.
+Never add a mapping by name similarity. A new reviewed exception requires exact TOM and IBGE codes,
+release validity, authoritative evidence in
+`src/main/resources/atlas/receita/tom-municipality-overrides.csv`, focused tests, and contract
+review. TOM `1182` / IBGE `5101837` for Boa Esperança do Norte is the initial reviewed exception.
+
 For later months, explicitly download both source groups and run one refresh. Refresh
 rejects equal or older releases. A month gap is permitted only when history records the actual
 previous bundle and the selected release is complete.
