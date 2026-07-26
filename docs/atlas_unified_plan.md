@@ -100,6 +100,7 @@ Future Receita silver tables include:
 - `silver_company`;
 - `silver_establishment`;
 - `silver_partner`;
+- `silver_company_relationship`;
 - `silver_company_tax_regime`;
 - `silver_cnae`;
 - `silver_municipality`;
@@ -153,6 +154,68 @@ Company records are root-level. Establishment records are branch/location-level.
 
 Normalization trims whitespace, uppercases letters, removes the standard `.`, `/`, and `-` display mask, left-pads under-width components with zeros, and builds `cnpj_full` from root, branch, and check components without numeric conversion. Numeric and alphanumeric identifiers coexist: only the first twelve positions may contain `0-9` or `A-Z`, while the two check positions remain numeric. Identifiers must remain strings. Atlas validates canonical structure but does not validate checksums.
 
+## Corporate relationship and business graph strategy
+
+Corporate structures and business graphs are a major planned Atlas product capability. The first
+authoritative source is the reviewed Receita `Socios`/QSA snapshot joined to the company identity
+spine. Atlas should first publish source-faithful partner records, then derive deterministic
+Brazilian legal-entity-to-legal-entity edges when the participant type is a legal entity and its
+CNPJ resolves structurally to an Atlas company.
+
+The normalized relationship contract must preserve:
+
+- participating/source company and QSA target company identifiers;
+- participant type, source qualification code, and source qualification description;
+- a conservative relationship class that distinguishes ownership or partnership interest,
+  partner-administration, management, legal representation, and unknown corporate relationship;
+- source dataset, release, record identity, and resolution method;
+- first and last observed releases plus explicit observation status;
+- reported ownership or voting percentages and reported control only when a source actually
+  provides them;
+- derivation rule version, evidence source, and confidence for any Atlas-derived assertion.
+
+A QSA relationship is not automatically control. Atlas must not relabel every partner,
+administrator, director, president, or legal representative edge as `CONTROLS`. Receita edges
+without percentage or explicit control evidence support corporate affiliation and possible
+ownership-interest analysis; they do not establish a definitive ultimate beneficial owner.
+`POSSIBLE_CONTROL` or a possible control path may be derived only from documented, versioned rules
+and must remain visibly distinct from source-reported control.
+
+Monthly snapshots support observation history, not a complete legal transaction ledger. Atlas may
+record when an edge was first observed, remained present, changed classification, or disappeared
+between releases, but must not infer an exact acquisition, disposal, or legal-effective date when
+the source does not provide one.
+
+The first business-graph outputs should support:
+
+- immediate corporate participants and immediate company participations;
+- parent-like and subsidiary-like candidate relationships with explicit evidence limitations;
+- connected corporate structures and stable component identifiers;
+- in-degree, out-degree, component size, and bounded depth metrics;
+- circular relationships and cycle membership;
+- bounded relationship and possible-control paths such as `A -> B -> C`, including every
+  intermediate edge, path depth, weakest evidence/confidence, and cycle detection;
+- representative DuckDB queries for corporate structures, shared corporate participants, and
+  bounded upstream or downstream traversal.
+
+Atlas must not initially materialize the unrestricted transitive closure of the national graph.
+Branching, multiple routes, and cycles can create a combinatorial number of paths. Immediate edges
+remain authoritative; recursive exploration starts with measured, configurable depth bounds.
+Materialized control paths require a defined customer query, bounded size, reproducible calculation
+release, and demonstrated storage and refresh cost.
+
+Natural-person QSA records require a separate privacy and identity-resolution review. Masked CPF
+and names are not globally reliable person identifiers, so Atlas must not deterministically merge
+people across companies or present probabilistic matches as facts. Foreign participants without a
+Brazilian CNPJ require source-scoped Atlas identifiers and remain unresolved unless a later
+contracted source provides stronger identity evidence.
+
+After the Receita relationship contract is stable, reviewed CVM ownership and control disclosures
+may enrich the smaller set of covered public or regulated companies with reported percentages and
+stronger control evidence. GLEIF may later assist Brazilian and foreign legal-entity resolution.
+Neither source should block the national Receita relationship graph, and both require exact source,
+access, licensing, schema, history, and quality review before implementation.
+
 ## Target gold tables
 
 The planned business-ready portfolio includes:
@@ -171,7 +234,18 @@ The first lead product filters active establishments by city/state, opening-date
 
 ## Graph strategy
 
-Graph functionality initially means reproducible aggregate tables plus DuckDB demonstration queries. It does not mean building a dashboard in the ETL repository. UI charts arrive only after aggregate definitions, quality rules, and refresh behavior are stable.
+Graph functionality has two distinct meanings in Atlas:
+
+- market and geographic business graphs expressed as reproducible aggregate tables for openings,
+  counts, age, sector, location, and density;
+- corporate relationship graphs expressed as source-evidenced immediate edges plus measured,
+  bounded derived structures and paths.
+
+Both begin as contracted Parquet outputs and DuckDB demonstration queries, not as a graph database
+or dashboard. A serving graph technology is selected only after real traversal patterns, graph
+size, path depth, refresh cost, and latency requirements are measured. UI charts and interactive
+corporate-structure exploration arrive only after the underlying contracts, evidence labels,
+quality rules, and refresh behavior are stable.
 
 ## Serving and indexing strategy
 
@@ -289,8 +363,20 @@ interface before customer-facing company products.
 
 ### v0.3b — company products
 
-- ingest `Simples` and reviewed `Socios` data;
-- build gold company profiles and partner networks;
+- ingest `Simples` and reviewed `Socios` data through source-faithful bronze and contracted silver;
+- build deterministic Brazilian company-to-company relationship edges from reviewed QSA legal
+  entities while preserving source qualification semantics;
+- track release-to-release relationship observations without claiming unsupported legal-effective
+  dates;
+- classify ownership interest, partner-administration, management, representation, and unknown
+  relationships conservatively; do not equate all QSA edges with control;
+- build `gold_company_partner_network` as the first corporate relationship and business-graph
+  product, including immediate edges, connected corporate structures, component metrics, cycles,
+  and tested bounded traversal for relationship or possible-control paths without materializing
+  unrestricted transitive closure;
+- keep natural-person cross-company resolution outside the deterministic graph pending privacy and
+  identity review;
+- build gold company profiles and integrate evidence-backed relationship summaries;
 - operationalize versioned CNAE business groups;
 - build gold lead products and expose controlled lead exports, including the deferred
   `export-leads` command.
@@ -301,7 +387,9 @@ data. Silver foundation tables are internal contracts, not customer-facing produ
 ### v0.4 — graph-ready products
 
 - build openings, counts, age, and density aggregates;
-- add DuckDB graph/demo queries;
+- add DuckDB market, geographic, corporate-structure, cycle, and bounded-path demonstration queries;
+- measure national corporate-graph size, branching, component distribution, path depth, recursive
+  query cost, and the case for selected materialized paths;
 - export aggregates as CSV and Parquet.
 
 ### v0.5 — public-data risk
