@@ -27,6 +27,8 @@ From the repository root, the same local operations are available through the sh
 ./atlas refresh receita estabelecimentos --release 2026-07 --memory 10G
 ./atlas releases rebuild-establishments --from-release 2026-05 --to-release 2026-07
 ./atlas status
+./atlas status --release 2026-07
+./atlas status --verbose
 ./atlas status --json
 ```
 
@@ -64,7 +66,7 @@ chronological order with `--force`, and publishes only after the complete candid
 
 Do not call `collect()` on large frames, convert full datasets to local collections, or mix data layers. Both jobs use disk-backed persistence and state-partitioned Parquet. Silver validates structure first, writes malformed rows to `data/_atlas/quality/receita/establishments/<snapshot>/malformed_rows`, and checks duplicate keys only among valid candidates. A warning prints the quarantine count and path. Conflicting valid duplicates are written to the sibling `duplicate_cnpj_full` path and reject publication before the silver writer is invoked.
 
-Raw acquisition, bronze, and silver jobs record their latest attempts in the local [status registry](../manual/status_registry.md). Inspect them with `./atlas status`, `./atlas status --json`, or `sbt "runMain atlas.Main status"`. A failed status is diagnostic only: investigate and rerun the job, which replaces the record for the same source, dataset, snapshot, and layer. Do not edit status files to claim a successful run. Quality and status outputs are generated local artifacts and must not be committed.
+Raw acquisition, bronze, and silver jobs record their latest attempts in the local [status registry](../manual/status_registry.md). Use `./atlas status` for the compact release overview, `./atlas status --release YYYY-MM` for one snapshot, `./atlas status --verbose` for exact paths and timestamps, or `./atlas status --json` for automation. The equivalent sbt entry point is `sbt "runMain atlas.Main status"`. A failed status is diagnostic only: investigate and rerun the job, which replaces the record for the same source, dataset, snapshot, and layer. Do not edit status files to claim a successful run. Quality and status outputs are generated local artifacts and must not be committed.
 
 ## Release lifecycle management
 

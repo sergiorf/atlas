@@ -3,7 +3,8 @@ package atlas.status
 import com.typesafe.config.{Config, ConfigFactory}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, StandardCopyOption}
-import java.time.Instant
+import java.time.{Instant, ZoneOffset}
+import java.time.format.DateTimeFormatter
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
@@ -25,9 +26,16 @@ object RunStatusRegistry {
     )
     val target = statusPath(root, status)
     Option(target.getParent).foreach(Files.createDirectories(_))
-    val temporary = target.resolveSibling(s".${target.getFileName}.${java.util.UUID.randomUUID()}.tmp")
+    val temporary =
+      target.resolveSibling(s".${target.getFileName}.${java.util.UUID.randomUUID()}.tmp")
     Files.write(temporary, json(status).getBytes(StandardCharsets.UTF_8))
-    try Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+    try
+      Files.move(
+        temporary,
+        target,
+        StandardCopyOption.ATOMIC_MOVE,
+        StandardCopyOption.REPLACE_EXISTING
+      )
     catch {
       case _: java.nio.file.AtomicMoveNotSupportedException =>
         Files.deleteIfExists(temporary)
@@ -88,14 +96,16 @@ object RunStatusRegistry {
     optional(c, "output_row_count")(_.getLong("output_row_count")),
     optional(c, "quarantined_row_count")(_.getLong("quarantined_row_count")),
     optional(c, "quality_warnings")(
-      _.getConfigList("quality_warnings").asScala.map { warning =>
-        QualityWarning(
-          warning.getString("type"),
-          warning.getLong("row_count"),
-          warning.getString("reason"),
-          warning.getString("report_path")
-        )
-      }.toSeq
+      _.getConfigList("quality_warnings").asScala
+        .map { warning =>
+          QualityWarning(
+            warning.getString("type"),
+            warning.getLong("row_count"),
+            warning.getString("reason"),
+            warning.getString("report_path")
+          )
+        }
+        .toSeq
     ).getOrElse(Seq.empty),
     optional(c, "previous_row_count")(_.getLong("previous_row_count")),
     optional(c, "net_row_delta")(_.getLong("net_row_delta")),
@@ -152,14 +162,16 @@ object RunStatusRegistry {
   }
 
   private def array(values: Seq[String]): String = values.map(quoted).mkString("[", ", ", "]")
-  private def warningArray(values: Seq[QualityWarning]): String = values.map { warning =>
-    Seq(
-      "type" -> quoted(warning.warningType),
-      "row_count" -> warning.rowCount.toString,
-      "reason" -> quoted(warning.reason),
-      "report_path" -> quoted(warning.reportPath)
-    ).map { case (key, value) => s"${quoted(key)}: $value" }.mkString("{", ", ", "}")
-  }.mkString("[", ", ", "]")
+  private def warningArray(values: Seq[QualityWarning]): String = values
+    .map { warning =>
+      Seq(
+        "type" -> quoted(warning.warningType),
+        "row_count" -> warning.rowCount.toString,
+        "reason" -> quoted(warning.reason),
+        "report_path" -> quoted(warning.reportPath)
+      ).map { case (key, value) => s"${quoted(key)}: $value" }.mkString("{", ", ", "}")
+    }
+    .mkString("[", ", ", "]")
   private def quoted(value: String): String = {
     val escaped = value.flatMap {
       case '"'  => "\\\""; case '\\' => "\\\\"; case '\b' => "\\b"; case '\f' => "\\f"
@@ -171,6 +183,10 @@ object RunStatusRegistry {
 }
 
 object StatusTable {
+  private val CompactSnapshotHeaders =
+    Seq("snapshot", "publication", "stages", "warnings", "last_recorded")
+  private val CompactDatasetHeaders =
+    Seq("dataset", "raw", "bronze", "silver", "history", "publication")
   private val PipelineHeaders = Seq(
     "source",
     "dataset",
@@ -185,9 +201,44 @@ object StatusTable {
     "finished_at",
     "output_path"
   )
-  private val BundleHeaders = Seq("source", "package", "snapshot", "status", "finished_at", "output_path", "error")
+  private val BundleHeaders =
+    Seq("source", "package", "snapshot", "status", "finished_at", "output_path", "error")
 
-  def render(statuses: Seq[RunStatus]): String = {
+  def render(statuses: Seq[RunStatus]): String = renderVerbose(statuses)
+
+  def renderCompact(statuses: Seq[RunStatus], release: Option[String] = None): String = {
+    val overview = StatusOverview.build(statuses, release)
+    val snapshotRows = overview.snapshots.map { summary =>
+      Seq(
+        summary.snapshot,
+        summary.publicationStatus.getOrElse("not recorded"),
+        renderStageCounts(summary),
+        s"${summary.warningTypeCount} ${if (summary.warningTypeCount == 1) "type" else "types"}",
+        compactTimestamp(summary.lastRecorded)
+      )
+    }
+    val datasetRows = overview.datasets.map { dataset =>
+      Seq(
+        dataset.dataset,
+        dataset.raw.getOrElse("-"),
+        dataset.bronze.getOrElse("-"),
+        dataset.silver.getOrElse("-"),
+        dataset.history.getOrElse("-"),
+        dataset.publication.getOrElse("-")
+      )
+    }
+    val selection = release.fold(s"NEWEST RECORDED SNAPSHOT: ${overview.selectedSnapshot}")(value =>
+      s"SNAPSHOT DETAIL: $value"
+    )
+    Seq(
+      "ATLAS STATUS",
+      "SNAPSHOTS\n" + renderTable(CompactSnapshotHeaders, snapshotRows),
+      selection + "\n" + renderTable(CompactDatasetHeaders, datasetRows),
+      renderProblems(overview.problems)
+    ).mkString("\n\n")
+  }
+
+  def renderVerbose(statuses: Seq[RunStatus]): String = {
     val (bundles, pipeline) = statuses.partition(_.layer == "bundle")
     val sections = Seq(
       renderPipeline(pipeline),
@@ -196,26 +247,65 @@ object StatusTable {
     sections.mkString("\n\n")
   }
 
+  private def renderProblems(problems: Seq[StatusProblem]): String = {
+    if (problems.isEmpty) return "PROBLEMS\nnone"
+    val rendered = problems
+      .groupBy(problem => problem.dataset -> problem.stage)
+      .toSeq
+      .sortBy { case ((dataset, stage), _) => (dataset, stage) }
+      .map { case ((dataset, stage), grouped) =>
+        val details = grouped
+          .map {
+            case StatusProblem(_, _, _, Some(warning), _) =>
+              s"  warning: ${warning.warningType} (${warning.rowCount} rows)"
+            case StatusProblem(_, _, "warning", None, _) =>
+              "  warning: recorded without details"
+            case StatusProblem(_, _, _, _, error) =>
+              s"  failed: ${conciseError(error)}"
+          }
+          .mkString("\n")
+        s"$dataset/$stage\n$details"
+      }
+      .mkString("\n\n")
+    "PROBLEMS\n" + rendered
+  }
+
+  private def renderStageCounts(summary: SnapshotSummary): String = {
+    val counts = Seq(
+      if (summary.successfulStages > 0) Some(s"${summary.successfulStages} ok") else None,
+      if (summary.warningStages > 0) Some(s"${summary.warningStages} warn") else None,
+      if (summary.failedStages > 0) Some(s"${summary.failedStages} failed") else None,
+      if (summary.otherStages > 0) Some(s"${summary.otherStages} other") else None
+    ).flatten
+    if (counts.isEmpty) "none recorded" else counts.mkString(" / ")
+  }
+
+  private val CompactTimestamp =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm'Z'").withZone(ZoneOffset.UTC)
+
+  private def compactTimestamp(instant: Instant): String = CompactTimestamp.format(instant)
+
   private def renderPipeline(statuses: Seq[RunStatus]): String = {
     if (statuses.isEmpty) return ""
-    val rows = statuses.sortBy(s =>
-      (s.source, displayDataset(s.dataset), s.snapshot, stageOrder(s.layer), s.layer)
-    ).map { s =>
-      Seq(
-        s.source,
-        displayDataset(s.dataset),
-        s.snapshot,
-        s.layer,
-        s.status,
-        s.outputRowCount.orElse(s.rowCount).fold("-")(_.toString),
-        renderRawFiles(s),
-        renderChanges(s),
-        s.quarantinedRowCount.fold("-")(_.toString),
-        if (s.qualityWarnings.isEmpty) "-" else s.qualityWarnings.map(_.warningType).mkString(","),
-        s.finishedAt.toString,
-        s.outputPath.getOrElse("-")
-      )
-    }
+    val rows = statuses
+      .sortBy(s => (s.source, displayDataset(s.dataset), s.snapshot, stageOrder(s.layer), s.layer))
+      .map { s =>
+        Seq(
+          s.source,
+          displayDataset(s.dataset),
+          s.snapshot,
+          s.layer,
+          s.status,
+          s.outputRowCount.orElse(s.rowCount).fold("-")(_.toString),
+          renderRawFiles(s),
+          renderChanges(s),
+          s.quarantinedRowCount.fold("-")(_.toString),
+          if (s.qualityWarnings.isEmpty) "-"
+          else s.qualityWarnings.map(_.warningType).mkString(","),
+          s.finishedAt.toString,
+          s.outputPath.getOrElse("-")
+        )
+      }
     "DATA PIPELINE\n" + renderTable(PipelineHeaders, rows)
   }
 
@@ -249,18 +339,19 @@ object StatusTable {
 
   private def displayDataset(dataset: String): String = dataset match {
     case "estabelecimentos" | "establishments" | "estabelecimentos_history" => "establishments"
-    case value => value
+    case value                                                              => value
   }
 
   private def stageOrder(stage: String): Int = stage match {
-    case "raw" => 0
-    case "bronze" => 1
-    case "silver" => 2
+    case "raw"     => 0
+    case "bronze"  => 1
+    case "silver"  => 2
     case "history" => 3
-    case _ => 4
+    case _         => 4
   }
 
-  private def conciseError(error: Option[String]): String = error.map(_.replaceAll("\\s+", " ").trim)
+  private def conciseError(error: Option[String]): String = error
+    .map(_.replaceAll("\\s+", " ").trim)
     .filter(_.nonEmpty)
     .map(value => if (value.length <= 120) value else value.take(117) + "...")
     .getOrElse("-")
@@ -289,7 +380,7 @@ object StatusTable {
     ).flatten
     val delta = s.netRowDelta.map(value => f"$value%+d")
     (delta.toSeq ++ changes).mkString("/") match {
-      case "" => "-"
+      case ""    => "-"
       case value => value
     }
   }

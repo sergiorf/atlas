@@ -43,8 +43,9 @@ Pipeline commands:
       append compact history, and atomically publish the validated bundle.
 
 Status and release commands:
-  status [--json]
-      Show recorded local pipeline runs, or print the same registry as JSON for automation.
+  status [--release YYYY-MM] [--verbose|--json]
+      Summarize recorded releases and show problems for the newest snapshot. Select one release,
+      show full forensic tables with --verbose, or print the unchanged registry with --json.
 
   releases list
       List local releases Atlas can see across raw, bronze, silver work, reports, and history paths.

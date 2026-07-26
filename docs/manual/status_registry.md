@@ -31,16 +31,40 @@ From the repository root, use:
 
 ```bash
 ./atlas status
+./atlas status --release 2026-07
+./atlas status --verbose
 ./atlas status --json
 ```
 
-The command reads `data/_atlas/status` and prints two human-readable sections. `DATA PIPELINE`
-contains component stages and measured row, file, change, quarantine, and warning evidence.
-`ATOMIC PUBLICATION` contains only bundle outcome, finish time, generation path, and a concise
-failure message. Existing establishment dataset spellings are displayed uniformly as
-`establishments`; stored JSON identities do not change. An absent quarantine measurement displays
-as `-`, while a measured zero displays as `0`. `--json` remains the unmodified registry array.
-The command starts no Spark session.
+The command reads `data/_atlas/status`. Its default human view shows a compact row for every
+recorded snapshot, then expands component stages and problems for the lexically newest recorded
+snapshot. This is deliberately called the newest recorded snapshot rather than the active release:
+the registry reports attempts and does not prove that a generation is currently selected or still
+exists. `--release YYYY-MM` restricts both sections to one recorded snapshot.
+
+The compact snapshot row reports the recorded atomic bundle outcome, counts component records by
+`success`, `success_with_warnings`, and `failed`, counts distinct warning types, and shows the most
+recent finish time at UTC minute precision. It does not call the observed stages complete and does
+not sum quarantined rows across stages. Silver and history records can describe the same
+quarantined source rows, so a cross-stage total could double-count them. Repeated warning evidence
+with the same logical dataset, warning type, row count, and report path is displayed once in the
+problem detail.
+
+Human labels distinguish the umbrella package from its components: `company source package`
+represents `company-data / raw`, `companies` represents the company entity stages, and
+`atomic bundle` represents `company-data / bundle`. Existing establishment dataset spellings are
+displayed uniformly as `establishments`. These are display labels only; stored JSON identities do
+not change.
+
+`--verbose` prints the former full tables. `DATA PIPELINE` contains component stages and measured
+row, file, change, quarantine, and warning evidence. `ATOMIC PUBLICATION` contains bundle outcome,
+exact finish time, generation path, and a concise failure message. An absent quarantine
+measurement displays as `-`, while a measured zero displays as `0`. It may be combined with
+`--release YYYY-MM`.
+
+`--json` remains the unmodified registry array for automation and cannot be combined with
+`--release` or `--verbose`. Human output is intentionally optimized for operators and is not a
+stable machine interface. The command starts no Spark session.
 
 Registry files follow `data/_atlas/status/<source>/<dataset>/<snapshot>/<layer>.json`. For example: `data/_atlas/status/receita/estabelecimentos/2026-06/bronze.json`.
 

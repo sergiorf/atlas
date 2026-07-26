@@ -63,7 +63,12 @@ class RunStatusRegistryTest extends AnyFunSuite {
       outputRowCount = Some(9L),
       quarantinedRowCount = Some(1L),
       qualityWarnings = Seq(
-        QualityWarning("malformed_rows", 1L, "Invalid registration_status_code", "quality/malformed_rows")
+        QualityWarning(
+          "malformed_rows",
+          1L,
+          "Invalid registration_status_code",
+          "quality/malformed_rows"
+        )
       )
     )
 
@@ -78,8 +83,11 @@ class RunStatusRegistryTest extends AnyFunSuite {
   test("round trips additive release metrics and keeps older JSON readable") {
     val root = Files.createTempDirectory("atlas-status-release-metrics")
     val status = sample("success", Some(3L)).copy(
-      previousRowCount = Some(10L), netRowDelta = Some(1L),
-      insertedRowCount = Some(2L), updatedRowCount = Some(3L), removedRowCount = Some(1L)
+      previousRowCount = Some(10L),
+      netRowDelta = Some(1L),
+      insertedRowCount = Some(2L),
+      updatedRowCount = Some(3L),
+      removedRowCount = Some(1L)
     )
     val path = RunStatusRegistry.write(root, status)
     assert(RunStatusRegistry.readFile(path) === status)
@@ -129,9 +137,10 @@ class RunStatusRegistryTest extends AnyFunSuite {
     assert(table.contains("establishments"))
     assert(!table.contains("estabelecimentos_history"))
     assert(table.contains("quality gate failed"))
-    val pipelineLine = table.split("\n").find(line =>
-      line.contains("establishments") && line.contains("history")
-    ).get
+    val pipelineLine = table
+      .split("\n")
+      .find(line => line.contains("establishments") && line.contains("history"))
+      .get
     assert(pipelineLine.contains("  0"))
     assert(pipelineLine.contains("  -"))
     val bundleSection = table.substring(table.indexOf("ATOMIC PUBLICATION"))
@@ -145,16 +154,111 @@ class RunStatusRegistryTest extends AnyFunSuite {
     )
     val longError = ("publication failed " * 20).trim
     val bundle = sample("failed", None).copy(
-      dataset = "company-data", layer = "bundle", errorMessage = Some(longError)
+      dataset = "company-data",
+      layer = "bundle",
+      errorMessage = Some(longError)
     )
 
     val table = StatusTable.render(stages :+ bundle)
     val pipeline = table.substring(0, table.indexOf("ATOMIC PUBLICATION"))
 
-    val renderedStages = pipeline.split("\n").filter(_.startsWith("receita")).map(_.split("\\s+")(3)).toSeq
+    val renderedStages =
+      pipeline.split("\n").filter(_.startsWith("receita")).map(_.split("\\s+")(3)).toSeq
     assert(renderedStages === Seq("raw", "bronze", "silver", "history"))
     assert(!table.contains(longError))
     assert(table.contains("..."))
+  }
+
+  test("compact status summarizes snapshots and details the newest without forensic paths") {
+    val older = sample("success", Some(1L)).copy(snapshot = "2026-06")
+    val warning = sample("success_with_warnings", Some(9L)).copy(
+      snapshot = "2026-07",
+      dataset = "establishments",
+      layer = "silver",
+      outputPath = Some("data/very/long/generated/path"),
+      qualityWarnings =
+        Seq(QualityWarning("malformed_rows", 13L, "Malformed rows", "quality/malformed"))
+    )
+    val company = sample("success", Some(10L)).copy(
+      snapshot = "2026-07",
+      dataset = "companies",
+      layer = "bronze"
+    )
+    val bundle = sample("success", None).copy(
+      snapshot = "2026-07",
+      dataset = "company-data",
+      layer = "bundle"
+    )
+
+    val table = StatusTable.renderCompact(Seq(older, warning, company, bundle))
+
+    assert(table.contains("ATLAS STATUS"))
+    assert(table.indexOf("2026-07") < table.indexOf("2026-06"))
+    assert(table.contains("NEWEST RECORDED SNAPSHOT: 2026-07"))
+    assert(table.contains("companies"))
+    assert(table.contains("atomic bundle"))
+    assert(table.contains("malformed_rows (13 rows)"))
+    assert(!table.contains("data/very/long/generated/path"))
+    assert(!table.contains("quality/malformed"))
+  }
+
+  test("compact status filters a selected snapshot and distinguishes missing publication") {
+    val statuses = Seq(
+      sample("success", Some(1L)).copy(snapshot = "2026-06"),
+      sample("success", Some(2L)).copy(snapshot = "2026-07")
+    )
+
+    val table = StatusTable.renderCompact(statuses, Some("2026-06"))
+
+    assert(table.contains("SNAPSHOT DETAIL: 2026-06"))
+    assert(table.contains("not recorded"))
+    assert(!table.split("\n").exists(_.startsWith("2026-07")))
+    intercept[IllegalArgumentException](StatusTable.renderCompact(statuses, Some("2026-05")))
+  }
+
+  test("compact status deduplicates repeated warning evidence and never totals quarantine rows") {
+    val warning = QualityWarning("malformed_rows", 13L, "Malformed rows", "quality/malformed")
+    val silver = sample("success_with_warnings", Some(9L)).copy(
+      dataset = "establishments",
+      layer = "silver",
+      quarantinedRowCount = Some(13L),
+      qualityWarnings = Seq(warning)
+    )
+    val history = silver.copy(layer = "history")
+
+    val table = StatusTable.renderCompact(Seq(silver, history))
+
+    assert("malformed_rows".r.findAllIn(table).length === 1)
+    assert(!table.contains("26 quarantined"))
+    assert(table.contains("2 warn"))
+    assert(table.contains("1 type"))
+  }
+
+  test("compact status preserves failures and warning records without structured details") {
+    val failed = sample("failed", None).copy(
+      dataset = "company-data",
+      layer = "bundle",
+      errorMessage = Some("quality gate failed")
+    )
+    val olderWarning = sample("success_with_warnings", Some(1L)).copy(
+      dataset = "companies",
+      layer = "silver"
+    )
+
+    val table = StatusTable.renderCompact(Seq(failed, olderWarning))
+
+    assert(table.contains("atomic bundle/publication"))
+    assert(table.contains("failed: quality gate failed"))
+    assert(table.contains("companies/silver"))
+    assert(table.contains("warning: recorded without details"))
+  }
+
+  test("verbose rendering retains exact paths and full timestamps") {
+    val status = sample("success", Some(42L))
+    val table = StatusTable.renderVerbose(Seq(status))
+
+    assert(table.contains(status.outputPath.get))
+    assert(table.contains(status.finishedAt.toString))
   }
 
   private def sample(status: String, rowCount: Option[Long]): RunStatus = RunStatus(

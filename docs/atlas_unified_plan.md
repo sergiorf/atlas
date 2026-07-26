@@ -271,10 +271,21 @@ Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud 
 - publish establishments, companies, references, geography, and history as one coherent release bundle.
 
 This foundation is implemented and documented in the [company data foundation
-plan](plans/receita-company-data-foundation.md). The remaining v0.3a activity is the operator-run
-May–July full-data acceptance, including counts, quality evidence, resource observations, and
-representative bundle queries. It establishes reusable joined silver coverage before a
-customer-facing export.
+plan](plans/receita-company-data-foundation.md). The remaining v0.3a work is ordered as follows:
+
+1. Complete the operator-run May–July full-data acceptance, including counts, quality evidence,
+   resource observations, and representative bundle queries. Do not change the acquisition
+   workflow during this acceptance.
+2. After acceptance and before v0.3b, make
+   `./atlas download receita company-data --release YYYY-MM` coordinate all raw inputs required by
+   the matching atomic refresh, including the existing establishment acquisition module, and run a
+   final same-release readiness check. Preserve the separate immutable raw layouts, manifests,
+   resumability, and downloader implementations. Keep
+   `./atlas download receita estabelecimentos --release YYYY-MM` as an advanced recovery and
+   compatibility command.
+
+These exit tasks establish reusable joined silver coverage and a safer routine monthly acquisition
+interface before customer-facing company products.
 
 ### v0.3b — company products
 

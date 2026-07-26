@@ -2,12 +2,33 @@ package atlas
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import atlas.status.RunStatusRegistry
 import org.scalatest.funsuite.AnyFunSuite
 
 class MainTest extends AnyFunSuite {
   test("parses the status command") {
     assert(Main.parseArgs(List("status")) === Main.Cli("status"))
     assert(Main.parseArgs(List("status", "--json")) === Main.Cli("status", json = true))
+    assert(Main.parseArgs(List("status", "--verbose")) === Main.Cli("status", verbose = true))
+    assert(
+      Main.parseArgs(List("status", "--release", "2026-07", "--verbose")) ===
+        Main.Cli("status", release = Some("2026-07"), verbose = true)
+    )
+    assert(
+      Main.parseArgs(List("status", "--verbose", "--release", "2026-07")) ===
+        Main.Cli("status", release = Some("2026-07"), verbose = true)
+    )
+  }
+
+  test("rejects ambiguous or invalid status options") {
+    Seq(
+      List("status", "--json", "--verbose"),
+      List("status", "--json", "--release", "2026-07"),
+      List("status", "--release"),
+      List("status", "--release", "invalid"),
+      List("status", "--verbose", "--verbose"),
+      List("status", "--unknown")
+    ).foreach(args => intercept[IllegalArgumentException](Main.parseArgs(args)))
   }
 
   test("help explains command effects and common options") {
@@ -23,13 +44,22 @@ class MainTest extends AnyFunSuite {
   test("status output explains an empty registry") {
     val root = Files.createTempDirectory("atlas-empty-status")
     assert(Main.statusOutput(root.toString).contains("No ETL status has been recorded yet"))
+    assert(
+      Main.statusOutput(root.toString, Main.StatusOptions(json = true)) ===
+        RunStatusRegistry.jsonArray(Seq.empty)
+    )
+    intercept[IllegalArgumentException](
+      Main.statusOutput(root.toString, Main.StatusOptions(release = Some("2026-07")))
+    )
   }
 
   test("status output reports a malformed file without throwing") {
     val root = Files.createTempDirectory("atlas-malformed-status")
     val file = root.resolve("broken.json")
     Files.write(file, "broken".getBytes(StandardCharsets.UTF_8))
-    assert(Main.statusOutput(root.toString).contains("Malformed status file"))
+    val output = Main.statusOutput(root.toString)
+    assert(output.contains("REGISTRY ERRORS"))
+    assert(output.contains("Malformed status file"))
   }
 
   test("parses the silver normalization command") {
@@ -45,22 +75,73 @@ class MainTest extends AnyFunSuite {
 
   test("parses guarded refresh and full rebuild options") {
     assert(
-      Main.parseArgs(List("refresh-receita-estabelecimentos", "--release", "2026-07", "--allow-legacy-current")) ===
-        Main.Cli("refresh-receita-estabelecimentos", release = Some("2026-07"), allowLegacyCurrent = true)
+      Main.parseArgs(
+        List("refresh-receita-estabelecimentos", "--release", "2026-07", "--allow-legacy-current")
+      ) ===
+        Main.Cli(
+          "refresh-receita-estabelecimentos",
+          release = Some("2026-07"),
+          allowLegacyCurrent = true
+        )
     )
     assert(
-      Main.parseArgs(List("releases", "rebuild-establishments", "--from-release", "2026-05", "--to-release", "2026-06")) ===
-        Main.Cli("releases-rebuild-establishments", fromRelease = Some("2026-05"), toRelease = Some("2026-06"))
+      Main.parseArgs(
+        List(
+          "releases",
+          "rebuild-establishments",
+          "--from-release",
+          "2026-05",
+          "--to-release",
+          "2026-06"
+        )
+      ) ===
+        Main.Cli(
+          "releases-rebuild-establishments",
+          fromRelease = Some("2026-05"),
+          toRelease = Some("2026-06")
+        )
     )
     assert(
-      Main.parseArgs(List("releases", "rebuild-establishments", "--from-release", "2026-05", "--to-release", "2026-06", "--force")) ===
-        Main.Cli("releases-rebuild-establishments", force = true, fromRelease = Some("2026-05"), toRelease = Some("2026-06"))
+      Main.parseArgs(
+        List(
+          "releases",
+          "rebuild-establishments",
+          "--from-release",
+          "2026-05",
+          "--to-release",
+          "2026-06",
+          "--force"
+        )
+      ) ===
+        Main.Cli(
+          "releases-rebuild-establishments",
+          force = true,
+          fromRelease = Some("2026-05"),
+          toRelease = Some("2026-06")
+        )
     )
     assert(
-      Main.parseArgs(List("releases", "rebuild-company-data", "--from-release", "2026-05", "--to-release", "2026-07", "--force")) ===
-        Main.Cli("releases-rebuild-company-data", force = true, fromRelease = Some("2026-05"), toRelease = Some("2026-07"))
+      Main.parseArgs(
+        List(
+          "releases",
+          "rebuild-company-data",
+          "--from-release",
+          "2026-05",
+          "--to-release",
+          "2026-07",
+          "--force"
+        )
+      ) ===
+        Main.Cli(
+          "releases-rebuild-company-data",
+          force = true,
+          fromRelease = Some("2026-05"),
+          toRelease = Some("2026-07")
+        )
     )
-    assert(Main.parseArgs(List("releases", "inspect-bundle")) === Main.Cli("releases-inspect-bundle"))
+    assert(
+      Main.parseArgs(List("releases", "inspect-bundle")) === Main.Cli("releases-inspect-bundle")
+    )
     assert(
       Main.parseArgs(List("releases", "inspect-bundle", "--release", "2026-07")) ===
         Main.Cli("releases-inspect-bundle", release = Some("2026-07"))
@@ -78,8 +159,15 @@ class MainTest extends AnyFunSuite {
         Main.Cli("releases-inspect", release = Some("2026-07"))
     )
     assert(
-      Main.parseArgs(List("releases", "drop-derived", "--release", "2026-07", "--layer", "bronze", "--force")) ===
-        Main.Cli("releases-drop-derived", release = Some("2026-07"), layer = Some("bronze"), force = true)
+      Main.parseArgs(
+        List("releases", "drop-derived", "--release", "2026-07", "--layer", "bronze", "--force")
+      ) ===
+        Main.Cli(
+          "releases-drop-derived",
+          release = Some("2026-07"),
+          layer = Some("bronze"),
+          force = true
+        )
     )
     assert(
       Main.parseArgs(List("releases", "drop-stale-derived", "--force")) ===
@@ -89,12 +177,19 @@ class MainTest extends AnyFunSuite {
 
   test("parses trash purge retention and force options") {
     assert(Main.parseArgs(List("releases", "purge-trash")) === Main.Cli("releases-purge-trash"))
-    assert(Main.parseArgs(List("releases", "purge-trash", "--force")) === Main.Cli("releases-purge-trash", force = true))
+    assert(
+      Main.parseArgs(List("releases", "purge-trash", "--force")) === Main.Cli(
+        "releases-purge-trash",
+        force = true
+      )
+    )
     assert(
       Main.parseArgs(List("releases", "purge-trash", "--older-than-days", "0", "--force")) ===
         Main.Cli("releases-purge-trash", force = true, olderThanDays = 0)
     )
-    assertThrows[IllegalArgumentException](Main.parseArgs(List("releases", "purge-trash", "--older-than-days", "-1")))
+    assertThrows[IllegalArgumentException](
+      Main.parseArgs(List("releases", "purge-trash", "--older-than-days", "-1"))
+    )
     assert(Main.helpText.contains("releases purge-trash"))
     assert(Main.helpText.contains("seven-day recovery window"))
   }

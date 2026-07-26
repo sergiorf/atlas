@@ -17,6 +17,10 @@ From the repository root, run the supported end-to-end workflow:
 ./atlas status
 ```
 
+The default status view summarizes every recorded snapshot and expands problems for the newest
+one. Use `./atlas status --release YYYY-MM` to inspect another snapshot, or
+`./atlas status --verbose` when exact timestamps and generated paths are needed.
+
 To prepare the next company-data release before bronze exists, run:
 
 ```bash

@@ -70,3 +70,7 @@ known, it makes a best-effort write of `failed` and rethrows the original except
 The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. History component `row_count` and `output_row_count` are event counts; silver component counts are produced rows. Durable analytical metrics live in the silver release-summary datasets. Missing means no run was recorded. No files are created for unimplemented gold, serving/index, or dashboard work.
 
 Changing field meaning, identity/path conventions, required fields, status values, or replacement semantics requires compatibility analysis and a contract-version decision. Generated registry files remain local and are ignored by Git.
+
+The persisted JSON array emitted by `atlas status --json` is the automation interface. Compact,
+release-filtered, and verbose human renderings are operational presentation and do not alter this
+contract or require a contract-version change.

@@ -24,6 +24,8 @@ From the repository root:
 ./atlas normalize receita estabelecimentos
 ./atlas refresh receita estabelecimentos --release 2026-07
 ./atlas status
+./atlas status --release 2026-07
+./atlas status --verbose
 ./atlas status --json
 ./atlas releases list
 ./atlas releases inspect --release 2026-07
