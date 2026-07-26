@@ -78,6 +78,9 @@ Status and release commands:
   storage usage [--category CATEGORY] [--release YYYY-MM] [--top N] [--json]
       Inventory Atlas data and Spark temporary storage without deleting anything.
 
+  storage cleanup [--older-than-days N] [--dry-run|--force] [--json]
+      Plan or apply guarded cleanup of trash and failed company bundle candidates.
+
 Project commands:
   compile
       Compile the ETL project through sbt.

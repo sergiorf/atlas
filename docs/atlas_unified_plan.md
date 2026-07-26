@@ -271,7 +271,7 @@ them through bronze and the first v0.2 silver slice. The implemented workflow pr
 - a validated latest-current silver establishment table;
 - quarantine and publication gates for malformed and duplicate identifiers;
 - compact selected-field change events and one analytical summary per published release;
-- release inventory, read-only categorized storage usage, guarded derived-data cleanup,
+- release inventory, read-only categorized storage usage, unified guarded storage cleanup,
   chronological rebuild, and local status commands;
 - DuckDB guidance for local inspection.
 

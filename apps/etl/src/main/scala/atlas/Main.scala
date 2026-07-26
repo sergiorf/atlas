@@ -13,6 +13,7 @@ import atlas.release.{
   ReleaseInventoryService,
   ReleaseLayer,
   StaleDerivedCleanupService,
+  StorageCleanupService,
   StorageUsageService,
   TrashPurgeService
 }
@@ -82,6 +83,13 @@ object Main {
         println(
           if (cli.json) StorageUsageService.json(result)
           else StorageUsageService.render(result, cli.top)
+        )
+      case "storage-cleanup" =>
+        val result =
+          if (cli.force) StorageCleanupService.force(config, cli.olderThanDays)
+          else StorageCleanupService.inspect(config, cli.olderThanDays)
+        println(
+          if (cli.json) StorageCleanupService.json(result) else StorageCleanupService.render(result)
         )
       case "releases-rebuild-establishments" =>
         val from = ReleaseId.unsafe(
@@ -217,6 +225,7 @@ object Main {
     case "version" :: Nil                         => Cli("version")
     case "status" :: tail                         => parseStatus(tail)
     case "storage" :: "usage" :: tail             => parseStorageUsage(tail)
+    case "storage" :: "cleanup" :: tail           => parseStorageCleanup(tail)
     case command :: "--config" :: path :: Nil     => Cli(command, path)
     case command :: "--release" :: release :: Nil => Cli(command, release = Some(release))
     case command :: "--release" :: release :: "--allow-legacy-current" :: Nil =>
@@ -350,6 +359,59 @@ object Main {
     loop(args, None, None, top = 20, json = false)
   }
 
+  private def parseStorageCleanup(args: List[String]): Cli = {
+    def loop(
+        rest: List[String],
+        force: Boolean,
+        modeSeen: Boolean,
+        olderThanDays: Int,
+        retentionSeen: Boolean,
+        json: Boolean
+    ): Cli = rest match {
+      case Nil =>
+        if (force && json)
+          throw new IllegalArgumentException(
+            "Usage: storage cleanup [--older-than-days N] [--dry-run|--force] [--json]"
+          )
+        Cli(
+          "storage-cleanup",
+          force = force,
+          olderThanDays = olderThanDays,
+          json = json
+        )
+      case "--dry-run" :: tail if !modeSeen =>
+        loop(tail, force = false, modeSeen = true, olderThanDays, retentionSeen, json)
+      case "--force" :: tail if !modeSeen =>
+        loop(tail, force = true, modeSeen = true, olderThanDays, retentionSeen, json)
+      case "--older-than-days" :: value :: tail if !retentionSeen =>
+        val days =
+          try value.toInt
+          catch {
+            case _: NumberFormatException =>
+              throw new IllegalArgumentException(
+                "--older-than-days requires a non-negative integer"
+              )
+          }
+        if (days < 0)
+          throw new IllegalArgumentException("--older-than-days requires a non-negative integer")
+        loop(tail, force, modeSeen, days, retentionSeen = true, json)
+      case "--json" :: tail if !json =>
+        loop(tail, force, modeSeen, olderThanDays, retentionSeen, json = true)
+      case _ =>
+        throw new IllegalArgumentException(
+          "Usage: storage cleanup [--older-than-days N] [--dry-run|--force] [--json]"
+        )
+    }
+    loop(
+      args,
+      force = false,
+      modeSeen = false,
+      olderThanDays = 7,
+      retentionSeen = false,
+      json = false
+    )
+  }
+
   private[atlas] val helpText: String =
     """Atlas - Brazilian public company intelligence ETL
       |
@@ -411,6 +473,10 @@ object Main {
       |  storage usage [--category CATEGORY] [--release YYYY-MM] [--top N] [--json]
       |      Inventory Atlas data and Spark temporary storage without deleting anything. Show exact
       |      protection policies and the guarded next step for each configured location.
+      |
+      |  storage cleanup [--older-than-days N] [--dry-run|--force] [--json]
+      |      Plan unified cleanup of eligible trash and failed company bundles. Dry-run and seven
+      |      days are defaults; failed bundles are quarantined before a later purge can delete them.
       |
       |Project commands:
       |  compile

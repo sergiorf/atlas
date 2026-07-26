@@ -79,6 +79,8 @@ Before cleanup, inventory the configured storage roots:
 ./atlas storage usage --category raw
 ./atlas storage usage --release 2026-07
 ./atlas storage usage --json
+./atlas storage cleanup
+./atlas storage cleanup --older-than-days 7 --force
 ```
 
 The command is read-only. It reports apparent bytes, file counts, protection policy, exact path,
@@ -91,6 +93,22 @@ not assigned to a release.
 Compare its totals with `du` when diagnosing filesystem pressure. WSL's Windows-visible
 `ext4.vhdx` can remain large after Linux files are removed; compacting that virtual disk is outside
 Atlas and is separate from dataset cleanup.
+
+`storage cleanup` is the normal cleanup entry point. Its dry run combines existing trash with
+failed company bundle candidates. With `--force`, eligible existing trash is permanently deleted
+first and eligible failed candidates are then atomically quarantined. Newly quarantined candidates
+are deliberately retained until a separate invocation:
+
+```bash
+./atlas storage cleanup --older-than-days 0
+./atlas storage cleanup --older-than-days 0 --force
+```
+
+Review the zero-day dry run carefully. The command still blocks malformed, symbolic, active,
+status-referenced, transaction-referenced, or unidentified candidates. Moving a candidate into
+trash does not reclaim bytes; only its later permanent deletion does. Raw inputs and active bundle
+generations are never candidates. `--json` is inspection-only and cannot be combined with
+`--force`.
 
 Raw Receita files under `data/raw` are protected. Derived bronze, silver work tables, reports, history partitions, and release-summary partitions are rebuildable. Use dry-run first:
 

@@ -115,6 +115,10 @@ previous bundle and the selected release is complete.
   history into the active bundle.
 - Cleanup requires dry-run, explicit `--force`, a recovery window, and protection for raw, active,
   predecessor, and transaction-journal paths.
+- Failed candidates are retained under `data/_atlas/bundles/failed` for diagnosis. Use
+  `./atlas storage cleanup` to inspect them together with existing trash. Force first quarantines
+  eligible failed candidates; a later cleanup invocation may permanently delete that quarantine.
+  Never delete the complete failed-bundle directory manually.
 
 ## DuckDB verification examples
 

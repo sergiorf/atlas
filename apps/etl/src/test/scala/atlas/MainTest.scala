@@ -215,4 +215,23 @@ class MainTest extends AnyFunSuite {
     )
     assert(Main.helpText.contains("storage usage"))
   }
+
+  test("parses unified storage cleanup options") {
+    assert(Main.parseArgs(List("storage", "cleanup")) === Main.Cli("storage-cleanup"))
+    assert(
+      Main.parseArgs(List("storage", "cleanup", "--older-than-days", "0", "--force")) ===
+        Main.Cli("storage-cleanup", force = true, olderThanDays = 0)
+    )
+    assert(
+      Main.parseArgs(List("storage", "cleanup", "--json")) ===
+        Main.Cli("storage-cleanup", json = true)
+    )
+    Seq(
+      List("storage", "cleanup", "--json", "--force"),
+      List("storage", "cleanup", "--force", "--dry-run"),
+      List("storage", "cleanup", "--older-than-days", "-1"),
+      List("storage", "cleanup", "--older-than-days", "7", "--older-than-days", "0")
+    ).foreach(args => assertThrows[IllegalArgumentException](Main.parseArgs(args)))
+    assert(Main.helpText.contains("storage cleanup"))
+  }
 }

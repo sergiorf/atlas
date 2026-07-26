@@ -25,6 +25,7 @@ From the repository root:
 ./atlas refresh receita estabelecimentos --release 2026-07
 ./atlas status
 ./atlas storage usage
+./atlas storage cleanup
 ./atlas status --release 2026-07
 ./atlas status --verbose
 ./atlas status --json

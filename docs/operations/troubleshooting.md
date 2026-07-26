@@ -48,6 +48,15 @@ Use `df -h /tmp spark-tmp /home/<user>/spark-tmp` to compare capacity. Changing 
 
 Only eight-digit `yyyyMMdd` values parse. Blanks and malformed values become null and contribute to applicable quality metrics.
 
+## Failed company bundles consume disk
+
+Use `./atlas storage usage --category staging` to measure retained failed candidates and
+`./atlas storage cleanup` to inspect guarded cleanup decisions. Failed bundles are outside
+`_trash`, so the lower-level `releases purge-trash` command does not inventory them. Unified
+cleanup permanently deletes eligible existing trash and then quarantines eligible failed bundles;
+run a separate dry run and force invocation before permanently deleting the new quarantine.
+Raw data and active published bundles are never candidates.
+
 ## Unexpected output replacement
 
 The committed write mode is `overwrite`. Verify the bronze destination and environment overrides before rerunning. Raw inputs are never an acceptable output destination.
