@@ -4,14 +4,18 @@ The local status registry reports which dataset snapshot and layer last ran, whe
 
 Status follows the implemented pipeline structure:
 
-```text
-raw -> bronze -> silver latest current
-                  |-> change events
-                  `-> release summaries
-                         |
-                         `-> atomic bundle
-
-future: gold -> serving/index
+```mermaid
+flowchart LR
+    A["Raw"] --> B["Bronze"]
+    B --> C["Silver candidate"]
+    C --> D["Current state"]
+    C --> E["Change events"]
+    C --> F["Release summaries"]
+    D --> G["Atomic bundle"]
+    E --> G
+    F --> G
+    G -. future .-> H["Gold"]
+    H -. future .-> I["Serving/index"]
 ```
 
 Receita establishments and company data have implemented raw acquisition, bronze and silver

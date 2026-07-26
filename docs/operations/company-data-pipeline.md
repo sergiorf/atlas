@@ -30,7 +30,7 @@ times recorded in the bundle. A mixed CNPJ month or unrecorded reference reuse i
 ## Command surface
 
 ```bash
-# Implemented today: network acquisition and raw manifest verification
+# Network acquisition and raw manifest verification
 ./atlas download receita company-data --release 2026-07
 ./atlas download receita estabelecimentos --release 2026-07
 
@@ -46,12 +46,12 @@ times recorded in the bundle. A mixed CNPJ month or unrecorded reference reuse i
 ./atlas releases rebuild-company-data --from-release 2026-05 --to-release 2026-07 --force
 ```
 
-There is no planned public `ingest receita company-data` command. Refresh owns all internal bronze
+There is no public `ingest receita company-data` command. Refresh owns all internal bronze
 and silver stages so a partial table cannot be mistaken for a published bundle. Existing
 establishment ingest, normalize, refresh, and rebuild commands remain recovery tools until the
 bundle workflow is accepted and a later compatibility decision changes them.
 
-## First May–July build after implementation
+## May–July full-data acceptance
 
 1. Confirm capacity for raw inputs, bronze, a complete staged bundle, the active generation, Spark
    spill, and rollback retention. Do not count `_trash` as free space.
@@ -203,8 +203,8 @@ SELECT
 FROM read_parquet('<company_summary_path>/**/*.parquet');
 ```
 
-These are internal acceptance queries, not a public query contract or gold product. Field names
-must be verified against the final implemented contracts.
+These are internal acceptance queries, not a public query contract or gold product. Their field
+names follow the implemented contracts linked from the documentation index.
 
 ## Operational UI boundary
 

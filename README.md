@@ -1,16 +1,20 @@
 # Atlas
 
-Atlas is a private commercial monorepo for turning Brazilian public company data into trusted, business-ready tables. The current implementation ingests Receita Federal `estabelecimentos` to bronze, normalizes them into the first v0.2 silver contract, and can maintain a compact local change history between monthly releases.
+Atlas is a private commercial monorepo for turning Brazilian public company data into trusted,
+business-ready tables. The current implementation processes Receita Federal companies,
+establishments, official reference dimensions, and municipality geography through a local,
+quality-gated atomic silver bundle with compact monthly history.
 
 Atlas uses a medallion-style raw -> bronze -> silver -> gold -> serving/index data flow. See [Data layers](docs/manual/data_layers.md) for each layer contract and current Receita examples.
 
 ## Current scope
 
-`apps/etl` reads the raw Receita establishment snapshot, writes release-scoped bronze Parquet,
-builds the latest curated silver establishment table, produces quality reports, records run status,
-and stores compact history. A separate pre-bronze command acquires and verifies the company-data
-source bundle. Company-data transformations, municipality enrichment, CNAE business groups, lead
-exports, API, UI, indexing, AI, sanctions, and procurement remain roadmap items.
+`apps/etl` acquires immutable monthly source packages, writes release-scoped bronze, normalizes
+companies and establishments, resolves official references and TOM-to-IBGE municipality
+geography, records compact history, and atomically publishes coherent silver generations.
+Full-data acceptance remains operator-run. `Simples`, `Socios`, corporate graphs, CNAE business
+groups, gold products, exports, serving, API, UI, AI, sanctions, and procurement remain roadmap
+items.
 
 ## Atlas local CLI
 
@@ -20,12 +24,15 @@ From the repository root:
 ./atlas help
 ./atlas version
 ./atlas download receita company-data --release 2026-05
+./atlas download receita estabelecimentos --release 2026-05
+./atlas refresh receita company-data --release 2026-05
 ./atlas ingest receita estabelecimentos
 ./atlas normalize receita estabelecimentos
 ./atlas refresh receita estabelecimentos --release 2026-07
 ./atlas status
 ./atlas storage usage
 ./atlas storage cleanup
+./atlas releases inspect-bundle
 ./atlas status --release 2026-07
 ./atlas status --verbose
 ./atlas status --json
@@ -43,16 +50,20 @@ sbt "runMain atlas.Main ingest-receita-estabelecimentos"
 
 ## Company-data foundation
 
-Atlas now implements the pre-bronze acquisition gate for the planned Receita company data
-foundation: `Empresas`,
-official Receita reference dimensions, a Receita-to-IBGE municipality hierarchy, and compact
-May–July company history published with the existing establishment state as a coherent bundle.
-See the [unified plan](docs/atlas_unified_plan.md#v03a--receita-company-data-foundation-active-next-tranche)
-and the [detailed foundation plan](docs/plans/receita-company-data-foundation.md).
+The implemented company-data foundation covers `Empresas`, six official Receita reference
+dimensions, Receita-to-IBGE municipality geography, compact company and establishment history,
+and atomic same-release publication. Acquire both source groups, then run the local-only refresh:
 
-`./atlas download receita company-data --release YYYY-MM` downloads and verifies the immutable
-source bundle and records raw status. Company-data bronze, silver, history, bundle publication,
-gold tables, lead exports, OpenSearch, API, and website work remain unimplemented.
+```bash
+./atlas download receita company-data --release YYYY-MM
+./atlas download receita estabelecimentos --release YYYY-MM
+./atlas refresh receita company-data --release YYYY-MM
+./atlas releases inspect-bundle
+```
+
+See the [unified plan](docs/atlas_unified_plan.md#delivery-roadmap), concise
+[delivery record](docs/plans/receita-company-data-foundation.md), and
+[operator runbook](docs/operations/company-data-pipeline.md).
 
 ## Layout
 

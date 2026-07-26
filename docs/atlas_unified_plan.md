@@ -38,25 +38,15 @@ The ETL is the foundation, not the customer-facing product. UI and API component
 
 The durable flow is:
 
-```text
-Raw public data
-  Receita / geography / sanctions / procurement
-        ↓
-apps/etl
-        ↓
-Bronze source-faithful tables
-        ↓
-Silver normalized and joined tables
-        ↓
-Gold business-ready tables and aggregates
-        ↓
-future apps/indexer
-        ↓
-search indexes and serving databases
-        ↓
-future apps/api
-        ↓
-future apps/ui / exports / paid AI assistant
+```mermaid
+flowchart LR
+    A["Raw public data<br/>immutable inputs"] --> B["apps/etl"]
+    B --> C["Bronze<br/>source-faithful"]
+    C --> D["Silver<br/>normalized and joined"]
+    D --> E["Gold<br/>business-ready"]
+    E --> F["Future indexer<br/>rebuildable serving stores"]
+    F --> G["Future API"]
+    G --> H["Future UI, exports,<br/>and paid AI assistant"]
 ```
 
 The monorepo grows around clear responsibilities:
@@ -111,7 +101,9 @@ Future Receita silver tables include:
 
 Geographic enrichment follows the basic Receita pipeline. It resolves municipality, state, and region names; enables normalized location filters; and supports population joins, density measures, regional comparisons, and companies-per-thousand-inhabitants metrics.
 
-Planned outputs include `silver_municipality`, `silver_state`, `silver_region`, and `gold_company_density_by_city`. v0.1 preserves Receita municipality codes but does not implement these joins.
+The implemented company-data bundle resolves Receita municipality codes through TOM to the IBGE
+municipality, state, intermediate-region, immediate-region, and macroregion hierarchy. Population,
+area, boundaries, density, and their gold products remain future work.
 
 ### 3. CGU and Portal da Transparencia sanctions
 
@@ -263,32 +255,30 @@ Example future intents include active software companies opened this month in Re
 
 ## Current implementation boundary
 
-Atlas currently acquires operator-selected monthly Receita `Estabelecimentos` archives and processes
-them through bronze and the first v0.2 silver slice. The implemented workflow provides:
+Atlas currently acquires operator-selected monthly Receita company and establishment inputs and
+processes them through bronze and atomic silver publication. The implemented workflow provides:
 
-- restartable raw acquisition with manifests and raw-stage status;
-- release-scoped, state-partitioned bronze Parquet and diagnostic quality reports;
-- a validated latest-current silver establishment table;
-- quarantine and publication gates for malformed and duplicate identifiers;
-- compact selected-field change events and one analytical summary per published release;
-- release inventory, read-only categorized storage usage, unified guarded storage cleanup,
-  chronological rebuild, and local status commands;
-- DuckDB guidance for local inspection.
+- restartable, separately manifest-backed acquisition of company-data and establishment inputs;
+- release-scoped bronze for establishments, companies, and official reference dimensions;
+- normalized companies, establishments, reference dimensions, and TOM-to-IBGE geography;
+- compact company and establishment history;
+- quality-gated, immutable same-release bundle generations selected by one atomic pointer;
+- release inventory, bundle inspection, chronological rebuild, compact status, categorized storage
+  usage, and guarded unified cleanup;
+- DuckDB guidance for local inspection and acceptance checks.
 
 Refresh never initiates network I/O. Operators acquire and inspect immutable raw input before
 publishing derived state. Exact fields, paths, quality behavior, commands, and recovery procedures
 belong to the implemented [specifications](index.md#implemented-specifications) and
 [operations guides](operations/local-etl.md), rather than this product plan.
 
-The v0.3a company-data foundation is implemented through atomic silver publication. An operator can
-download a selected `Empresas` and Receita-reference release plus TOM and IBGE Localities, combine
-it with the matching establishment release, build company and reference bronze, normalize company
-and geography silver, create compact history, and publish one immutable same-release bundle. The
-May–July full-data acceptance remains operator-run.
+The May–July full-data acceptance remains operator-run. Routine company-data acquisition still
+uses two commands—one for the company source package and one for establishments—before the
+local-only atomic refresh.
 
-CNAE business groups, lead exports, gold, serving,
-API, UI, search, AI, billing, sanctions, procurement, Docker, cloud deployment, streaming, and
-orchestration platforms remain outside the implemented boundary.
+`Simples`, `Socios`, corporate relationship graphs, CNAE business groups, lead exports, gold,
+serving, API, UI, search, AI, billing, sanctions, procurement, Docker, cloud deployment,
+streaming, and orchestration platforms remain outside the implemented boundary.
 
 ## Raw-data safety and migration
 
@@ -315,54 +305,40 @@ Pipeline rules are:
 
 The selected ETL stack is Scala 2.12, Apache Spark 3.5 locally, sbt, Parquet, Typesafe Config/HOCON, ScalaTest, scalafmt, and optional DuckDB for local inspection.
 
-Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud services are deliberately excluded from v0.1.
+Kafka, Flink, Spark Streaming, Airflow, Kubernetes, custom databases, and cloud services remain
+outside the local foundation.
 
 ## Delivery roadmap
 
-### v0.1 — local ETL foundation
+```mermaid
+flowchart LR
+    A["Completed foundation<br/>v0.1–v0.3a"] --> B["Acceptance and acquisition<br/>hardening"]
+    B --> C["Company products and<br/>corporate relationships"]
+    C --> D["Graph-ready aggregates"]
+    D --> E["Risk"]
+    E --> F["Procurement"]
+    F --> G["Serving and API/UI"]
+    G --> H["Paid AI assistant"]
+```
 
-- establish the monorepo and `apps/etl`;
-- preserve and safely locate existing raw files;
-- ingest Receita Estabelecimentos to bronze Parquet;
-- normalize CNPJ identifiers and provenance;
-- generate quality reports;
-- add DuckDB examples and architecture/product documentation.
+### Completed foundation — v0.1 through v0.3a
 
-### v0.2 — normalized establishments and establishment history
+Atlas has implemented the local ETL, establishment bronze and silver, compact establishment
+history, company and reference ingestion, TOM-to-IBGE geography, compact company history, and
+atomic same-release silver bundles. Completed task lists have been removed from the active
+roadmap; their behavior and compatibility now belong to the
+[implemented specifications](index.md#implemented-specifications).
 
-- build silver establishment normalization — implemented;
-- add local CLI, release status, lifecycle controls, compact establishment change events, and
-  release summaries — implemented;
-- the implemented May–July establishment slice is complete;
-- municipality lookup, CNAE business groups, and `export-leads` are deferred to the company-product tranche.
+Two exit checks remain before expanding the supported surface:
 
-### v0.3a — Receita company data foundation (active next tranche)
+1. Record the operator-run May–July full-data acceptance: counts, quality evidence, resource
+   observations, and representative bundle queries.
+2. Make `download receita company-data` coordinate the matching establishment acquisition and a
+   final same-release readiness check. Preserve separate immutable raw layouts, manifests,
+   resumability, and downloader implementations; retain the establishment downloader as an
+   advanced recovery command.
 
-- ingest monthly `Empresas` through raw, bronze, and `silver_company`;
-- ingest the six official Receita reference groups: CNAE, Municipios, Naturezas Juridicas,
-  Paises, Qualificacoes de Socios, and Motivos de Situacao Cadastral;
-- map Receita municipality codes through the official TOM table to the IBGE Localities hierarchy;
-- backfill May–July company state and compact company history;
-- publish establishments, companies, references, geography, and history as one coherent release bundle.
-
-This foundation is implemented and documented in the [company data foundation
-plan](plans/receita-company-data-foundation.md). The remaining v0.3a work is ordered as follows:
-
-1. Complete the operator-run May–July full-data acceptance, including counts, quality evidence,
-   resource observations, and representative bundle queries. Do not change the acquisition
-   workflow during this acceptance.
-2. After acceptance and before v0.3b, make
-   `./atlas download receita company-data --release YYYY-MM` coordinate all raw inputs required by
-   the matching atomic refresh, including the existing establishment acquisition module, and run a
-   final same-release readiness check. Preserve the separate immutable raw layouts, manifests,
-   resumability, and downloader implementations. Keep
-   `./atlas download receita estabelecimentos --release YYYY-MM` as an advanced recovery and
-   compatibility command.
-
-These exit tasks establish reusable joined silver coverage and a safer routine monthly acquisition
-interface before customer-facing company products.
-
-### v0.3b — company products
+### Next — company products and corporate relationships (v0.3b)
 
 - ingest `Simples` and reviewed `Socios` data through source-faithful bronze and contracted silver;
 - build deterministic Brazilian company-to-company relationship edges from reviewed QSA legal

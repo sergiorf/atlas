@@ -13,10 +13,10 @@ references, TOM, and IBGE Localities) together with matching establishments. It 
 reference, geography, history, and establishment components through one atomic silver bundle.
 Full May–July acceptance remains operator-run, and silver is not a public query product.
 
-The implemented v0.2 slice adds a curated silver establishment table with unique identifiers,
-normalized status, CNAE, location and contact fields, retained bronze lineage, compact
-release-to-release change events, and one analytical summary per published release. See the
-[dataset specification](../specs/datasets/receita-cnpj.md) and the implemented schemas in the
+Silver establishments have unique identifiers, normalized status, CNAE, location and contact
+fields, retained bronze lineage, compact release-to-release change events, and one analytical
+summary per published release. See the [dataset specification](../specs/datasets/receita-cnpj.md)
+and the implemented schemas in the
 [documentation index](../index.md#implemented-specifications).
 
 ## Catalog status

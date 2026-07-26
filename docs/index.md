@@ -52,7 +52,7 @@ These internal contracts are implemented by the atomic company-data bundle workf
 - [Receita reference dimensions](specs/schemas/receita-reference-dimensions.md)
 - [Receita-to-IBGE municipality geography](specs/schemas/receita-ibge-municipality-geography.md)
 - [Company and geography quality rules](specs/quality/company-geography-quality-rules.md)
-- [Receita company data foundation implementation plan](plans/receita-company-data-foundation.md)
+- [Receita company-data foundation delivery record](plans/receita-company-data-foundation.md)
 - [Company-data and atomic silver bundle runbook](operations/company-data-pipeline.md) — implemented
   commands and May–July acceptance workflow
 

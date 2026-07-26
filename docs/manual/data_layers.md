@@ -20,7 +20,11 @@ Parsing, blank-to-null conversion, safe source typing, identifier assembly, prov
 
 Silver contains cleaned, validated, standardized tables with stable schemas. Reusable normalization, quality gates, deduplication, and joins between contracted Receita entities belong here.
 
-The implemented `data/silver/receita/establishments_current` table standardizes state, postal and contact fields, CNAEs, and active status; preserves provenance; and validates unique `cnpj_full` identifiers. Bronze may contain malformed source-shaped rows. Silver quarantines rows with invalid CNPJ structure or registration status (valid codes are `01`, `02`, `03`, `04`, `08`) before checking uniqueness among valid rows. Quarantine reports are generated quality outputs, not committed data. Compact release-to-release field deltas live under `data/silver/receita/establishment_change_events`, and durable per-release metrics live under `data/silver/receita/establishment_release_summaries`. Future contracted tables beneath `data/silver/receita` may represent companies, establishments, partners, municipalities, and CNAE codes. These examples do not authorize implementation without contracts. UI-specific reports, lead lists, and rankings do not belong in silver.
+The implemented establishment table standardizes state, postal and contact fields, CNAEs, and
+active status; preserves provenance; and validates unique `cnpj_full` identifiers. Bronze may
+contain malformed source-shaped rows. Silver quarantines invalid identifiers or registration
+statuses before checking uniqueness among valid rows. Compact field deltas and durable release
+summaries preserve history without retaining every prior full table.
 
 The company-data foundation publishes companies, establishments, reference dimensions,
 geography, and compact history as one atomic silver bundle. A bundle is not a new data layer and is
@@ -30,6 +34,9 @@ Company silver excludes all source rows belonging to a duplicated `cnpj_root` an
 a non-blocking quarantine. This preserves primary-key uniqueness without choosing an arbitrary
 company record, but it can leave establishments without a matching accepted company. Such absence
 must not be interpreted as legal closure.
+
+Partner, relationship, and tax-regime tables remain future contracted silver work. UI-specific
+reports, lead lists, rankings, and graph presentation do not belong in silver.
 
 ## Gold
 

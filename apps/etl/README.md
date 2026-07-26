@@ -30,8 +30,8 @@ From the repository root, prefer the short wrapper for day-to-day use:
 ./atlas releases rebuild-company-data --from-release 2026-05 --to-release 2026-07
 ./atlas releases inspect-bundle
 ./atlas releases drop-stale-derived --dry-run
-./atlas releases purge-trash
-./atlas releases purge-trash --older-than-days 7 --force
+./atlas storage usage
+./atlas storage cleanup
 ./atlas status --json
 ```
 
@@ -53,7 +53,10 @@ Malformed silver candidates are quarantined beneath `data/_atlas/quality/receita
 
 Legacy derived outputs from earlier local runs, such as `data/silver/receita/establishments` and old sibling `establishments_quality_report.*` files, can be quarantined with `./atlas releases drop-stale-derived --force`. The command leaves raw files, `establishments_current`, and compact history events intact.
 
-Trash purge is a dry run unless `--force` is supplied. It permanently deletes only independently eligible derived-data generations older than seven full days by default, explains every decision, and never inventories or touches raw data.
+Unified storage cleanup is a dry run unless `--force` is supplied. It inspects existing trash and
+failed company bundle candidates, uses a seven-day recovery window by default, and never
+inventories raw data as a deletion candidate. A first forced invocation may quarantine failed
+candidates; only a later invocation can permanently delete them.
 
 Routine refresh only advances current to a newer release. Standalone normalization writes a release-scoped candidate. To recreate the entire active establishment dataset from protected raw releases, preview and then force `./atlas releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM`; see the repository refresh runbook for validation and recovery steps.
 
