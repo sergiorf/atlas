@@ -193,4 +193,26 @@ class MainTest extends AnyFunSuite {
     assert(Main.helpText.contains("releases purge-trash"))
     assert(Main.helpText.contains("seven-day recovery window"))
   }
+
+  test("parses read-only storage usage options") {
+    assert(Main.parseArgs(List("storage", "usage")) === Main.Cli("storage-usage"))
+    assert(
+      Main.parseArgs(
+        List("storage", "usage", "--category", "raw", "--release", "2026-07", "--top", "5")
+      ) === Main.Cli(
+        "storage-usage",
+        release = Some("2026-07"),
+        category = Some("raw"),
+        top = 5
+      )
+    )
+    assert(
+      Main.parseArgs(List("storage", "usage", "--json")) === Main.Cli("storage-usage", json = true)
+    )
+    assertThrows[IllegalArgumentException](Main.parseArgs(List("storage", "usage", "--top", "0")))
+    assertThrows[IllegalArgumentException](
+      Main.parseArgs(List("storage", "usage", "--category", "downloads"))
+    )
+    assert(Main.helpText.contains("storage usage"))
+  }
 }

@@ -34,6 +34,7 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Establishment release-summary schema](specs/schemas/establishment-release-summaries.md)
 - [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
 - [Run-status registry contract](specs/run-status.md)
+- [Storage usage inventory contract](specs/storage-usage.md)
 - [Receita company and reference sources](specs/datasets/receita-company-reference-sources.md) —
   implemented through atomic silver; full-data acceptance pending
 - [Receita company source manifest](specs/schemas/receita-company-source-manifest.md) — implemented

@@ -75,6 +75,9 @@ Status and release commands:
   releases inspect-bundle [--release YYYY-MM]
       Inspect current or release-selected bundle metadata without starting Spark.
 
+  storage usage [--category CATEGORY] [--release YYYY-MM] [--top N] [--json]
+      Inventory Atlas data and Spark temporary storage without deleting anything.
+
 Project commands:
   compile
       Compile the ETL project through sbt.
@@ -155,6 +158,10 @@ case "$1" in
   status)
     shift
     run_main status "$@"
+    ;;
+  storage)
+    shift
+    run_main storage "$@"
     ;;
   download)
     shift

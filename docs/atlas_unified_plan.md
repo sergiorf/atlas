@@ -271,7 +271,8 @@ them through bronze and the first v0.2 silver slice. The implemented workflow pr
 - a validated latest-current silver establishment table;
 - quarantine and publication gates for malformed and duplicate identifiers;
 - compact selected-field change events and one analytical summary per published release;
-- release inventory, guarded derived-data cleanup, chronological rebuild, and local status commands;
+- release inventory, read-only categorized storage usage, guarded derived-data cleanup,
+  chronological rebuild, and local status commands;
 - DuckDB guidance for local inspection.
 
 Refresh never initiates network I/O. Operators acquire and inspect immutable raw input before

@@ -13,6 +13,7 @@ import atlas.release.{
   ReleaseInventoryService,
   ReleaseLayer,
   StaleDerivedCleanupService,
+  StorageUsageService,
   TrashPurgeService
 }
 import atlas.receita.SilverEstablishmentJob
@@ -31,7 +32,9 @@ object Main {
       allowLegacyCurrent: Boolean = false,
       fromRelease: Option[String] = None,
       toRelease: Option[String] = None,
-      olderThanDays: Int = 7
+      olderThanDays: Int = 7,
+      category: Option[String] = None,
+      top: Int = 20
   )
   def main(args: Array[String]): Unit = {
     val cli = parseArgs(args.toList)
@@ -74,6 +77,12 @@ object Main {
           if (cli.force) TrashPurgeService.force(config, cli.olderThanDays)
           else TrashPurgeService.inspect(config, cli.olderThanDays)
         println(TrashPurgeService.render(result))
+      case "storage-usage" =>
+        val result = StorageUsageService.inspect(config, cli.category, cli.release)
+        println(
+          if (cli.json) StorageUsageService.json(result)
+          else StorageUsageService.render(result, cli.top)
+        )
       case "releases-rebuild-establishments" =>
         val from = ReleaseId.unsafe(
           cli.fromRelease.getOrElse(
@@ -207,6 +216,7 @@ object Main {
     case "help" :: Nil                            => Cli("help")
     case "version" :: Nil                         => Cli("version")
     case "status" :: tail                         => parseStatus(tail)
+    case "storage" :: "usage" :: tail             => parseStorageUsage(tail)
     case command :: "--config" :: path :: Nil     => Cli(command, path)
     case command :: "--release" :: release :: Nil => Cli(command, release = Some(release))
     case command :: "--release" :: release :: "--allow-legacy-current" :: Nil =>
@@ -304,6 +314,42 @@ object Main {
     loop(args, force = false, olderThanDays = 7)
   }
 
+  private def parseStorageUsage(args: List[String]): Cli = {
+    def loop(
+        rest: List[String],
+        category: Option[String],
+        release: Option[String],
+        top: Int,
+        json: Boolean
+    ): Cli = rest match {
+      case Nil =>
+        Cli("storage-usage", release = release, json = json, category = category, top = top)
+      case "--category" :: value :: tail if category.isEmpty =>
+        if (!StorageUsageService.Categories(value))
+          throw new IllegalArgumentException(
+            s"Unknown storage category '$value'. Expected one of: ${StorageUsageService.Categories.toSeq.sorted.mkString(", ")}"
+          )
+        loop(tail, Some(value), release, top, json)
+      case "--release" :: value :: tail if release.isEmpty =>
+        loop(tail, category, Some(ReleaseId.unsafe(value).value), top, json)
+      case "--top" :: value :: tail =>
+        val parsed =
+          try value.toInt
+          catch {
+            case _: NumberFormatException =>
+              throw new IllegalArgumentException("--top requires a positive integer")
+          }
+        if (parsed <= 0) throw new IllegalArgumentException("--top requires a positive integer")
+        loop(tail, category, release, parsed, json)
+      case "--json" :: tail if !json => loop(tail, category, release, top, json = true)
+      case _ =>
+        throw new IllegalArgumentException(
+          "Usage: storage usage [--category CATEGORY] [--release YYYY-MM] [--top N] [--json]"
+        )
+    }
+    loop(args, None, None, top = 20, json = false)
+  }
+
   private[atlas] val helpText: String =
     """Atlas - Brazilian public company intelligence ETL
       |
@@ -361,6 +407,10 @@ object Main {
       |
       |  releases inspect-bundle [--release YYYY-MM]
       |      Read current or release-selected atomic bundle metadata without starting Spark.
+      |
+      |  storage usage [--category CATEGORY] [--release YYYY-MM] [--top N] [--json]
+      |      Inventory Atlas data and Spark temporary storage without deleting anything. Show exact
+      |      protection policies and the guarded next step for each configured location.
       |
       |Project commands:
       |  compile
