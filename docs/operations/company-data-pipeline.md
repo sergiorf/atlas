@@ -53,20 +53,234 @@ bundle workflow is accepted and a later compatibility decision changes them.
 
 ## May–July full-data acceptance
 
-1. Confirm capacity for raw inputs, bronze, a complete staged bundle, the active generation, Spark
-   spill, and rollback retention. Do not count `_trash` as free space.
-2. Run `./atlas status`. Require successful company-data and establishment raw status for May,
-   June, and July, plus existing establishment outputs or rebuildable establishment raw inputs.
-3. Inspect every source manifest. Confirm release, required groups, members, sizes, hashes, and
-   TOM/IBGE identities. Never edit a manifest to make it pass.
-4. Run the rebuild without `--force`. Review inputs, generation paths, filesystem/device
-   checks, estimated storage, predecessor order, and retained outputs.
-5. Repeat with `--force`. May seeds state; June compares with May and July with June. The command
-   performs no network access.
-6. Inspect the bundle. Require July to be current, all required components present, all CNPJ
-   releases equal to July, hashes readable, and predecessors ordered May to June to July.
-7. Review quality reports, quarantines, history arithmetic, and representative queries. Retain the
-   prior generation until acceptance is recorded; always retain raw inputs.
+This is a one-time operational acceptance of the v0.3a implementation at national scale. It does
+not replace the blocking validation already performed during refresh, and it is not repeated in
+full for every later monthly release. Run all commands from the repository root unless a step says
+otherwise.
+
+Acceptance is a human decision supported by generated evidence. No command marks a release
+accepted automatically. Use one of these outcomes:
+
+- **Accepted:** every required check passes and no material limitation remains.
+- **Accepted with limitations:** every blocking check passes and each non-blocking limitation is
+  understood, bounded, and recorded.
+- **Rejected:** a blocking check fails, evidence is internally inconsistent, or an unexplained
+  anomaly makes the foundation unsafe to treat as the supported baseline.
+
+Do not edit raw files, manifests, status records, bundle metadata, quality diagnostics, or Parquet
+outputs to make a check pass. Store temporary command output outside the repository, for example
+under `/tmp/atlas-acceptance-2026-07`. Do not commit generated data or private records.
+
+### 1. Create an evidence worksheet
+
+Create a local note outside Git with the following fields:
+
+```text
+Acceptance scope: 2026-05 through 2026-07
+Review date:
+Reviewer:
+Current bundle ID:
+Previous bundle ID:
+
+Raw and manifest verification:
+Publication and component status:
+Counts and history:
+Quality warnings and quarantines:
+Geography coverage:
+Representative query results:
+Storage and resource observations:
+Recovery evidence:
+Limitations:
+
+Decision: accepted | accepted with limitations | rejected
+Decision rationale:
+```
+
+Copy bounded summaries into the worksheet. Refer to large or record-level local diagnostics by
+path; do not copy source records into Git documentation.
+
+### 2. Confirm storage and release inventory
+
+```bash
+./atlas storage usage --release 2026-07 --top 20
+./atlas releases list
+```
+
+Record filesystem free space and the sizes of raw, bundle, work, bronze, silver, quality, and trash
+categories. Passing requires May, June, and July raw inputs to be present and protected, and enough
+free space to retain the current and predecessor bundles. `_trash` is not free space. Do not run
+cleanup as part of acceptance.
+
+### 3. Review status for every release
+
+```bash
+./atlas status --release 2026-05 --verbose
+./atlas status --release 2026-06 --verbose
+./atlas status --release 2026-07 --verbose
+```
+
+For each release, record raw file counts, bronze and silver row counts, history counts, warnings,
+quarantined counts, finish times, and output paths. Passing requires successful raw acquisition
+for company data and establishments and successful atomic publication of the complete range.
+`success_with_warnings` is not an automatic rejection; every warning must be reviewed in step 7.
+
+### 4. Revalidate manifests and rebuild readiness
+
+Run the dry-run only:
+
+```bash
+./atlas releases rebuild-company-data \
+  --from-release 2026-05 \
+  --to-release 2026-07
+```
+
+Passing requires the dry-run to list May, June, and July in chronological order and report that raw
+archives and captures are verified. This revalidates the local manifest evidence without network
+access or data movement.
+
+If a valid May–July bundle is already current, do **not** repeat the command with `--force` merely
+for acceptance. A forced rebuild is expensive and creates a new generation. Use it only when the
+published range is missing, known to be invalid, or the purpose of the exercise is specifically to
+test a full rebuild. When a rebuild is genuinely required, first record the current bundle ID and
+retain both the current and predecessor generations until the replacement has been accepted.
+
+### 5. Inspect the bundle chain
+
+```bash
+./atlas releases inspect-bundle --release 2026-05
+./atlas releases inspect-bundle --release 2026-06
+./atlas releases inspect-bundle --release 2026-07
+./atlas releases inspect-bundle
+```
+
+Record each bundle ID, release, current flag, path, previous bundle ID, source-manifest hashes, and
+component list. Passing requires:
+
+- the unqualified inspection and the July inspection to identify the same current bundle;
+- May to seed the accepted range, June to follow May, and July to follow June;
+- company and establishment source-manifest hashes to be present;
+- all required components to be listed and readable;
+- no component to mix CNPJ releases.
+
+The bundle path printed here is also the root for staged quality evidence used below. Never assemble
+an acceptance view from components belonging to different bundle IDs. Component paths in the JSON
+manifest are relative to that bundle root. For example, combine the printed bundle path with
+`data/silver/receita/company_release_summaries` to query that generation's company summaries.
+
+### 6. Verify counts and history arithmetic
+
+From `apps/etl`, open DuckDB:
+
+```bash
+cd apps/etl
+duckdb
+```
+
+Run the company-history arithmetic query in
+[DuckDB verification examples](#duckdb-verification-examples) against the May, June, and July
+summary component paths resolved beneath their respective printed bundle roots. May is the seed and
+may have no predecessor comparison. For June and July, passing requires:
+
+```text
+current_record_count - previous_record_count = inserted_count - removed_count
+```
+
+Apply the equivalent check to establishment release summaries. Compare the summary counts with
+`atlas status`; differences require investigation. Record counts and equations, not full query
+results containing individual records.
+
+Exit DuckDB with `.quit`, then return to the repository root:
+
+```bash
+cd ../..
+```
+
+### 7. Review quality evidence
+
+For each release, review the warnings reported by verbose status and the quality paths beneath the
+accepted bundle. At minimum:
+
+- compare bronze and silver counts and account for every quarantined row;
+- inspect `duplicate_companies` by row count and distinct `cnpj_root`;
+- inspect `missing_reference_descriptions` by dimension and code;
+- inspect establishment `malformed_rows` and any duplicate-key diagnostic;
+- read `municipality_geography_coverage.json`;
+- record `state_conflict`, reviewed-override, carried-forward, and unresolved counts.
+
+Use the bounded diagnostic queries under
+[DuckDB verification examples](#duckdb-verification-examples). Do not export unrestricted
+diagnostics. Passing requires zero blocking quality failures, zero unresolved municipality
+coverage for used non-null codes, and a written explanation for every non-blocking warning.
+
+### 8. Run representative bundle queries
+
+Using paths from the same accepted bundle, run the first three
+[DuckDB verification examples](#duckdb-verification-examples):
+
+1. establishment-to-company join coverage;
+2. active establishments by official geography;
+3. company legal-nature coverage.
+
+Also run one bounded lead-like inspection:
+
+```sql
+SELECT
+  g.state_abbreviation,
+  g.ibge_municipality_name,
+  e.opening_date,
+  e.main_cnae,
+  COUNT(*) AS establishments
+FROM read_parquet('<establishments_path>/**/*.parquet') e
+JOIN read_parquet('<municipality_geography_path>/**/*.parquet') g
+  ON e.municipality_code = g.receita_municipality_code
+WHERE e.registration_status_code = '02'
+  AND e.opening_date >= DATE '2026-07-01'
+  AND e.opening_date < DATE '2026-08-01'
+GROUP BY 1, 2, 3, 4
+ORDER BY establishments DESC
+LIMIT 20;
+```
+
+This is an inspection, not a gold lead contract. Passing requires readable outputs, credible
+geography and reference values, and no unexplained join or null pattern. Record aggregated,
+bounded results and observations.
+
+### 9. Record resource and recovery evidence
+
+Use status timestamps and any retained Spark logs to record approximate runtime and any observed
+memory pressure, spill, retry, or disk issue. Missing historical peak-memory or spill metrics do
+not require a rebuild; record them as unavailable and decide whether that limitation is acceptable.
+
+Record the recovery evidence actually demonstrated:
+
+- refresh retained immutable raw inputs and verified their hashes;
+- publication selected one complete generation atomically;
+- the current manifest records its predecessor;
+- the predecessor remains present and protected;
+- automated tests cover failed-candidate and pointer-restoration behavior, if verified for the
+  reviewed revision.
+
+Do not switch the live pointer solely to manufacture rollback evidence. If no live rollback was
+performed, state that explicitly as a limitation rather than claiming it occurred.
+
+### 10. Make and record the decision
+
+Choose one acceptance outcome and complete every worksheet field. Reject when a blocking invariant
+fails or a material anomaly remains unexplained. Use **accepted with limitations** when blocking
+validation passes but evidence such as historical resource telemetry or a live rollback exercise
+is unavailable.
+
+After an accepted decision, update the foundation delivery record, unified plan, source catalog,
+manual limitations and dataset status, documentation index, and this runbook in one documentation
+change. State the reviewed releases, bundle ID, decision date, key counts, warnings, limitations,
+and verification commands. Do not publish local paths, raw records, credentials, or generated
+Parquet. After a rejected decision, leave “acceptance pending” in place and record the blocker and
+required remediation without broadening the supported product surface.
+
+Later monthly releases use the normal refresh gates plus a lightweight comparison with the
+previous release. Repeat this full acceptance only after a material change to source layout,
+schema, transformation, quality, history, publication semantics, or execution infrastructure, or
+when an anomaly calls the accepted baseline into question.
 
 The `missing_reference_descriptions` quality diagnostic is non-blocking. It records company codes
 that Receita uses in `Empresas` but omits from the same release's reference dimension. The silver
