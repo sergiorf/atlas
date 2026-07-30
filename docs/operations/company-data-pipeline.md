@@ -1,6 +1,6 @@
 # Company-data and atomic silver bundle runbook
 
-- **Status:** Implemented; full May–July production acceptance remains operator-run
+- **Status:** Implemented and accepted
 - **Applies to:** v0.3a company-data foundation
 
 This is the operator workflow for building Receita company data through the atomic silver bundle.
@@ -32,7 +32,6 @@ times recorded in the bundle. A mixed CNPJ month or unrecorded reference reuse i
 ```bash
 # Network acquisition and raw manifest verification
 ./atlas download receita company-data --release 2026-07
-./atlas download receita estabelecimentos --release 2026-07
 
 # Local-only transformation and atomic publication
 ./atlas refresh receita company-data --release 2026-07
@@ -49,9 +48,19 @@ times recorded in the bundle. A mixed CNPJ month or unrecorded reference reuse i
 There is no public `ingest receita company-data` command. Refresh owns all internal bronze
 and silver stages so a partial table cannot be mistaken for a published bundle. Existing
 establishment ingest, normalize, refresh, and rebuild commands remain recovery tools until the
-bundle workflow is accepted and a later compatibility decision changes them.
+next compatibility decision changes them. The standalone establishment download command remains
+available for establishment-only operation and advanced recovery.
 
 ## May–July full-data acceptance
+
+**Decision:** Accepted with documentation limitations on 2026-07-30.
+
+The operator confirmed that the implemented May–July workflow was validated and authorized v0.3a
+closure. Generated bundle identifiers, production counts, resource telemetry, and record-level
+quality diagnostics remain local and were not supplied for this repository change, so they are not
+reproduced or invented here. This limitation affects the durable audit detail, not the implemented
+contracts or the operator's acceptance decision. Repeat this acceptance if a material pipeline
+change or anomaly calls the baseline into question.
 
 This is a one-time operational acceptance of the v0.3a implementation at national scale. It does
 not replace the blocking validation already performed during refresh, and it is not repeated in
@@ -313,9 +322,9 @@ release validity, authoritative evidence in
 `src/main/resources/atlas/receita/tom-municipality-overrides.csv`, focused tests, and contract
 review. TOM `1182` / IBGE `5101837` for Boa Esperança do Norte is the initial reviewed exception.
 
-For later months, explicitly download both source groups and run one refresh. Refresh
-rejects equal or older releases. A month gap is permitted only when history records the actual
-previous bundle and the selected release is complete.
+For later months, run the coordinated company-data download and one refresh. Refresh rejects equal
+or older releases. A month gap is permitted only when history records the actual previous bundle
+and the selected release is complete.
 
 ## Failure and recovery
 

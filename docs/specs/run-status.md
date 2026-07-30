@@ -34,8 +34,8 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 | `inserted_row_count` | integer | no | Inserted establishment events |
 | `updated_row_count` | integer | no | Updated establishment events |
 | `removed_row_count` | integer | no | Removed establishment events |
-| `file_count` | integer | no | Completed source archives for a raw acquisition |
-| `byte_count` | integer | no | Total bytes across completed source archives |
+| `file_count` | integer | no | Completed raw files counted by the acquisition; coordinated company-data includes archives, reference captures, and extracted establishment inputs |
+| `byte_count` | integer | no | Total bytes across the completed raw files counted by the acquisition |
 | `extracted_file_count` | integer | no | Archives safely extracted during the raw acquisition |
 | `input_paths` | array of strings | yes | Declared input paths or globs |
 | `output_path` | string | no | Intended or produced output location |
@@ -50,10 +50,13 @@ For example, Receita `estabelecimentos` bronze for June 2026 is recorded at `dat
 
 ## Publication and failure behavior
 
-The downloader writes raw `success` only after every selected archive is complete, requested
-extraction is complete, and the manifest is current. An explicit-release failure records `failed`.
-A latest-release discovery failure cannot be assigned a snapshot and therefore cannot create a
-snapshot-scoped record.
+The establishment downloader writes raw `success` only after every selected archive is complete,
+requested extraction is complete, and its manifest is current. The coordinated company-data
+downloader writes its raw `success` only after the company source manifest validates, the
+same-release establishment acquisition and extraction succeeds, and a final read-only check
+confirms both raw trees are refresh-ready. An explicit-release failure records `failed`. A
+latest-release discovery failure in the standalone establishment command cannot be assigned a
+snapshot and therefore cannot create a snapshot-scoped record.
 
 The bronze job writes `success` only after Parquet and quality reports have been written. Standalone silver normalization writes a release-scoped candidate and records `success_with_warnings` when malformed rows were quarantined; it does not publish current. Company-data refresh measures company bronze, aggregated reference bronze and silver, municipality-geography silver, company silver, and company history. Malformed company rows and every row belonging to a duplicate company root are quarantined; company silver publishes the remaining unique rows as `success_with_warnings` and records separate warning evidence and diagnostic paths. Missing reference descriptions are also a non-blocking `success_with_warnings`. For company silver, `quarantined_row_count` is the sum of malformed and duplicate source rows; warning `row_count` values keep those categories separate.
 

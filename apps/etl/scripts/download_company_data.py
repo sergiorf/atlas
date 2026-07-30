@@ -12,6 +12,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
@@ -132,6 +133,81 @@ def save_status(
     save_json(status_dir / "receita" / "company-data" / release / "raw.json", value)
 
 
+def validate_coordinated_readiness(
+    *,
+    release: str,
+    output_root: Path,
+) -> tuple[Path, Path, list[Path]]:
+    """Validate that both immutable raw source groups are ready for local refresh."""
+    company_root = output_root / release / "company-data"
+    company_manifest_path = company_root / "source-manifest.json"
+    if not company_manifest_path.is_file():
+        raise RuntimeError(f"Missing company-data manifest: {company_manifest_path}")
+    try:
+        company_manifest = json.loads(company_manifest_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise RuntimeError(f"Unreadable company-data manifest: {company_manifest_path}") from error
+    diagnostics = company_data_manifest.validate_manifest(company_manifest, company_root)
+    if diagnostics:
+        details = "\n".join(f"  {item.rule} {item.location}: {item.message}" for item in diagnostics)
+        raise RuntimeError(f"Company-data readiness validation failed:\n{details}")
+    if company_manifest.get("release") != release:
+        raise RuntimeError(
+            f"Company-data release mismatch: expected {release}, found {company_manifest.get('release')}"
+        )
+
+    establishment_root = output_root / release / "estabelecimentos"
+    establishment_manifest_path = establishment_root / "manifest.json"
+    if not establishment_manifest_path.is_file():
+        raise RuntimeError(f"Missing establishment manifest: {establishment_manifest_path}")
+    try:
+        establishment_manifest = json.loads(establishment_manifest_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise RuntimeError(f"Unreadable establishment manifest: {establishment_manifest_path}") from error
+    if establishment_manifest.get("month") != release:
+        raise RuntimeError(
+            "Establishment release mismatch: "
+            f"expected {release}, found {establishment_manifest.get('month')}"
+        )
+    if establishment_manifest.get("dataset") != "estabelecimentos":
+        raise RuntimeError(
+            "Establishment manifest dataset mismatch: "
+            f"expected estabelecimentos, found {establishment_manifest.get('dataset')}"
+        )
+    files = establishment_manifest.get("files")
+    if not isinstance(files, dict) or not files:
+        raise RuntimeError("Establishment manifest contains no completed archives")
+
+    ready_files: list[Path] = []
+    extracted_root = establishment_root / "extracted"
+    for filename in sorted(files):
+        entry = files[filename]
+        if not isinstance(entry, dict) or entry.get("status") != "complete":
+            raise RuntimeError(f"Establishment archive is not complete: {filename}")
+        if entry.get("extracted") is not True:
+            raise RuntimeError(f"Establishment archive is not extracted: {filename}")
+        archive_path = establishment_root / "archives" / filename
+        if not archive_path.is_file():
+            raise RuntimeError(f"Missing establishment archive: {archive_path}")
+        expected_bytes = entry.get("bytes")
+        if not isinstance(expected_bytes, int) or archive_path.stat().st_size != expected_bytes:
+            raise RuntimeError(f"Establishment archive size mismatch: {archive_path}")
+        try:
+            with zipfile.ZipFile(archive_path) as archive:
+                members = [member for member in archive.infolist() if not member.is_dir()]
+                if not members:
+                    raise RuntimeError(f"Establishment archive contains no files: {archive_path}")
+                for member in members:
+                    extracted_path = download_receita.safe_member_path(extracted_root, member.filename)
+                    if not extracted_path.is_file() or extracted_path.stat().st_size != member.file_size:
+                        raise RuntimeError(f"Missing or incomplete extracted file: {extracted_path}")
+                    ready_files.append(extracted_path)
+        except zipfile.BadZipFile as error:
+            raise RuntimeError(f"Invalid establishment archive: {archive_path}") from error
+
+    return company_manifest_path, establishment_manifest_path, ready_files
+
+
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser_ = argparse.ArgumentParser(description="Acquire and verify Receita company-data raw inputs.")
     parser_.add_argument("--month", required=True, help="Snapshot in YYYY-MM format.")
@@ -209,12 +285,33 @@ def main(argv: Iterable[str] | None = None) -> int:
         save_json(manifest_path, manifest)
         all_files = [raw_root / archive["path"] for dataset in datasets for archive in dataset["archives"]]
         all_files.extend((tom_path, ibge_path))
+        download_receita.main([
+            "--month", release,
+            "--output-root", str(args.output_root),
+            "--status-dir", str(args.status_dir),
+            "--base-url", args.base_url,
+            "--share-token", args.share_token,
+            "--extract",
+        ])
+        company_manifest_path, establishment_manifest_path, extracted_files = (
+            validate_coordinated_readiness(release=release, output_root=args.output_root)
+        )
+        establishment_manifest = json.loads(establishment_manifest_path.read_text(encoding="utf-8"))
+        establishment_archives = [
+            args.output_root / release / "estabelecimentos" / "archives" / filename
+            for filename in establishment_manifest["files"]
+        ]
+        all_ready_files = all_files + establishment_archives + extracted_files
         save_status(
             args.status_dir, release=release, started_at=started_at, status="success",
-            input_paths=input_paths, output_path=manifest_path,
-            file_count=len(all_files), byte_count=sum(path.stat().st_size for path in all_files),
+            input_paths=input_paths, output_path=company_manifest_path,
+            file_count=len(all_ready_files),
+            byte_count=sum(path.stat().st_size for path in all_ready_files),
         )
-        print(f"Verified company-data source manifest: {manifest_path}")
+        print(f"Verified company-data source manifest: {company_manifest_path}")
+        print(f"Verified establishment manifest: {establishment_manifest_path}")
+        print(f"Receita company-data {release} is ready for local refresh.")
+        print(f"Next: ./atlas refresh receita company-data --release {release}")
         return 0
     except (OSError, RuntimeError, ValueError, urllib.error.URLError) as error:
         try:

@@ -18,10 +18,13 @@ Usage:
 
 Pipeline commands:
   download receita company-data --release YYYY-MM
-      Download or resume Empresas, six Receita reference groups, TOM, and IBGE Localities;
-      write and verify their immutable pre-bronze source manifest; and record raw status.
+      Acquire and verify the complete same-release company and establishment raw input set.
+      Download or resume Empresas, six Receita reference groups, TOM, IBGE Localities, and
+      Estabelecimentos; preserve separate manifests; extract establishment inputs; and record
+      success only after the final readiness check.
 
   download receita estabelecimentos [--release YYYY-MM|--latest] [--no-extract]
+      Standalone establishment acquisition and advanced recovery command.
       Download or resume the Receita archives, extract them by default, preserve raw bytes, and
       record the raw stage in the Atlas status registry.
 

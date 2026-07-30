@@ -37,7 +37,7 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Storage usage inventory contract](specs/storage-usage.md)
 - [Unified storage cleanup contract](specs/storage-cleanup.md)
 - [Receita company and reference sources](specs/datasets/receita-company-reference-sources.md) —
-  implemented through atomic silver; full-data acceptance pending
+  implemented and accepted through atomic silver
 - [Receita company source manifest](specs/schemas/receita-company-source-manifest.md) — implemented
   raw acquisition and validation gate
 

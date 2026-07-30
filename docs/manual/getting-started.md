@@ -23,18 +23,19 @@ The default status view summarizes every recorded snapshot and expands problems 
 one. Use `./atlas status --release YYYY-MM` to inspect another snapshot, or
 `./atlas status --verbose` when exact timestamps and generated paths are needed.
 
-For the complete company-data bundle, acquire both immutable source groups and then run the
-local-only refresh:
+For the complete company-data bundle, run the coordinated acquisition and then the local-only
+refresh:
 
 ```bash
 ./atlas download receita company-data --release 2026-05
-./atlas download receita estabelecimentos --release 2026-05
 ./atlas refresh receita company-data --release 2026-05
 ./atlas releases inspect-bundle
 ./atlas status
 ```
 
-The two downloaders preserve separate raw layouts and manifests. Refresh performs no network I/O
+The coordinator invokes the existing establishment acquisition with the same release and preserves
+separate raw layouts and manifests. The standalone `download receita estabelecimentos` command
+remains available for establishment-only operation and recovery. Refresh performs no network I/O
 and publishes only after every component and quality gate succeeds. See the
 [company-data runbook](../operations/company-data-pipeline.md).
 

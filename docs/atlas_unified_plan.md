@@ -272,9 +272,9 @@ publishing derived state. Exact fields, paths, quality behavior, commands, and r
 belong to the implemented [specifications](index.md#implemented-specifications) and
 [operations guides](operations/local-etl.md), rather than this product plan.
 
-The May–July full-data acceptance remains operator-run. Routine company-data acquisition still
-uses two commands—one for the company source package and one for establishments—before the
-local-only atomic refresh.
+The May–July foundation was operator-accepted with documentation limitations on 2026-07-30.
+Routine company-data acquisition now coordinates the company source package and matching
+establishments with one explicit-release command before the local-only atomic refresh.
 
 `Simples`, `Socios`, corporate relationship graphs, CNAE business groups, lead exports, gold,
 serving, API, UI, search, AI, billing, sanctions, procurement, Docker, cloud deployment,
@@ -312,8 +312,7 @@ outside the local foundation.
 
 ```mermaid
 flowchart LR
-    A["Completed foundation<br/>v0.1–v0.3a"] --> B["Acceptance and acquisition<br/>hardening"]
-    B --> C["Company products and<br/>corporate relationships"]
+    A["Completed foundation<br/>v0.1–v0.3a"] --> C["Company products and<br/>corporate relationships"]
     C --> D["Graph-ready aggregates"]
     D --> E["Risk"]
     E --> F["Procurement"]
@@ -323,20 +322,17 @@ flowchart LR
 
 ### Completed foundation — v0.1 through v0.3a
 
-Atlas has implemented the local ETL, establishment bronze and silver, compact establishment
-history, company and reference ingestion, TOM-to-IBGE geography, compact company history, and
-atomic same-release silver bundles. Completed task lists have been removed from the active
-roadmap; their behavior and compatibility now belong to the
+Atlas has implemented and accepted the local ETL, establishment bronze and silver, compact
+establishment history, company and reference ingestion, TOM-to-IBGE geography, compact company
+history, and atomic same-release silver bundles. Completed task lists have been removed from the
+active roadmap; their behavior and compatibility now belong to the
 [implemented specifications](index.md#implemented-specifications).
 
-Two exit checks remain before expanding the supported surface:
-
-1. Record the operator-run May–July full-data acceptance: counts, quality evidence, resource
-   observations, and representative bundle queries.
-2. Make `download receita company-data` coordinate the matching establishment acquisition and a
-   final same-release readiness check. Preserve separate immutable raw layouts, manifests,
-   resumability, and downloader implementations; retain the establishment downloader as an
-   advanced recovery command.
+The May–July workflow was operator-confirmed as validated on 2026-07-30. Detailed generated bundle
+identifiers, counts, telemetry, and record-level diagnostics remain local and were not supplied for
+the documentation change. Routine `download receita company-data` coordinates matching
+establishment acquisition and a final same-release readiness check while preserving separate
+immutable raw layouts, manifests, resumability, and the establishment recovery command.
 
 ### Next — company products and corporate relationships (v0.3b)
 

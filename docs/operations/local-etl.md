@@ -52,16 +52,19 @@ The command downloads or resumes `Empresas` and the six Receita reference archiv
 captures the official TOM municipality CSV and IBGE Localities municipality hierarchy. It streams
 every archive member through the source-manifest checks and writes
 `data/raw/receita/<release>/company-data/source-manifest.json`. A successful run records
-`receita / company-data / <release> / raw`; a failed verification records failure and does not
-authorize bronze ingestion. Rerunning preserves completed archives and reference captures.
+`receita / company-data / <release> / raw` only after it also invokes the existing establishment
+acquisition for the exact release, extracts its Spark inputs, and verifies both manifests and raw
+trees. A failed verification records failure and does not authorize bronze ingestion. Rerunning
+preserves completed archives and reference captures.
 IBGE responses may be stored as publisher-served gzip bytes; the manifest records that encoding
 and validation decodes it without rewriting the capture.
 
-This command does not extract archives, write bronze, modify the existing establishment raw tree,
-or publish company tables. The separate `download receita estabelecimentos` command remains the
-supported input workflow for the existing establishment pipeline.
+The company-source archives are not extracted during acquisition. The command writes no bronze and
+publishes no company tables. It does populate the separate establishment raw tree through the
+existing downloader. The standalone `download receita estabelecimentos` command remains supported
+for the establishment-only pipeline and advanced recovery.
 
-After both source groups are available, follow the [company-data and atomic silver bundle
+After the coordinated readiness check passes, follow the [company-data and atomic silver bundle
 runbook](company-data-pipeline.md). Its rebuild command is dry-run by default, builds releases in
 chronological order with `--force`, and publishes only after the complete candidate passes.
 

@@ -4,10 +4,10 @@
 - **Owner:** `apps/etl/scripts/download_company_data.py` and `company_data_manifest.py`
 - **Contract version:** `manifest_version = 1`
 
-The public `./atlas download receita company-data --release YYYY-MM` command performs restartable
-raw acquisition and applies this gate. Bundle refresh revalidates manifest release agreement,
-required inputs, paths, and SHA-256 values before extraction or Spark work. Full-release acceptance
-remains an operator-run check.
+The public `./atlas download receita company-data --release YYYY-MM` command coordinates
+restartable acquisition of this source package and the matching establishment source, then applies
+a final same-release readiness gate. Bundle refresh revalidates manifest release agreement,
+required inputs, paths, and SHA-256 values before extraction or Spark work.
 
 ## Root object
 
@@ -80,10 +80,12 @@ The acquisition command stores inputs under
 records `receita / company-data / <release> / raw` status. It declares `latin-1` for both CNPJ CSV
 members and the official TOM capture; validation disagreement fails visibly.
 
-This is a new, separate manifest version and does not read, rewrite, or migrate the implemented
-`Estabelecimentos` downloader manifest. A future acquisition implementation may generalize shared
-concepts only with explicit compatibility analysis and tests.
+This manifest remains separate from the implemented `Estabelecimentos` downloader manifest. The
+coordinator reads but does not rewrite or migrate either manifest. A future acquisition
+implementation may generalize shared concepts only with explicit compatibility analysis and tests.
 
 The selected-release gate is complete only after this validator succeeds against real local
-inputs and the resulting filenames, multiplicity, parser settings, sizes, and hashes are reviewed.
-Synthetic test success alone does not authorize bronze ingestion.
+inputs and the coordinator verifies that the establishment manifest names the same release, all
+declared archives are complete and size-consistent, and every archive member has a complete
+extracted file. `.part` files never satisfy readiness. Synthetic test success alone does not
+authorize bronze ingestion.

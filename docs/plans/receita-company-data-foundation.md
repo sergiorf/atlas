@@ -1,12 +1,12 @@
 # Receita company-data foundation delivery record
 
-- **Status:** Implemented; full-data acceptance pending
+- **Status:** Completed and operator-accepted
 - **Roadmap milestone:** v0.3a
 - **Purpose:** Historical decision and handoff record
 
 The company-data foundation is implemented through atomic silver publication. This page records
-the delivered boundary and the remaining acceptance work; it no longer repeats schemas, quality
-rules, commands, or recovery behavior owned by active specifications and operations guides.
+the delivered boundary and completion decision; it no longer repeats schemas, quality rules,
+commands, or recovery behavior owned by active specifications and operations guides.
 
 ## Delivered boundary
 
@@ -30,17 +30,20 @@ The design deliberately keeps raw acquisition separate from transformation, requ
 CNPJ release across monthly inputs, pins reference captures by hash, and exposes a single bundle
 pointer so consumers cannot assemble mixed-release current tables.
 
-## Remaining acceptance and hardening
+## Completion record
 
-The operator-run May–July acceptance must still record full-data counts, quality evidence,
-resource use, representative queries, rollback evidence, and confirmation that raw bytes remain
-unchanged. The next operational hardening task is a coordinated company-data download command that
-also invokes the existing establishment acquisition module and performs a final same-release
-readiness check.
+The May–July national-scale workflow was operator-confirmed as validated and accepted with
+documentation limitations on 2026-07-30. Generated bundle identifiers, production counts,
+resource telemetry, and record-level diagnostics remain local and were not supplied for this
+repository change; Atlas does not invent or commit them.
 
-These are exit checks on the implemented foundation, not missing transformation stages. Gold
-company profiles, `Simples`, `Socios`, corporate relationship graphs, CNAE business groups, lead
-exports, serving, API, and UI remain later roadmap work.
+The normal `download receita company-data` workflow now coordinates the existing establishment
+acquisition for the exact release and applies a final readiness check across both separately
+preserved raw layouts and manifests. The standalone establishment downloader remains an advanced
+recovery command. These changes complete the v0.3a exit checks.
+
+Gold company profiles, `Simples`, `Socios`, corporate relationship graphs, CNAE business groups,
+and lead exports belong to v0.3b. Serving, API, and UI remain later roadmap work.
 
 ## Active owners
 

@@ -2,8 +2,9 @@
 
 Atlas currently:
 
-- implements Receita `Estabelecimentos` and the company-data atomic silver workflow, but the
-  May–July full-data acceptance must still record production counts, performance, and quality evidence;
+- implements and has operator-accepted the Receita `Estabelecimentos` and company-data atomic
+  silver foundation; detailed production evidence remains local because generated data and
+  record-level diagnostics are not committed;
 - accepts coexisting numeric and uppercase alphanumeric CNPJs, validates their canonical structure but not their checksum;
 - converts valid `yyyyMMdd` dates and represents invalid or blank dates as null;
 - enforces unique company and establishment identifiers and applies documented bundle quality

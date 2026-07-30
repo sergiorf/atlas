@@ -77,7 +77,7 @@ Current identifiers intentionally reflect existing job contracts:
 | Operation | `source` | `dataset` | `layer` |
 | --- | --- | --- | --- |
 | Raw acquisition | `receita` | `estabelecimentos` | `raw` |
-| Company-data source acquisition and verification | `receita` | `company-data` | `raw` |
+| Coordinated company-data acquisition and readiness | `receita` | `company-data` | `raw` |
 | Bronze ingestion | `receita` | `estabelecimentos` | `bronze` |
 | Silver normalization/publication | `receita` | `establishments` | `silver` |
 | Compact change history | `receita` | `estabelecimentos_history` | `history` |
@@ -98,7 +98,9 @@ release is recorded at the same identity. If `--latest` fails before Receita rep
 there is no snapshot identity under which Atlas can record that attempt.
 
 The company-data downloader records `receita / company-data / <release> / raw` only after its
-source manifest validates. Failure uses the same identity and preserves diagnostics for `atlas status`.
+source manifest validates, the matching establishment acquisition succeeds, and the final
+same-release readiness gate passes. Failure uses the same identity and preserves diagnostics for
+`atlas status`. The separate establishment raw status remains visible for component-level recovery.
 Successful atomic publication records `receita / company-data / <release> / bundle` and points to
 the immutable generation selected by `current_bundle.json`. Component rows and diagnostics are
 measured during staging but become canonical only after that same generation is selected.

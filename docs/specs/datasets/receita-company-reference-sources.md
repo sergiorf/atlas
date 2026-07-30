@@ -1,11 +1,12 @@
 # Receita company and reference source interpretation
 
-- **Status:** Implemented through atomic silver bundle; full-data acceptance pending
+- **Status:** Implemented and accepted through atomic silver bundle
 - **Owner:** raw acquisition in `apps/etl/scripts`; transformation in `apps/etl/src/main/scala/atlas/receita`
 - **Roadmap:** v0.3a Receita company data foundation
 
 Raw acquisition, bronze, reference, geography, company silver, history, and atomic bundle behavior
-are runnable. Full-data acceptance remains an explicit operator step.
+are implemented. The May–July national-scale foundation acceptance was operator-confirmed on
+2026-07-30.
 
 The [source-manifest contract](../schemas/receita-company-source-manifest.md) owns the implemented
 restartable acquisition and strict local verification gate. It does not implement bronze or any
@@ -78,8 +79,9 @@ The declarative Scala schemas and synthetic fixtures verify field shape only. Th
 writers, or evidence that a specific monthly snapshot is locally complete. The manifest validator
 proves only the local inputs supplied to it.
 
-The command makes selected-release capture reproducible, but full public-data acceptance remains
-an operator action and no downloaded manifest is committed to this repository.
+The coordinated command makes selected-release capture reproducible and verifies that the matching
+establishment acquisition is ready before reporting success. No downloaded manifest is committed
+to this repository.
 
 `Estabelecimentos` retains its implemented specification. `Simples` and `Socios` are excluded from
 this tranche. Population, boundaries, gold products, and business-defined CNAE groups are also

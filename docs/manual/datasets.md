@@ -11,7 +11,8 @@ only the first twelve positions may contain uppercase letters, while check digit
 Atlas can acquire, verify, and transform the company-data source bundle (`Empresas`, six Receita
 references, TOM, and IBGE Localities) together with matching establishments. It publishes company,
 reference, geography, history, and establishment components through one atomic silver bundle.
-Full May–July acceptance remains operator-run, and silver is not a public query product.
+The May–July foundation acceptance was operator-confirmed on 2026-07-30. Silver remains an internal
+contract rather than a public query product.
 
 Silver establishments have unique identifiers, normalized status, CNAE, location and contact
 fields, retained bronze lineage, compact release-to-release change events, and one analytical
@@ -24,8 +25,7 @@ and the implemented schemas in the
 The canonical [Dataset and source catalog](../source_catalog.md) uses three classes:
 
 - **Supported** means implemented behavior covered by an active specification. This includes
-  Receita CNPJ `Estabelecimentos` and the v0.3a company-data foundation, whose large May–July
-  acceptance evidence remains pending.
+  Receita CNPJ `Estabelecimentos` and the accepted v0.3a company-data foundation.
 - **Planned** means approved roadmap work through v0.6 that remains unsupported until implemented.
 - **Candidate** means a demand-dependent later source with no implementation commitment.
 
