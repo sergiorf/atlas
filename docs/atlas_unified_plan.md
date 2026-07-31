@@ -276,8 +276,10 @@ The May–July foundation was operator-accepted with documentation limitations o
 Routine company-data acquisition now coordinates the company source package and matching
 establishments with one explicit-release command before the local-only atomic refresh.
 
-`Simples`, `Socios`, corporate relationship graphs, CNAE business groups, lead exports, gold,
-serving, API, UI, search, AI, billing, sanctions, procurement, Docker, cloud deployment,
+`Simples`, reviewed `Socios`, deterministic corporate relationships, versioned CNAE business
+groups, company-profile/partner-network/lead gold, and controlled lead exports are implemented
+pending national-scale operator acceptance. Serving, API, UI, search, AI, billing, sanctions,
+procurement, Docker, cloud deployment,
 streaming, and orchestration platforms remain outside the implemented boundary.
 
 ## Raw-data safety and migration
@@ -334,7 +336,7 @@ the documentation change. Routine `download receita company-data` coordinates ma
 establishment acquisition and a final same-release readiness check while preserving separate
 immutable raw layouts, manifests, resumability, and the establishment recovery command.
 
-### Next — company products and corporate relationships (v0.3b)
+### Active acceptance — company products and corporate relationships (v0.3b)
 
 - ingest `Simples` and reviewed `Socios` data through source-faithful bronze and contracted silver;
 - build deterministic Brazilian company-to-company relationship edges from reviewed QSA legal

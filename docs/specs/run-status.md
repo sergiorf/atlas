@@ -70,7 +70,7 @@ the failed publication attempt and uses `output_path` for that retained candidat
 The same staged-then-activate rule applies to full rebuild. If a job throws after metadata is
 known, it makes a best-effort write of `failed` and rethrows the original exception.
 
-The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. History component `row_count` and `output_row_count` are event counts; silver component counts are produced rows. Durable analytical metrics live in the silver release-summary datasets. Missing means no run was recorded. No files are created for unimplemented gold, serving/index, or dashboard work.
+The registry does not prove that an output still exists or is complete; it reports the latest recorded attempt. History component `row_count` and `output_row_count` are event counts; silver component counts are produced rows. Durable analytical metrics live in release summaries and contracted gold components. Missing means no run was recorded. No files are created for unimplemented serving/index or dashboard work.
 
 Changing field meaning, identity/path conventions, required fields, status values, or replacement semantics requires compatibility analysis and a contract-version decision. Generated registry files remain local and are ignored by Git.
 

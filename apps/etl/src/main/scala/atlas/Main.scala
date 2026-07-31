@@ -18,6 +18,7 @@ import atlas.release.{
   TrashPurgeService
 }
 import atlas.receita.SilverEstablishmentJob
+import atlas.export.{LeadExportRequest, LeadExportService}
 import atlas.status.{RunStatusRegistry, StatusTable}
 import java.nio.file.Paths
 
@@ -35,7 +36,15 @@ object Main {
       toRelease: Option[String] = None,
       olderThanDays: Int = 7,
       category: Option[String] = None,
-      top: Int = 20
+      top: Int = 20,
+      group: Option[String] = None,
+      state: Option[String] = None,
+      municipalityCode: Option[String] = None,
+      openedFrom: Option[String] = None,
+      openedBefore: Option[String] = None,
+      format: String = "csv",
+      output: Option[String] = None,
+      limit: Int = 100000
   )
   def main(args: Array[String]): Unit = {
     val cli = parseArgs(args.toList)
@@ -174,6 +183,16 @@ object Main {
         withSpark(config) { spark =>
           println(CompanyBundleService.render(CompanyBundleService.refresh(spark, config, release)))
         }
+      case "export-leads" =>
+        withSpark(config) { spark =>
+          val result = LeadExportService.run(spark, config, LeadExportRequest(
+            cli.group.getOrElse(throw new IllegalArgumentException("Missing --group")),
+            cli.state, cli.municipalityCode, cli.openedFrom, cli.openedBefore, cli.format,
+            Paths.get(cli.output.getOrElse(throw new IllegalArgumentException("Missing --output"))),
+            cli.limit, cli.force
+          ))
+          println(s"Exported ${result.rowCount} lead rows to ${result.output}; manifest=${result.manifest}")
+        }
       case unknown => throw new IllegalArgumentException(s"Unknown command: $unknown")
     }
   }
@@ -226,6 +245,7 @@ object Main {
     case "status" :: tail                         => parseStatus(tail)
     case "storage" :: "usage" :: tail             => parseStorageUsage(tail)
     case "storage" :: "cleanup" :: tail           => parseStorageCleanup(tail)
+    case "export-leads" :: tail                   => parseLeadExport(tail)
     case command :: "--config" :: path :: Nil     => Cli(command, path)
     case command :: "--release" :: release :: Nil => Cli(command, release = Some(release))
     case command :: "--release" :: release :: "--allow-legacy-current" :: Nil =>
@@ -276,6 +296,39 @@ object Main {
       throw new IllegalArgumentException(
         "Usage: atlas.Main <ingest-receita-estabelecimentos|normalize-receita-estabelecimentos|refresh-receita-estabelecimentos|status|help|version>"
       )
+  }
+
+  private def parseLeadExport(args: List[String]): Cli = {
+    def loop(rest: List[String], cli: Cli): Cli = rest match {
+      case Nil =>
+        if (cli.group.isEmpty || cli.output.isEmpty)
+          throw new IllegalArgumentException("export-leads requires --group and --output")
+        cli
+      case "--group" :: value :: tail if cli.group.isEmpty =>
+        loop(tail, cli.copy(group = Some(value)))
+      case "--state" :: value :: tail if cli.state.isEmpty =>
+        loop(tail, cli.copy(state = Some(value)))
+      case "--municipality-code" :: value :: tail if cli.municipalityCode.isEmpty =>
+        loop(tail, cli.copy(municipalityCode = Some(value)))
+      case "--opened-from" :: value :: tail if cli.openedFrom.isEmpty =>
+        loop(tail, cli.copy(openedFrom = Some(value)))
+      case "--opened-before" :: value :: tail if cli.openedBefore.isEmpty =>
+        loop(tail, cli.copy(openedBefore = Some(value)))
+      case "--format" :: value :: tail => loop(tail, cli.copy(format = value))
+      case "--output" :: value :: tail if cli.output.isEmpty =>
+        loop(tail, cli.copy(output = Some(value)))
+      case "--limit" :: value :: tail =>
+        val parsed = try value.toInt catch {
+          case _: NumberFormatException => throw new IllegalArgumentException("--limit requires an integer")
+        }
+        loop(tail, cli.copy(limit = parsed))
+      case "--force" :: tail => loop(tail, cli.copy(force = true))
+      case _ => throw new IllegalArgumentException(
+        "Usage: export-leads --group GROUP --output PATH [--state UF] [--municipality-code CODE] " +
+          "[--opened-from YYYY-MM-DD] [--opened-before YYYY-MM-DD] [--format csv|parquet] [--limit N] [--force]"
+      )
+    }
+    loop(args, Cli("export-leads"))
   }
 
   private def parseStatus(args: List[String]): Cli = {
@@ -435,6 +488,9 @@ object Main {
       |  refresh receita company-data --release YYYY-MM
       |      Build matching company, establishment, reference, and geography silver data locally,
       |      append compact history, validate the complete candidate, and atomically publish one bundle.
+      |
+      |  export-leads --group GROUP --output PATH [filters]
+      |      Export a bounded deterministic projection of the current gold lead product.
       |
       |Status and release commands:
       |  status [--release YYYY-MM] [--verbose|--json]

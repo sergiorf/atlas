@@ -22,11 +22,15 @@ class CompanyDataManifestTest(unittest.TestCase):
     def fixture(self, root: Path) -> dict:
         datasets = []
         for name, fields in company_data_manifest.REQUIRED_DATASETS.items():
-            rows = (
-                '12AB5678;"ACME; BRASIL\\";2062;49;123,45;03;\n'
-                if name == "empresas"
-                else f'{name[:3]};"Description; {name}"\n'
-            ).encode("utf-8")
+            if name == "empresas":
+                row = '12AB5678;"ACME; BRASIL\\";2062;49;123,45;03;'
+            elif name == "socios":
+                row = "12AB5678;1;PARTNER SA;98CD7654000199;49;20200101;105;;;" + "49;0"
+            elif name == "simples":
+                row = "12AB5678;S;20200101;;N;;"
+            else:
+                row = f'{name[:3]};"Description; {name}"'
+            rows = (row + "\n").encode("utf-8")
             archive_path = root / "archives" / f"{name}.zip"
             archive_path.parent.mkdir(parents=True, exist_ok=True)
             member_name = f"{name}/{name}.csv"
@@ -86,7 +90,7 @@ class CompanyDataManifestTest(unittest.TestCase):
             encoding="utf-8",
         )
         return {
-            "manifest_version": 1,
+            "manifest_version": company_data_manifest.MANIFEST_VERSION,
             "release": "2026-07",
             "created_at": "2026-07-20T12:10:00Z",
             "publisher": "receita-federal",

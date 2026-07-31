@@ -20,6 +20,32 @@ object CompanyDataSchemas {
 
   val empresasRaw: StructType = nullableStrings(empresaColumns)
 
+  val simplesColumns: Seq[String] = Seq(
+    "cnpj_root",
+    "simples_option_raw",
+    "simples_option_date_raw",
+    "simples_exclusion_date_raw",
+    "mei_option_raw",
+    "mei_option_date_raw",
+    "mei_exclusion_date_raw"
+  )
+  val simplesRaw: StructType = nullableStrings(simplesColumns)
+
+  val sociosColumns: Seq[String] = Seq(
+    "source_company_cnpj_root",
+    "participant_type_code",
+    "participant_name",
+    "participant_identifier_raw",
+    "participant_qualification_code",
+    "entry_date_raw",
+    "country_code",
+    "representative_identifier_raw",
+    "representative_name",
+    "representative_qualification_code",
+    "age_range_code"
+  )
+  val sociosRaw: StructType = nullableStrings(sociosColumns)
+
   val empresasBronze: StructType = StructType(
     Seq(
       StructField("cnpj_root", StringType, nullable = true),

@@ -29,10 +29,12 @@ DATASET_PATTERNS = {
     "paises": re.compile(r"^Paises\.zip$", re.IGNORECASE),
     "qualificacoes": re.compile(r"^Qualificacoes\.zip$", re.IGNORECASE),
     "motivos": re.compile(r"^Motivos\.zip$", re.IGNORECASE),
+    "socios": re.compile(r"^Socios\d+\.zip$", re.IGNORECASE),
+    "simples": re.compile(r"^Simples\.zip$", re.IGNORECASE),
 }
 DEFAULT_TOM_URL = "https://www.gov.br/receitafederal/dados/municipios.csv/@@download/file"
 DEFAULT_IBGE_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios"
-PRODUCER_VERSION = "atlas-company-data-download/1"
+PRODUCER_VERSION = "atlas-company-data-download/2"
 
 
 def utc_now() -> str:

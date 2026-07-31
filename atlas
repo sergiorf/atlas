@@ -45,6 +45,9 @@ Pipeline commands:
       Locally build matching company, establishment, reference, and geography silver data,
       append compact history, and atomically publish the validated bundle.
 
+  export-leads --group GROUP --output PATH [filters]
+      Export a bounded deterministic projection of the current gold lead product.
+
 Status and release commands:
   status [--release YYYY-MM] [--verbose|--json]
       Summarize recorded releases and show problems for the newest snapshot. Select one release,
@@ -257,6 +260,10 @@ case "$1" in
   releases)
     shift
     run_main releases "$@"
+    ;;
+  export-leads)
+    shift
+    run_main export-leads "$@"
     ;;
   *)
     echo "Unknown command: $1. Run ./atlas help." >&2

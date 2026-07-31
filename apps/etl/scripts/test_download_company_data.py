@@ -37,13 +37,15 @@ def ibge_payload() -> bytes:
 class DownloadCompanyDataTest(unittest.TestCase):
     def entries(self):
         names = ["Empresas0.zip", "Cnaes.zip", "Municipios.zip", "Naturezas.zip",
-                 "Paises.zip", "Qualificacoes.zip", "Motivos.zip"]
+                 "Paises.zip", "Qualificacoes.zip", "Motivos.zip", "Socios0.zip",
+                 "Simples.zip"]
         return [{"name": name, "collection": False, "size": None} for name in names]
 
     @staticmethod
     def fake_archive_download(_url, destination, _expected_size, _token):
         destination.parent.mkdir(parents=True, exist_ok=True)
-        fields = 7 if destination.name.lower().startswith("empresas") else 2
+        lower = destination.name.lower()
+        fields = 11 if lower.startswith("socios") else 7 if lower.startswith(("empresas", "simples")) else 2
         with zipfile.ZipFile(destination, "w") as archive:
             archive.writestr(destination.stem + ".csv", ";".join(["x"] * fields) + "\n")
         return destination.stat().st_size
@@ -112,7 +114,7 @@ class DownloadCompanyDataTest(unittest.TestCase):
             self.assertEqual(manifest["references"]["ibge_localities"]["content_encoding"], "gzip")
             status = json.loads((root / "status/receita/company-data/2026-05/raw.json").read_text())
             self.assertEqual(status["status"], "success")
-            self.assertEqual(status["file_count"], 11)
+            self.assertEqual(status["file_count"], 13)
             self.assertEqual(status["output_path"], str(manifest_path))
             establishment_args = establishment_main.call_args.args[0]
             self.assertEqual(establishment_args[establishment_args.index("--month") + 1], "2026-05")

@@ -6,6 +6,17 @@ import atlas.status.RunStatusRegistry
 import org.scalatest.funsuite.AnyFunSuite
 
 class MainTest extends AnyFunSuite {
+  test("parses controlled lead export filters") {
+    val cli = Main.parseArgs(List(
+      "export-leads", "--group", "software_services", "--state", "PE",
+      "--opened-from", "2026-07-01", "--opened-before", "2026-08-01",
+      "--output", "/tmp/leads", "--limit", "500"
+    ))
+    assert(cli.command === "export-leads")
+    assert(cli.group.contains("software_services"))
+    assert(cli.state.contains("PE"))
+    assert(cli.limit === 500)
+  }
   test("parses the status command") {
     assert(Main.parseArgs(List("status")) === Main.Cli("status"))
     assert(Main.parseArgs(List("status", "--json")) === Main.Cli("status", json = true))

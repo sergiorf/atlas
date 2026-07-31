@@ -2,7 +2,7 @@ package atlas.release
 
 import atlas.config.AtlasConfig
 import atlas.history.{CompanyHistoryJob, EstablishmentHistoryJob}
-import atlas.receita.{CompanyDataManifestReader, CompanyDataPaths, CompanyDataPipeline, ReceitaIngestJob}
+import atlas.receita.{CompanyDataManifestReader, CompanyDataPaths, CompanyDataPipeline, CompanyProductsPipeline, ReceitaIngestJob}
 import atlas.status.{RunStatus, RunStatusRegistry}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
@@ -128,6 +128,17 @@ object CompanyBundleService {
   def render(inspection: BundleInspection): String =
     s"bundle_id=${inspection.bundleId}\nrelease=${inspection.release}\ncurrent=${inspection.current}\npath=${inspection.path}\n${inspection.manifest}"
 
+  def componentPath(config: AtlasConfig, name: String): Path = {
+    val current = inspect(config, None).getOrElse(throw new IllegalStateException("No current company-data bundle"))
+    val pattern = (
+      "\\{\\\"name\\\":\\\"" + java.util.regex.Pattern.quote(name) +
+        "\\\",\\\"path\\\":\\\"([^\\\"]+)\\\""
+    ).r
+    val relative = pattern.findFirstMatchIn(current.manifest).map(_.group(1))
+      .getOrElse(throw new IllegalArgumentException(s"Current bundle has no component: $name"))
+    current.path.resolve(relative).normalize()
+  }
+
   private def buildRelease(spark: SparkSession, config: AtlasConfig, bundleId: String): Unit = {
     ReceitaIngestJob.run(spark, config)
     EstablishmentHistoryJob.refresh(spark, config)
@@ -157,6 +168,26 @@ object CompanyBundleService {
       insertedRowCount = Some(history.inserted), updatedRowCount = Some(history.updated),
       removedRowCount = Some(history.removed)
     ))
+    if (companyBuild.manifest.manifestVersion >= 2) {
+      val products = CompanyProductsPipeline.build(spark, config, companyBuild.manifest)
+      Seq(
+        ("company-tax-regime", "silver", CompanyDataPaths.silverTaxRegime(config), products.taxRegimeCount),
+        ("partners", "silver", CompanyDataPaths.silverPartners(config), products.partnerCount),
+        ("company-relationships", "silver", CompanyDataPaths.silverRelationships(config), products.relationshipCount),
+        ("company-profiles", "gold", CompanyDataPaths.goldCompanyProfiles(config), products.profileCount),
+        ("company-partner-network", "gold", CompanyDataPaths.goldPartnerNetwork(config), products.networkCount),
+        ("leads-new-companies", "gold", CompanyDataPaths.goldLeads(config), products.leadCount)
+      ).foreach { case (dataset, layer, output, count) =>
+        val completedAt = Instant.now()
+        RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
+          "receita", dataset, config.receita.snapshot, layer, "success",
+          completedAt, completedAt, 0.0, Some(count),
+          Seq(companyBuild.manifest.manifestPath.toString), Some(output.toString), Seq.empty,
+          Some("1"), Some(config.spark.appName), Some("refresh-receita-company-data"),
+          outputRowCount = Some(count)
+        ))
+      }
+    }
     deleteTree(ReleasePaths(config).atlasRoot.resolve("work"))
   }
 
@@ -184,6 +215,21 @@ object CompanyBundleService {
   private[atlas] def validateBundle(spark: SparkSession, config: AtlasConfig, releases: Seq[ReleaseId]): Unit = {
     val companies = spark.read.parquet(CompanyDataPaths.silverCompanies(config).toString)
     val establishments = spark.read.parquet(ReleasePaths(config).silverCurrent.toString)
+    val manifest = CompanyDataManifestReader.readAndValidate(config)
+    if (manifest.manifestVersion >= 2) {
+      val required = Seq(
+        CompanyDataPaths.silverTaxRegime(config),
+        CompanyDataPaths.silverPartners(config),
+        CompanyDataPaths.silverRelationships(config),
+        CompanyDataPaths.relationshipObservations(config),
+        CompanyDataPaths.goldCompanyProfiles(config),
+        CompanyDataPaths.goldPartnerNetwork(config),
+        CompanyDataPaths.goldRelationshipPaths(config),
+        CompanyDataPaths.goldLeads(config)
+      )
+      required.foreach(path => if (!Files.exists(path))
+        throw new IllegalStateException(s"Missing v0.3b bundle component: $path"))
+    }
     val companyReleases = companies.select("release").distinct().collect().map(_.getString(0)).toSeq
     val establishmentReleases = establishments.select("release").distinct().collect().map(_.getString(0)).toSeq
     if (companyReleases != Seq(config.receita.snapshot) || establishmentReleases != Seq(config.receita.snapshot))
@@ -271,7 +317,7 @@ object CompanyBundleService {
       releases: Seq[ReleaseId],
       previous: Option[String]
   ): Unit = {
-    val components = Seq(
+    val baseComponents = Seq(
       "companies" -> CompanyDataPaths.silverCompanies(config),
       "establishments" -> ReleasePaths(config).silverCurrent,
       "company_history" -> CompanyHistoryJob.eventRoot(config),
@@ -279,7 +325,19 @@ object CompanyBundleService {
       "company_summaries" -> CompanyHistoryJob.summaryRoot(config),
       "establishment_summaries" -> ReleasePaths(config).summaryRoot,
       "municipality_geography" -> CompanyDataPaths.geography(config)
-    ) ++ atlas.receita.CompanyDataSchemas.referenceGroups.map(name => name -> CompanyDataPaths.silverReference(config, name))
+    )
+    val productComponents = if (CompanyDataManifestReader.readAndValidate(config).manifestVersion >= 2) Seq(
+      "company_tax_regime" -> CompanyDataPaths.silverTaxRegime(config),
+      "partners" -> CompanyDataPaths.silverPartners(config),
+      "company_relationships" -> CompanyDataPaths.silverRelationships(config),
+      "relationship_observations" -> CompanyDataPaths.relationshipObservations(config),
+      "gold_company_profiles" -> CompanyDataPaths.goldCompanyProfiles(config),
+      "gold_company_partner_network" -> CompanyDataPaths.goldPartnerNetwork(config),
+      "gold_company_relationship_paths" -> CompanyDataPaths.goldRelationshipPaths(config),
+      "gold_leads_new_companies" -> CompanyDataPaths.goldLeads(config)
+    ) else Seq.empty
+    val components = baseComponents ++ productComponents ++
+      atlas.receita.CompanyDataSchemas.referenceGroups.map(name => name -> CompanyDataPaths.silverReference(config, name))
     val componentJson = components.map { case (name, path) =>
       val relative = staging.relativize(path).toString.replace('\\', '/')
       s"""{"name":"${escape(name)}","path":"${escape(relative)}","sha256":"${directoryHash(path)}"}"""

@@ -11,9 +11,11 @@ Atlas currently:
   gates, but quarantined duplicate companies can leave unmatched establishments;
 - resolves official company reference descriptions and TOM-to-IBGE municipality hierarchy, but
   does not add population, area, geometry, or density;
-- does not implement `Simples`, `Socios`, corporate relationship graphs, CNAE business groups,
-  gold tables, exports, scheduled refresh, API, UI, search, ranking, billing, AI, sanctions, or
-  procurement;
+- implements `Simples`, source-faithful `Socios`, deterministic Brazilian legal-entity
+  relationships, versioned CNAE groups, company-profile/partner-network/lead gold, and controlled
+  lead exports; it does not resolve natural people, assert unsupported control, materialize
+  unrestricted graph closure, or provide scheduled refresh, API, UI, search, ranking, billing,
+  AI, sanctions, or procurement;
 - runs locally and is designed around a 32 GB RAM, 1 TB SSD development machine.
 
 Silver is an internal pipeline contract, not a published product surface. DuckDB lead and graph examples are demonstrations, not supported product contracts.

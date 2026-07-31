@@ -26,6 +26,8 @@ Atlas documentation separates product direction, implemented contracts, user gui
 ## Implemented specifications
 
 - [Receita CNPJ dataset](specs/datasets/receita-cnpj.md)
+- [Receita Socios and Simples](specs/datasets/receita-socios-simples.md)
+- [Receita company-product schemas](specs/schemas/receita-company-products.md)
 - [Raw Receita estabelecimentos layout](specs/schemas/raw-receita-cnpj.md)
 - [Bronze Receita estabelecimentos schema](specs/schemas/bronze-receita-cnpj.md)
 - [Receita estabelecimentos quality rules](specs/quality/receita-cnpj-quality-rules.md)
@@ -55,6 +57,7 @@ These internal contracts are implemented by the atomic company-data bundle workf
 - [Receita company-data foundation delivery record](plans/receita-company-data-foundation.md)
 - [Company-data and atomic silver bundle runbook](operations/company-data-pipeline.md) — implemented
   commands and May–July acceptance workflow
+- [Company products and lead exports](operations/company-products.md)
 
 ## Planned work
 

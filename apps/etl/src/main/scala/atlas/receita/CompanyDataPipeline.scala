@@ -27,7 +27,8 @@ final case class CompanyDataManifest(
     tomHash: String,
     ibge: Path,
     ibgeHash: String,
-    ibgeEncoding: Option[String]
+    ibgeEncoding: Option[String],
+    manifestVersion: Int = 1
 )
 
 final case class CompanyDataBuildResult(
@@ -69,9 +70,25 @@ object CompanyDataPaths {
   def workRoot(config: AtlasConfig): Path = atlasRoot(config).resolve("work/receita/company-data").resolve(s"release=${config.receita.snapshot}")
   def extractedRoot(config: AtlasConfig): Path = workRoot(config).resolve("extracted")
   def bronzeCompanies(config: AtlasConfig): Path = Paths.get(config.receita.bronzeDir).resolve("empresas").resolve(s"release=${config.receita.snapshot}")
+  def bronzeSimples(config: AtlasConfig): Path = Paths.get(config.receita.bronzeDir).resolve("simples").resolve(s"release=${config.receita.snapshot}")
+  def bronzePartners(config: AtlasConfig): Path = Paths.get(config.receita.bronzeDir).resolve("socios").resolve(s"release=${config.receita.snapshot}")
   def bronzeReference(config: AtlasConfig, dimension: String): Path = Paths.get(config.receita.bronzeDir).resolve("references").resolve(dimension).resolve(s"release=${config.receita.snapshot}")
   def silverCompanies(config: AtlasConfig): Path = Paths.get(config.receita.silverDir).resolve("companies_current")
   def silverCompanyCandidate(config: AtlasConfig): Path = workRoot(config).resolve("companies_candidate")
+  def silverTaxRegimeCandidate(config: AtlasConfig): Path = workRoot(config).resolve("tax_regime_candidate")
+  def silverPartnersCandidate(config: AtlasConfig): Path = workRoot(config).resolve("partners_candidate")
+  def silverRelationshipsCandidate(config: AtlasConfig): Path = workRoot(config).resolve("relationships_candidate")
+  def silverTaxRegime(config: AtlasConfig): Path = Paths.get(config.receita.silverDir).resolve("company_tax_regime_current")
+  def silverPartners(config: AtlasConfig): Path = Paths.get(config.receita.silverDir).resolve("partners_current")
+  def silverRelationships(config: AtlasConfig): Path = Paths.get(config.receita.silverDir).resolve("company_relationships_current")
+  def relationshipObservations(config: AtlasConfig): Path = Paths.get(config.receita.silverDir).resolve("relationship_observations").resolve(s"release=${config.receita.snapshot}")
+  def relationshipHistory(config: AtlasConfig): Path = Paths.get(config.receita.silverDir).resolve("relationship_history")
+  def goldRoot(config: AtlasConfig): Path =
+    Paths.get(config.receita.silverDir).resolve("../..").normalize().resolve("gold/receita")
+  def goldCompanyProfiles(config: AtlasConfig): Path = goldRoot(config).resolve("company_profiles_current")
+  def goldPartnerNetwork(config: AtlasConfig): Path = goldRoot(config).resolve("company_partner_network_current")
+  def goldRelationshipPaths(config: AtlasConfig): Path = goldRoot(config).resolve("company_relationship_paths_current")
+  def goldLeads(config: AtlasConfig): Path = goldRoot(config).resolve("leads_new_companies_current")
   def silverReference(config: AtlasConfig, dimension: String): Path = Paths.get(config.receita.silverDir).resolve("references").resolve(dimension).resolve(s"release=${config.receita.snapshot}")
   def geography(config: AtlasConfig): Path = Paths.get(config.receita.silverDir).resolve("geography/municipalities").resolve(s"version=${config.receita.snapshot}")
   def qualityRoot(config: AtlasConfig): Path = atlasRoot(config).resolve("quality/receita/company-data").resolve(config.receita.snapshot)
@@ -80,7 +97,7 @@ object CompanyDataPaths {
 }
 
 object CompanyDataManifestReader {
-  private val Required = Map(
+  private val LegacyRequired = Map(
     "empresas" -> "empresas",
     "cnae" -> "cnae",
     "municipios" -> "municipality",
@@ -89,12 +106,16 @@ object CompanyDataManifestReader {
     "qualificacoes" -> "partner_qualification",
     "motivos" -> "registration_status_reason"
   )
+  private val V2Required = LegacyRequired ++ Map("socios" -> "socios", "simples" -> "simples")
 
   def readAndValidate(config: AtlasConfig): CompanyDataManifest = {
     val raw = CompanyDataPaths.rawRoot(config).toAbsolutePath.normalize()
     val path = raw.resolve("source-manifest.json")
     if (!Files.isRegularFile(path)) throw new IllegalArgumentException(s"Missing company-data manifest: $path")
     val root = ConfigFactory.parseFile(path.toFile).resolve()
+    val manifestVersion = root.getInt("manifest_version")
+    if (manifestVersion != 1 && manifestVersion != 2)
+      throw new IllegalArgumentException(s"Unsupported company-data manifest version: $manifestVersion")
     val release = root.getString("release")
     if (release != config.receita.snapshot)
       throw new IllegalArgumentException(s"Company-data manifest release $release does not match ${config.receita.snapshot}")
@@ -102,9 +123,10 @@ object CompanyDataManifestReader {
     val duplicateNames = entries.groupBy(_.getString("logical_name")).collect { case (name, values) if values.size > 1 => name }
     if (duplicateNames.nonEmpty) throw new IllegalArgumentException(s"Duplicate manifest datasets: ${duplicateNames.mkString(", ")}")
     val byName = entries.map(value => value.getString("logical_name") -> value).toMap
-    val missing = Required.keySet.diff(byName.keySet)
+    val required = if (manifestVersion == 2) V2Required else LegacyRequired
+    val missing = required.keySet.diff(byName.keySet)
     if (missing.nonEmpty) throw new IllegalArgumentException(s"Missing company-data datasets: ${missing.toSeq.sorted.mkString(", ")}")
-    val datasets = Required.map { case (source, target) =>
+    val datasets = required.map { case (source, target) =>
       val value = byName(source)
       if (value.getString("release") != release) throw new IllegalArgumentException(s"Mixed release for dataset $source")
       val archives = value.getConfigList("archives").asScala.map { archive =>
@@ -118,7 +140,8 @@ object CompanyDataManifestReader {
     val ibge = verified(raw, ibgeConfig.getString("path"), ibgeConfig.getString("sha256"))
     CompanyDataManifest(
       release, path, sha256(path), datasets, tom, tomConfig.getString("sha256"), ibge,
-      ibgeConfig.getString("sha256"), if (ibgeConfig.hasPath("content_encoding")) Some(ibgeConfig.getString("content_encoding")) else None
+      ibgeConfig.getString("sha256"), if (ibgeConfig.hasPath("content_encoding")) Some(ibgeConfig.getString("content_encoding")) else None,
+      manifestVersion
     )
   }
 

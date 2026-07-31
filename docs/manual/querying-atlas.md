@@ -148,7 +148,9 @@ ORDER BY cnpj_branch, cnpj_check;
 
 Numeric and alphanumeric CNPJs coexist. Keep every CNPJ field as a string: the first twelve positions may contain uppercase letters, the final two check positions remain numeric, and leading zeros are significant. Do not cast identifiers to numeric types.
 
-Atlas currently has an establishment table, not a complete company-profile table. Grouping by `cnpj_root` is useful for inspection but does not define company-level product semantics.
+Atlas now publishes a company-profile gold table through the atomic company-data bundle. Grouping
+silver establishments remains useful for internal inspection but does not replace the gold
+company-profile contract.
 
 ## Explore status, geography, dates, and CNAE
 
@@ -197,7 +199,9 @@ WHERE main_cnae = '6201501'
 LIMIT 100;
 ```
 
-Municipality values are currently Receita codes, not resolved names. CNAEs are source codes, and Atlas has not yet implemented business CNAE groups. These examples must not be presented as city-name enrichment or a supported lead product.
+Silver establishment municipality values remain Receita codes. The atomic bundle separately
+provides official geography, and v0.3b gold leads apply versioned business CNAE groups. These
+silver examples still do not define lead-product behavior.
 
 ## Inspect compact change history
 

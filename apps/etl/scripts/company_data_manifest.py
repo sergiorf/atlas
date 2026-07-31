@@ -18,7 +18,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO
 
 
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
+SUPPORTED_MANIFEST_VERSIONS = {1, 2}
 RELEASE_PATTERN = re.compile(r"^\d{4}-\d{2}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_DATASETS = {
@@ -29,6 +30,11 @@ REQUIRED_DATASETS = {
     "paises": 2,
     "qualificacoes": 2,
     "motivos": 2,
+    "socios": 11,
+    "simples": 7,
+}
+LEGACY_REQUIRED_DATASETS = {
+    name: fields for name, fields in REQUIRED_DATASETS.items() if name not in {"socios", "simples"}
 }
 REFERENCE_INPUTS = {"tom": 5, "ibge_localities": None}
 CHUNK_SIZE = 1024 * 1024
@@ -288,8 +294,18 @@ def _verify_reference(raw_root: Path, name: str, item: Any, diagnostics: list[Di
 def validate_manifest(manifest: dict[str, Any], raw_root: Path) -> list[Diagnostic]:
     """Return deterministic diagnostics; an empty result means the manifest is valid."""
     diagnostics: list[Diagnostic] = []
-    if manifest.get("manifest_version") != MANIFEST_VERSION:
-        diagnostics.append(Diagnostic("CDM_VERSION", "manifest_version", f"must be {MANIFEST_VERSION}"))
+    manifest_version = manifest.get("manifest_version")
+    if manifest_version not in SUPPORTED_MANIFEST_VERSIONS:
+        diagnostics.append(
+            Diagnostic(
+                "CDM_VERSION",
+                "manifest_version",
+                f"must be one of {sorted(SUPPORTED_MANIFEST_VERSIONS)}",
+            )
+        )
+    required_datasets = (
+        REQUIRED_DATASETS if manifest_version == MANIFEST_VERSION else LEGACY_REQUIRED_DATASETS
+    )
     release = manifest.get("release")
     if not isinstance(release, str) or not RELEASE_PATTERN.fullmatch(release):
         diagnostics.append(Diagnostic("CDM_RELEASE", "release", "must use YYYY-MM"))
@@ -302,19 +318,19 @@ def validate_manifest(manifest: dict[str, Any], raw_root: Path) -> list[Diagnost
         datasets = []
     by_name: dict[str, dict[str, Any]] = {}
     for index, item in enumerate(datasets):
-        if not isinstance(item, dict) or item.get("logical_name") not in REQUIRED_DATASETS:
+        if not isinstance(item, dict) or item.get("logical_name") not in required_datasets:
             diagnostics.append(Diagnostic("CDM_DATASET_NAME", f"datasets[{index}]", "unknown or missing logical_name"))
             continue
         name = item["logical_name"]
         if name in by_name:
             diagnostics.append(Diagnostic("CDM_DATASET_DUPLICATE", f"datasets[{index}]", f"duplicate dataset: {name}"))
         by_name[name] = item
-    for name in REQUIRED_DATASETS:
+    for name in required_datasets:
         if name not in by_name:
             diagnostics.append(Diagnostic("CDM_DATASET_MISSING", "datasets", f"missing required dataset: {name}"))
 
     seen_members: set[str] = set()
-    for name, expected_fields in REQUIRED_DATASETS.items():
+    for name, expected_fields in required_datasets.items():
         item = by_name.get(name)
         if item is None:
             continue

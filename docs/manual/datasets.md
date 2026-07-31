@@ -14,6 +14,11 @@ reference, geography, history, and establishment components through one atomic s
 The May–July foundation acceptance was operator-confirmed on 2026-07-30. Silver remains an internal
 contract rather than a public query product.
 
+v0.3b also supports `Simples` and reviewed `Socios`. Masked natural-person evidence remains
+internal and is not resolved across companies. Gold products expose company profiles,
+evidence-preserving legal-entity partner networks, bounded relationship paths, versioned CNAE
+business groups, and establishment-grained new-company leads.
+
 Silver establishments have unique identifiers, normalized status, CNAE, location and contact
 fields, retained bronze lineage, compact release-to-release change events, and one analytical
 summary per published release. See the [dataset specification](../specs/datasets/receita-cnpj.md)
