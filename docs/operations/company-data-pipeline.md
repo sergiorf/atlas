@@ -212,6 +212,8 @@ accepted bundle. At minimum:
 - compare bronze and silver counts and account for every quarantined row;
 - inspect `duplicate_companies` by row count and distinct `cnpj_root`;
 - inspect `missing_reference_descriptions` by dimension and code;
+- aggregate `partner_field_quality_issues` by field and reason; affected partner rows remain in
+  silver with a null normalized field and are not quarantined;
 - inspect establishment `malformed_rows` and any duplicate-key diagnostic;
 - read `municipality_geography_coverage.json`;
 - record `state_conflict`, reviewed-override, carried-forward, and unresolved counts.

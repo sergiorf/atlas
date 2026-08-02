@@ -122,3 +122,7 @@ For company silver, `malformed_companies` reports structurally invalid rows and
 groups do not block the bundle: all rows in the group are excluded, the remaining table is
 published uniquely, and status is `success_with_warnings`. The displayed quarantine total combines
 malformed and duplicate rows; each warning retains its own count and diagnostic path.
+
+Partner silver uses `partner_field_quality_issues` for source fields that cannot be normalized but
+do not invalidate the partner record. The warning count is the number of field issues, while the
+affected partner rows remain published and do not contribute to `quarantined_row_count`.

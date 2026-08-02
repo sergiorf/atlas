@@ -10,6 +10,17 @@ negative tax assertion.
 
 `partners_current` has one row per source QSA record. It preserves source evidence, privacy class,
 qualification, provenance, release, and stable record identity. It is internal.
+`entry_date_raw` preserves the nullable source value. `entry_date` is a nullable date normalized
+only from an eight-digit real calendar value between `1582-10-15` and the end of the declared
+release month, inclusive. A value outside that contract leaves `entry_date` null without excluding
+the partner row.
+
+`partner_field_quality_issues` is an internal, release-scoped quality diagnostic with
+`partner_record_id`, `source_company_cnpj_root`, `field_name`, `raw_value`, `quality_reason`,
+`source_file`, and `release`. Its stable reason codes are `invalid_date_format`,
+`invalid_calendar_date`, `date_before_supported_minimum`, and `date_after_release`. Blank source
+dates produce no issue. The diagnostic can contain source-linked natural-person evidence and is
+not a gold or export component.
 
 `company_relationships_current` contains only deterministic legal-entity edges:
 

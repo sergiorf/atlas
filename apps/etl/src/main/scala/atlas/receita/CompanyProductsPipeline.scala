@@ -4,6 +4,7 @@ import atlas.config.AtlasConfig
 import com.typesafe.config.ConfigFactory
 import java.io.File
 import java.nio.file.{Files, Path}
+import java.time.{LocalDate, YearMonth}
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.storage.StorageLevel
@@ -12,6 +13,7 @@ import scala.collection.JavaConverters._
 final case class CompanyProductsResult(
     taxRegimeCount: Long,
     partnerCount: Long,
+    partnerFieldQualityIssueCount: Long,
     relationshipCount: Long,
     profileCount: Long,
     networkCount: Long,
@@ -20,6 +22,7 @@ final case class CompanyProductsResult(
 
 /** v0.3b company products derived only from the same-release atomic silver candidate. */
 object CompanyProductsPipeline {
+  private val EarliestSupportedPartnerDate = LocalDate.of(1582, 10, 15)
   val RelationshipRuleVersion = "1"
   val GraphCalculationVersion = "1"
   val MaximumMaterializedPathDepth = 3
@@ -41,6 +44,10 @@ object CompanyProductsPipeline {
 
     val tax = buildTaxRegime(spark, config, simplesInputs, companies)
     val partners = buildPartners(spark, config, sociosInputs, companies, references)
+    val partnerFieldQualityIssueCount = {
+      val path = CompanyDataPaths.qualityRoot(config).resolve("partner_field_quality_issues")
+      if (Files.exists(path)) spark.read.parquet(path.toString).count() else 0L
+    }
     val relationships = buildRelationships(spark, config, partners, companies)
     tax.write.mode("overwrite").parquet(CompanyDataPaths.silverTaxRegime(config).toString)
     partners.write.mode("overwrite").parquet(CompanyDataPaths.silverPartners(config).toString)
@@ -53,7 +60,8 @@ object CompanyProductsPipeline {
     leads.write.mode("overwrite").parquet(CompanyDataPaths.goldLeads(config).toString)
 
     CompanyProductsResult(
-      tax.count(), partners.count(), relationships.count(), profiles.count(), network.count(), leads.count()
+      tax.count(), partners.count(), partnerFieldQualityIssueCount, relationships.count(), profiles.count(),
+      network.count(), leads.count()
     )
   }
 
@@ -146,9 +154,23 @@ object CompanyProductsPipeline {
       .withColumn("_invalid", col("source_company_cnpj_root").isNull ||
         !col("source_company_cnpj_root").rlike("^[0-9A-Z]{8}$") ||
         !col("participant_type_code").isin("1", "2", "3"))
+      .withColumn("_entry_date_parsed", sourceDate(col("entry_date_raw")))
+      .withColumn("_entry_date_quality_reason", partnerDateQualityReason(
+        col("entry_date_raw"), col("_entry_date_parsed"), config.receita.snapshot
+      ))
       .persist(StorageLevel.DISK_ONLY)
     try {
-      writeDiagnostic(candidate.filter(col("_invalid")), CompanyDataPaths.qualityRoot(config).resolve("malformed_partners"))
+      writeDiagnostic(candidate.filter(col("_invalid"))
+        .drop("_entry_date_parsed", "_entry_date_quality_reason"),
+        CompanyDataPaths.qualityRoot(config).resolve("malformed_partners"))
+      val fieldQualityIssues = candidate.filter(!col("_invalid") && col("_entry_date_quality_reason").isNotNull)
+        .select(
+          col("partner_record_id"), col("source_company_cnpj_root"),
+          lit("entry_date_raw").as("field_name"), col("entry_date_raw").as("raw_value"),
+          col("_entry_date_quality_reason").as("quality_reason"), col("source_file"), col("release")
+        )
+      writeDiagnostic(fieldQualityIssues,
+        CompanyDataPaths.qualityRoot(config).resolve("partner_field_quality_issues"))
       val accepted = candidate.filter(!col("_invalid")).drop("_invalid")
         .join(companies.select("cnpj_root").withColumnRenamed("cnpj_root", "_source_root"),
           col("source_company_cnpj_root") === col("_source_root"), "left_semi")
@@ -158,7 +180,9 @@ object CompanyProductsPipeline {
           when(col("participant_type_code") === "1" &&
             col("participant_identifier_raw").rlike("^[0-9A-Z]{12}[0-9]{2}$"),
             substring(col("participant_identifier_raw"), 1, 8)))
-        .withColumn("entry_date", sourceDate(col("entry_date_raw")))
+        .withColumn("entry_date",
+          when(col("_entry_date_quality_reason").isNull, col("_entry_date_parsed"))
+            .otherwise(lit(null).cast("date")))
         .withColumn("relationship_class", relationshipClass(col("participant_qualification_description")))
         .withColumn("relationship_rule_version", lit(RelationshipRuleVersion))
         .withColumn("privacy_class",
@@ -166,6 +190,7 @@ object CompanyProductsPipeline {
             .when(col("participant_type_code") === "3", lit("FOREIGN_PARTICIPANT"))
             .otherwise(lit("LEGAL_ENTITY")))
         .withColumn("silver_transformation_timestamp", current_timestamp())
+        .drop("_entry_date_parsed", "_entry_date_quality_reason")
       accepted.write.mode("overwrite").parquet(CompanyDataPaths.silverPartnersCandidate(config).toString)
       spark.read.parquet(CompanyDataPaths.silverPartnersCandidate(config).toString)
     } finally candidate.unpersist()
@@ -476,6 +501,17 @@ object CompanyProductsPipeline {
 
   private def invalidSourceDate(value: Column): Column =
     value.isNotNull && (!value.rlike("^[0-9]{8}$") || to_date(value, "yyyyMMdd").isNull)
+
+  private def partnerDateQualityReason(value: Column, parsed: Column, release: String): Column = {
+    val releaseEnd = YearMonth.parse(release).atEndOfMonth()
+    when(value.isNull, lit(null).cast("string"))
+      .when(!value.rlike("^[0-9]{8}$"), lit("invalid_date_format"))
+      .when(parsed.isNull, lit("invalid_calendar_date"))
+      .when(parsed < lit(EarliestSupportedPartnerDate.toString).cast("date"),
+        lit("date_before_supported_minimum"))
+      .when(parsed > lit(releaseEnd.toString).cast("date"), lit("date_after_release"))
+      .otherwise(lit(null).cast("string"))
+  }
 
   private def relationshipClass(description: Column): Column = {
     val upperDescription = upper(coalesce(description, lit("")))

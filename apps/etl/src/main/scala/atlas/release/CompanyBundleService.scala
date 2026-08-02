@@ -3,7 +3,7 @@ package atlas.release
 import atlas.config.AtlasConfig
 import atlas.history.{CompanyHistoryJob, EstablishmentHistoryJob}
 import atlas.receita.{CompanyDataManifestReader, CompanyDataPaths, CompanyDataPipeline, CompanyProductsPipeline, ReceitaIngestJob}
-import atlas.status.{RunStatus, RunStatusRegistry}
+import atlas.status.{QualityWarning, RunStatus, RunStatusRegistry}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.time.Instant
@@ -170,21 +170,30 @@ object CompanyBundleService {
     ))
     if (companyBuild.manifest.manifestVersion >= 2) {
       val products = CompanyProductsPipeline.build(spark, config, companyBuild.manifest)
+      val partnerWarnings =
+        if (products.partnerFieldQualityIssueCount == 0) Seq.empty
+        else Seq(QualityWarning(
+          "partner_field_quality_issues",
+          products.partnerFieldQualityIssueCount,
+          "Partner fields could not be normalized; affected partner rows were retained",
+          CompanyDataPaths.qualityRoot(config).resolve("partner_field_quality_issues").toString
+        ))
       Seq(
-        ("company-tax-regime", "silver", CompanyDataPaths.silverTaxRegime(config), products.taxRegimeCount),
-        ("partners", "silver", CompanyDataPaths.silverPartners(config), products.partnerCount),
-        ("company-relationships", "silver", CompanyDataPaths.silverRelationships(config), products.relationshipCount),
-        ("company-profiles", "gold", CompanyDataPaths.goldCompanyProfiles(config), products.profileCount),
-        ("company-partner-network", "gold", CompanyDataPaths.goldPartnerNetwork(config), products.networkCount),
-        ("leads-new-companies", "gold", CompanyDataPaths.goldLeads(config), products.leadCount)
-      ).foreach { case (dataset, layer, output, count) =>
+        ("company-tax-regime", "silver", CompanyDataPaths.silverTaxRegime(config), products.taxRegimeCount, Seq.empty),
+        ("partners", "silver", CompanyDataPaths.silverPartners(config), products.partnerCount, partnerWarnings),
+        ("company-relationships", "silver", CompanyDataPaths.silverRelationships(config), products.relationshipCount, Seq.empty),
+        ("company-profiles", "gold", CompanyDataPaths.goldCompanyProfiles(config), products.profileCount, Seq.empty),
+        ("company-partner-network", "gold", CompanyDataPaths.goldPartnerNetwork(config), products.networkCount, Seq.empty),
+        ("leads-new-companies", "gold", CompanyDataPaths.goldLeads(config), products.leadCount, Seq.empty)
+      ).foreach { case (dataset, layer, output, count, warnings) =>
         val completedAt = Instant.now()
         RunStatusRegistry.write(Paths.get(config.statusDir), RunStatus(
-          "receita", dataset, config.receita.snapshot, layer, "success",
+          "receita", dataset, config.receita.snapshot, layer,
+          if (warnings.isEmpty) "success" else "success_with_warnings",
           completedAt, completedAt, 0.0, Some(count),
           Seq(companyBuild.manifest.manifestPath.toString), Some(output.toString), Seq.empty,
           Some("1"), Some(config.spark.appName), Some("refresh-receita-company-data"),
-          outputRowCount = Some(count)
+          outputRowCount = Some(count), qualityWarnings = warnings
         ))
       }
     }

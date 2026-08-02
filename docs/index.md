@@ -28,6 +28,7 @@ Atlas documentation separates product direction, implemented contracts, user gui
 - [Receita CNPJ dataset](specs/datasets/receita-cnpj.md)
 - [Receita Socios and Simples](specs/datasets/receita-socios-simples.md)
 - [Receita company-product schemas](specs/schemas/receita-company-products.md)
+- [Receita company-product quality rules](specs/quality/receita-company-products-quality-rules.md)
 - [Raw Receita estabelecimentos layout](specs/schemas/raw-receita-cnpj.md)
 - [Bronze Receita estabelecimentos schema](specs/schemas/bronze-receita-cnpj.md)
 - [Receita estabelecimentos quality rules](specs/quality/receita-cnpj-quality-rules.md)

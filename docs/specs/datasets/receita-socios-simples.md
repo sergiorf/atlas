@@ -18,6 +18,14 @@ The official `Socios` layout has eleven fields covering source company, particip
 CNPJ/CPF, qualification, entry date, country, representative evidence, and age range.
 Participant types are `1` legal entity, `2` natural person, and `3` foreign participant.
 
+Atlas preserves the source `Socios` entry-date value. Silver parses an eight-digit real calendar
+date only when it is on or after `1582-10-15` and no later than the final day of the declared
+Receita release month. Blank values remain null without a warning. Values with an invalid format,
+an impossible calendar date, an earlier date, or a date after the release remain preserved as raw
+evidence, produce a null normalized date, and are reported as non-blocking field-quality issues.
+The partner record itself remains eligible for silver because an unusable date does not disprove
+the source-reported relationship.
+
 Receita masks CPF values in public QSA files. Atlas retains source-shaped names and masked
 identifiers only in internal bronze and silver. It does not use them as stable person identifiers,
 merge people across companies, or include them in gold relationships or lead exports. A company

@@ -76,6 +76,20 @@ FROM read_parquet(
 
 Selecting a release prevents an investigation from accidentally mixing snapshots. Replace `2026-07` with the release being examined.
 
+Aggregate partner field-quality issues before inspecting any source-linked records:
+
+```sql
+SELECT field_name, quality_reason, count(*) AS issue_count
+FROM read_parquet(
+  'data/_atlas/quality/receita/company-data/2026-07/partner_field_quality_issues/**/*.parquet'
+)
+GROUP BY field_name, quality_reason
+ORDER BY issue_count DESC, field_name, quality_reason;
+```
+
+The path exists only when the release has issues. These diagnostics can contain source-linked
+natural-person evidence, so do not export unrestricted rows.
+
 ## Discover schemas and available data
 
 Inspect columns and types without guessing field names:

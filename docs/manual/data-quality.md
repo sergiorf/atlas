@@ -19,3 +19,9 @@ An establishment UF that disagrees with the official state of its resolved munic
 reported as `state_conflict` but does not reject the complete bundle. Atlas preserves the
 establishment UF and municipality code as published and preserves the independently verified
 geography mapping; it does not silently repair either value.
+
+Partner field-quality issues are distinct from rejected partner records. A non-blank partner entry
+date with an invalid format, an impossible calendar value, a value before `1582-10-15`, or a value
+after the declared release month is recorded in `partner_field_quality_issues`. Atlas preserves the
+raw value, publishes the partner with a null normalized date, and reports the partner silver stage
+as `success_with_warnings`; these issues do not increase its quarantined-row count.

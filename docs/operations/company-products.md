@@ -32,3 +32,9 @@ output aside.
 Before accepting a national release, inspect source/bronze reconciliation, tax domains, partner
 types and resolution, graph components/cycles/path growth, gold uniqueness, lead counts, runtime,
 shuffle/spill, and storage. Never commit generated data, exports, or record-level diagnostics.
+
+Partner entry-date normalization issues are retained under
+`quality/receita/company-data/<release>/partner_field_quality_issues`. They are non-blocking:
+the source value remains in internal silver, the normalized date is null, and the partner status is
+`success_with_warnings`. Review aggregate counts by `field_name` and `quality_reason` before any
+record-level inspection because the diagnostic can contain source-linked natural-person evidence.

@@ -57,6 +57,54 @@ class CompanyProductsPipelineTest extends AnyFunSuite with SparkSuite {
     assert(!relationships.columns.contains("representative_identifier_raw"))
   }
 
+  test("retains partners and diagnoses entry dates that cannot be normalized") {
+    val session = spark
+    import session.implicits._
+    val root = Files.createTempDirectory("atlas-socios-dates")
+    val config = testConfig(root)
+    val input = root.resolve("socios.csv")
+    Files.writeString(input,
+      "12345678;1;VALID SA;12ABC345000199;49;20260731;105;;;;0\n" +
+        "12345678;1;BLANK SA;12ABC345000199;49;;105;;;;0\n" +
+        "12345678;1;FORMAT SA;12ABC345000199;49;2026-01-01;105;;;;0\n" +
+        "12345678;1;CALENDAR SA;12ABC345000199;49;20260230;105;;;;0\n" +
+        "12345678;1;ANCIENT SA;12ABC345000199;49;00010101;105;;;;0\n" +
+        "12345678;1;BOUNDARY SA;12ABC345000199;49;15821015;105;;;;0\n" +
+        "12345678;1;FUTURE SA;12ABC345000199;49;20260801;105;;;;0\n",
+      StandardCharsets.ISO_8859_1)
+    val companies = Seq("12345678", "12ABC345").toDF("cnpj_root")
+    val qualifications = Seq("49" -> "SOCIO-ADMINISTRADOR").toDF("code", "description")
+
+    val partners = CompanyProductsPipeline.buildPartners(
+      spark, config, Seq(input), companies, qualifications
+    )
+
+    assert(partners.count() === 7L)
+    assert(partners.filter(col("participant_name") === "VALID SA").head()
+      .getAs[java.sql.Date]("entry_date").toString === "2026-07-31")
+    assert(partners.filter(col("participant_name") === "BOUNDARY SA").head()
+      .getAs[java.sql.Date]("entry_date").toString === "1582-10-15")
+    Seq("BLANK SA", "FORMAT SA", "CALENDAR SA", "ANCIENT SA", "FUTURE SA").foreach { name =>
+      val row = partners.filter(col("participant_name") === name).head()
+      assert(row.isNullAt(row.schema.fieldIndex("entry_date")))
+    }
+    assert(partners.filter(col("participant_name") === "ANCIENT SA").head()
+      .getAs[String]("entry_date_raw") === "00010101")
+
+    val issues = spark.read.parquet(
+      CompanyDataPaths.qualityRoot(config).resolve("partner_field_quality_issues").toString
+    )
+    assert(issues.count() === 4L)
+    assert(issues.select("field_name").as[String].collect().toSet === Set("entry_date_raw"))
+    assert(issues.select("quality_reason").as[String].collect().toSet === Set(
+      "invalid_date_format", "invalid_calendar_date", "date_before_supported_minimum", "date_after_release"
+    ))
+    assert(issues.columns.toSet === Set(
+      "partner_record_id", "source_company_cnpj_root", "field_name", "raw_value",
+      "quality_reason", "source_file", "release"
+    ))
+  }
+
   test("builds deterministic components, cycles, and bounded relationship paths") {
     val session = spark
     import session.implicits._
