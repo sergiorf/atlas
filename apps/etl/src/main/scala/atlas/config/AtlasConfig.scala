@@ -17,12 +17,17 @@ final case class ReceitaConfig(
     silverDir: String,
     companyDataRawDir: String = ""
 )
+final case class GraphConfig(maxComponentPropagationRounds: Int = 128) {
+  require(maxComponentPropagationRounds >= 1,
+    "graph.max-component-propagation-rounds must be at least 1")
+}
 final case class AtlasConfig(
     spark: SparkConfig,
     csv: CsvConfig,
     receita: ReceitaConfig,
     statusDir: String,
-    writeMode: String
+    writeMode: String,
+    graph: GraphConfig = GraphConfig()
 )
 
 object AtlasConfig {
@@ -44,7 +49,12 @@ object AtlasConfig {
         if (c.hasPath("receita.company-data-raw-dir")) c.getString("receita.company-data-raw-dir") else ""
       ),
       c.getString("status-dir"),
-      c.getString("output.write-mode")
+      c.getString("output.write-mode"),
+      GraphConfig(
+        if (c.hasPath("graph.max-component-propagation-rounds"))
+          c.getInt("graph.max-component-propagation-rounds")
+        else 128
+      )
     )
   }
 }

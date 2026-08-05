@@ -35,5 +35,37 @@ class AtlasConfigTest extends AnyFunSuite {
     assert(loaded.statusDir === "custom-status")
     assert(loaded.receita.snapshot === "2026-06")
     assert(loaded.receita.silverDir === "custom-silver")
+    assert(loaded.graph.maxComponentPropagationRounds === 128)
+  }
+
+  test("loads and validates the graph component propagation limit") {
+    def config(rounds: Int): String = s"""atlas {
+      |  status-dir = "status"
+      |  output.write-mode = "overwrite"
+      |  csv { delimiter = ";", encoding = "UTF-8" }
+      |  spark {
+      |    app-name = "test"
+      |    master = "local[1]"
+      |    shuffle-partitions = 1
+      |    local-dir = "tmp"
+      |  }
+      |  graph.max-component-propagation-rounds = $rounds
+      |  receita {
+      |    snapshot = "2026-07"
+      |    raw-dir = "raw"
+      |    bronze-dir = "bronze"
+      |    silver-dir = "silver"
+      |  }
+      |}
+      |""".stripMargin
+
+    val valid = Files.createTempFile("atlas-graph-config", ".conf")
+    Files.write(valid, config(64).getBytes(StandardCharsets.UTF_8))
+    assert(AtlasConfig.load(valid.toString).graph.maxComponentPropagationRounds === 64)
+
+    val invalid = Files.createTempFile("atlas-invalid-graph-config", ".conf")
+    Files.write(invalid, config(0).getBytes(StandardCharsets.UTF_8))
+    val error = intercept[IllegalArgumentException](AtlasConfig.load(invalid.toString))
+    assert(error.getMessage.contains("must be at least 1"))
   }
 }

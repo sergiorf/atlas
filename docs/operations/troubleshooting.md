@@ -57,6 +57,20 @@ cleanup permanently deletes eligible existing trash and then quarantines eligibl
 run a separate dry run and force invocation before permanently deleting the new quarantine.
 Raw data and active published bundles are never candidates.
 
+## Corporate component calculation does not stabilize
+
+This failure means connected-company labels were still changing after the configured propagation
+allowance. It indicates a deeper company-to-company structure than the allowance supports, or an
+algorithm defect; it is not an out-of-memory condition. Natural-person QSA records do not
+participate in this graph.
+
+Read the release, changed-node count, and iteration-artifact path from the exception. The retained
+failed bundle contains `graph-component-labels` output for diagnosis, while atomic publication
+leaves `current_bundle` unchanged. Do not edit relationship inputs or generated Parquet to force
+convergence. Verify `atlas.graph.max-component-propagation-rounds` (default 128), investigate an
+unexpectedly large requirement, and retry only after a reviewed configuration or implementation
+change. `--memory` affects heap capacity but not the required propagation rounds.
+
 ## Unexpected output replacement
 
 The committed write mode is `overwrite`. Verify the bronze destination and environment overrides before rerunning. Raw inputs are never an acceptable output destination.

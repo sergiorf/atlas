@@ -341,29 +341,10 @@ object CompanyProductsPipeline {
       val undirected = edges.select(col("source").as("node"), col("target").as("neighbor"))
         .union(edges.select(col("target").as("node"), col("source").as("neighbor")))
         .dropDuplicates("node", "neighbor")
-      var labels = undirected.select(col("node")).union(
+      val initialLabels = undirected.select(col("node")).union(
         undirected.select(col("neighbor").as("node"))
       ).distinct().withColumn("component_id", col("node"))
-      var iteration = 0
-      var changed = true
-      while (iteration < 32 && changed) {
-        val propagated = undirected.join(
-          labels.select(col("node").as("neighbor"), col("component_id").as("neighbor_component")),
-          Seq("neighbor")
-        ).groupBy("node").agg(min("neighbor_component").as("propagated_component"))
-        val next = labels.join(propagated, Seq("node"), "left")
-          .select(col("node"), least(col("component_id"),
-            coalesce(col("propagated_component"), col("component_id"))).as("component_id"))
-        val iterationPath = CompanyDataPaths.workRoot(config)
-          .resolve("graph-component-labels").resolve(f"iteration=$iteration%02d")
-        next.write.mode("overwrite").parquet(iterationPath.toString)
-        val materialized = spark.read.parquet(iterationPath.toString)
-        changed = materialized.except(labels).limit(1).count() > 0
-        labels = materialized
-        iteration += 1
-      }
-      if (changed)
-        throw new IllegalStateException("Corporate component calculation did not converge within 32 iterations")
+      val labels = calculateComponentLabels(spark, config, undirected, initialLabels)
       val componentMetrics = labels.groupBy("component_id").agg(count(lit(1)).as("component_node_count"))
       val edgeComponents = edges.join(
         labels.select(col("node").as("source"), col("component_id")), Seq("source")
@@ -427,6 +408,49 @@ object CompanyProductsPipeline {
         case None => spark.conf.unset("spark.sql.autoBroadcastJoinThreshold")
       }
     }
+  }
+
+  private def calculateComponentLabels(
+      spark: SparkSession,
+      config: AtlasConfig,
+      undirected: DataFrame,
+      initialLabels: DataFrame
+  ): DataFrame = {
+    val maximumRounds = config.graph.maxComponentPropagationRounds
+    var labels = initialLabels
+    var round = 1
+    var changedCount = Long.MaxValue
+
+    def propagate(): Unit = {
+      val propagated = undirected.join(
+        labels.select(col("node").as("neighbor"), col("component_id").as("neighbor_component")),
+        Seq("neighbor")
+      ).groupBy("node").agg(min("neighbor_component").as("propagated_component"))
+      val next = labels.join(propagated, Seq("node"), "left")
+        .select(col("node"), least(col("component_id"),
+          coalesce(col("propagated_component"), col("component_id"))).as("component_id"))
+      val iterationPath = CompanyDataPaths.workRoot(config)
+        .resolve("graph-component-labels").resolve(f"iteration=${round - 1}%03d")
+      next.write.mode("overwrite").parquet(iterationPath.toString)
+      val materialized = spark.read.parquet(iterationPath.toString)
+      changedCount = materialized.except(labels).count()
+      labels = materialized
+      println(s"Corporate component progress: release=${config.receita.snapshot} " +
+        s"round=$round changed_nodes=$changedCount")
+      round += 1
+    }
+
+    while (round <= maximumRounds && changedCount > 0) propagate()
+    if (changedCount > 0) propagate()
+    if (changedCount > 0) {
+      val artifacts = CompanyDataPaths.workRoot(config).resolve("graph-component-labels")
+      throw new IllegalStateException(
+        s"Corporate component calculation for release ${config.receita.snapshot} did not stabilize " +
+          s"after $maximumRounds propagation rounds; $changedCount node labels changed in the " +
+          s"confirmation round; iteration artifacts: $artifacts"
+      )
+    }
+    labels
   }
 
   private[atlas] def buildLeads(

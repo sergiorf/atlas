@@ -1,7 +1,7 @@
 package atlas.receita
 
 import atlas.SparkSuite
-import atlas.config.{AtlasConfig, CsvConfig, ReceitaConfig, SparkConfig}
+import atlas.config.{AtlasConfig, CsvConfig, GraphConfig, ReceitaConfig, SparkConfig}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import org.apache.spark.sql.functions.col
@@ -129,6 +129,43 @@ class CompanyProductsPipelineTest extends AnyFunSuite with SparkSuite {
     assert(network.filter(col("source") === "AAAAAAAA").head().getAs[Boolean]("edge_in_cycle"))
     val paths = spark.read.parquet(CompanyDataPaths.goldRelationshipPaths(config).toString)
     assert(paths.agg(org.apache.spark.sql.functions.max("path_depth")).head().getInt(0) <= 3)
+  }
+
+  test("accepts a component deeper than 32 hops when it stabilizes at the configured boundary") {
+    val root = Files.createTempDirectory("atlas-network-long")
+    val config = testConfig(root).copy(graph = GraphConfig(33))
+    val network = CompanyProductsPipeline.buildNetwork(spark, config, relationshipChain(34))
+
+    val components = network.select("component_id").distinct().collect()
+    assert(components.length === 1)
+    assert(components.head.getString(0) === "00000000")
+  }
+
+  test("reports release, limit, changed nodes, and artifacts when the safety limit is exceeded") {
+    val root = Files.createTempDirectory("atlas-network-limit")
+    val config = testConfig(root).copy(graph = GraphConfig(2))
+
+    val error = intercept[IllegalStateException] {
+      CompanyProductsPipeline.buildNetwork(spark, config, relationshipChain(5))
+    }
+    assert(error.getMessage.contains("release 2026-07"))
+    assert(error.getMessage.contains("after 2 propagation rounds"))
+    assert(error.getMessage.matches("(?s).*; [1-9][0-9]* node labels changed.*"))
+    assert(error.getMessage.contains("graph-component-labels"))
+  }
+
+  private def relationshipChain(nodeCount: Int) = {
+    val session = spark
+    import session.implicits._
+    (0 until nodeCount - 1).map { index =>
+      (s"e$index", f"$index%08d", f"${index + 1}%08d")
+    }.toDF("relationship_edge_id", "source_company_cnpj_root", "participant_company_cnpj_root")
+      .withColumn("relationship_class", org.apache.spark.sql.functions.lit("UNKNOWN_CORPORATE_RELATIONSHIP"))
+      .withColumn("participant_qualification_code", org.apache.spark.sql.functions.lit("00"))
+      .withColumn("participant_qualification_description", org.apache.spark.sql.functions.lit("UNKNOWN"))
+      .withColumn("evidence_source", org.apache.spark.sql.functions.lit("RECEITA_QSA"))
+      .withColumn("confidence", org.apache.spark.sql.functions.lit("SOURCE_EVIDENCED"))
+      .withColumn("relationship_rule_version", org.apache.spark.sql.functions.lit("1"))
   }
 
   private def testConfig(root: Path): AtlasConfig =

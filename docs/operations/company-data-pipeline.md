@@ -345,6 +345,23 @@ and the selected release is complete.
   eligible failed candidates; a later cleanup invocation may permanently delete that quarantine.
   Never delete the complete failed-bundle directory manually.
 
+### Corporate component convergence
+
+The company network propagates the smallest company CNPJ root through each undirected connected
+structure until a confirmation round changes zero labels. Progress output reports the release,
+round, and exact changed-node count. The default safety allowance is 128 changing rounds:
+
+```hocon
+atlas.graph.max-component-propagation-rounds = 128
+```
+
+This setting protects an operator from an unexpectedly deep or defective calculation. It does not
+limit component size, relationship-path depth, or JVM memory. Change it only with evidence from a
+retained failed candidate and record the chosen value with the run evidence. A failure reports the
+release, configured allowance, changed nodes in the confirmation round, and iteration-artifact
+path. Retry only after correcting the implementation or deliberately adjusting the configured
+allowance; increasing `--memory` does not change graph convergence.
+
 ## DuckDB verification examples
 
 Resolve paths through `inspect-bundle`; never guess paths or combine independently current tables.

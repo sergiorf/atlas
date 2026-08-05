@@ -38,6 +38,12 @@ establishment counts, headquarters summary, relationship count, release, and rul
 
 `company_partner_network_current` preserves immediate edges and adds deterministic connected
 components, degree and component metrics, bounded cycle evidence, release, and calculation version.
+Each connected component uses its lexicographically smallest company CNPJ root as `component_id`.
+The undirected component calculation must reach a stable fixed point: after propagation stops, a
+confirmation round must change zero node labels. `atlas.graph.max-component-propagation-rounds`
+bounds changing rounds as an operational safeguard; the confirmation round does not consume that
+allowance. Reaching the bound without stabilization fails the candidate and never publishes partial
+component labels.
 `company_relationship_paths_current` contains ordered node and edge paths through depth three.
 Cycle search is bounded at depth six. Immediate edges remain authoritative.
 
