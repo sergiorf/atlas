@@ -29,6 +29,7 @@ From the repository root, prefer the short wrapper for day-to-day use:
 ./atlas releases rebuild-establishments --from-release 2026-05 --to-release 2026-07
 ./atlas releases rebuild-company-data --from-release 2026-05 --to-release 2026-07
 ./atlas releases inspect-bundle
+./atlas releases validate-bundle --full
 ./atlas releases drop-stale-derived --dry-run
 ./atlas storage usage
 ./atlas storage cleanup

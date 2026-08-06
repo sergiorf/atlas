@@ -40,6 +40,11 @@ times recorded in the bundle. A mixed CNPJ month or unrecorded reference reuse i
 ./atlas releases inspect-bundle
 ./atlas releases inspect-bundle --release 2026-07
 
+# Read-only validation of the current or an explicit immutable generation
+./atlas releases validate-bundle
+./atlas releases validate-bundle --bundle-id BUNDLE_ID --full
+./atlas releases validate-bundle --bundle-id BUNDLE_ID --full --json
+
 # Chronological backfill/recovery; dry-run is the default
 ./atlas releases rebuild-company-data --from-release 2026-05 --to-release 2026-07
 ./atlas releases rebuild-company-data --from-release 2026-05 --to-release 2026-07 --force
@@ -175,6 +180,32 @@ The bundle path printed here is also the root for staged quality evidence used b
 an acceptance view from components belonging to different bundle IDs. Component paths in the JSON
 manifest are relative to that bundle root. For example, combine the printed bundle path with
 `data/silver/receita/company_release_summaries` to query that generation's company summaries.
+
+### 5a. Run the automated bundle validator
+
+Use the bundle ID recorded above so validation cannot silently move to a newer current generation:
+
+```bash
+./atlas releases validate-bundle --bundle-id BUNDLE_ID --full
+```
+
+Structural mode (the default) does not start Spark. It verifies typed pointer and manifest metadata,
+required and non-escaping component paths, component directory hashes, raw source-manifest and
+reference-capture hashes, the declared release range, predecessor readability, and summary
+partitions. `--full` additionally opens the contracted Parquet data, checks current releases and
+key uniqueness, validates one summary row and history arithmetic per release, checks municipality
+coverage, and reports establishment-to-company join misses as a warning.
+
+Every check is printed with a stable identifier and `PASS`, `WARN`, `FAIL`, or `SKIP`, plus bounded
+expected/observed evidence and duration. `--json` emits the same records for automation. Exit code
+zero means the bundle is valid, including `PASS_WITH_WARNINGS`; one means a blocking failure. A
+skipped check is always reported with its reason. Output contains aggregate evidence only; do not
+add source records to validator messages.
+
+The validator automates deterministic contract checks; it does not accept a release. Continue with
+the bounded anomaly, quality, query, and resource review below. In particular, a join-coverage
+warning may be explained by the documented duplicate-company quarantine policy, but that
+explanation remains an operator decision.
 
 ### 6. Verify counts and history arithmetic
 

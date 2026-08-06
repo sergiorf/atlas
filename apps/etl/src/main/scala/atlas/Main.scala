@@ -5,6 +5,7 @@ import atlas.config.AtlasConfig
 import atlas.history.EstablishmentHistoryJob
 import atlas.receita.ReceitaIngestJob
 import atlas.release.{
+  BundleValidationService,
   CompanyBundleService,
   EstablishmentRebuildService,
   PublicationLock,
@@ -44,7 +45,9 @@ object Main {
       openedBefore: Option[String] = None,
       format: String = "csv",
       output: Option[String] = None,
-      limit: Int = 100000
+      limit: Int = 100000,
+      bundleId: Option[String] = None,
+      full: Boolean = false
   )
   def main(args: Array[String]): Unit = {
     val cli = parseArgs(args.toList)
@@ -144,6 +147,17 @@ object Main {
             .map(CompanyBundleService.render)
             .getOrElse("No matching company-data bundle.")
         )
+      case "releases-validate-bundle" =>
+        val report =
+          if (cli.full) {
+            var value: Option[atlas.release.BundleValidationReport] = None
+            withSpark(config) { spark =>
+              value = Some(BundleValidationService.validate(config, cli.bundleId, full = true, Some(spark)))
+            }
+            value.get
+          } else BundleValidationService.validate(config, cli.bundleId)
+        println(if (cli.json) BundleValidationService.json(report) else BundleValidationService.render(report))
+        if (report.exitCode != 0) sys.exit(report.exitCode)
       case "ingest-receita-estabelecimentos" =>
         withSpark(config) { spark =>
           val result = ReceitaIngestJob.run(spark, config)
@@ -292,10 +306,24 @@ object Main {
     case "releases" :: "inspect-bundle" :: Nil => Cli("releases-inspect-bundle")
     case "releases" :: "inspect-bundle" :: "--release" :: release :: Nil =>
       Cli("releases-inspect-bundle", release = Some(release))
+    case "releases" :: "validate-bundle" :: tail => parseBundleValidation(tail)
     case _ =>
       throw new IllegalArgumentException(
         "Usage: atlas.Main <ingest-receita-estabelecimentos|normalize-receita-estabelecimentos|refresh-receita-estabelecimentos|status|help|version>"
       )
+  }
+
+  private def parseBundleValidation(args: List[String]): Cli = {
+    def loop(rest: List[String], bundleId: Option[String], full: Boolean, json: Boolean): Cli = rest match {
+      case Nil => Cli("releases-validate-bundle", bundleId = bundleId, full = full, json = json)
+      case "--bundle-id" :: value :: tail if bundleId.isEmpty => loop(tail, Some(value), full, json)
+      case "--full" :: tail if !full => loop(tail, bundleId, full = true, json)
+      case "--json" :: tail if !json => loop(tail, bundleId, full, json = true)
+      case _ => throw new IllegalArgumentException(
+        "Usage: releases validate-bundle [--bundle-id ID] [--full] [--json]"
+      )
+    }
+    loop(args, None, full = false, json = false)
   }
 
   private def parseLeadExport(args: List[String]): Cli = {
@@ -525,6 +553,10 @@ object Main {
       |
       |  releases inspect-bundle [--release YYYY-MM]
       |      Read current or release-selected atomic bundle metadata without starting Spark.
+      |
+      |  releases validate-bundle [--bundle-id ID] [--full] [--json]
+      |      Verify one immutable bundle generation and report every passed, warned, failed, or
+      |      skipped check. The default is structural; --full adds Spark data-contract checks.
       |
       |  storage usage [--category CATEGORY] [--release YYYY-MM] [--top N] [--json]
       |      Inventory Atlas data and Spark temporary storage without deleting anything. Show exact

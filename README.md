@@ -33,6 +33,7 @@ From the repository root:
 ./atlas storage usage
 ./atlas storage cleanup
 ./atlas releases inspect-bundle
+./atlas releases validate-bundle --full
 ./atlas status --release 2026-07
 ./atlas status --verbose
 ./atlas status --json

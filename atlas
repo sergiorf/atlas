@@ -81,6 +81,9 @@ Status and release commands:
   releases inspect-bundle [--release YYYY-MM]
       Inspect current or release-selected bundle metadata without starting Spark.
 
+  releases validate-bundle [--bundle-id ID] [--full] [--json]
+      Verify a published bundle and report every passed, warned, failed, or skipped check.
+
   storage usage [--category CATEGORY] [--release YYYY-MM] [--top N] [--json]
       Inventory Atlas data and Spark temporary storage without deleting anything.
 

@@ -158,6 +158,18 @@ class MainTest extends AnyFunSuite {
         Main.Cli("releases-inspect-bundle", release = Some("2026-07"))
     )
     assert(
+      Main.parseArgs(
+        List("releases", "validate-bundle", "--bundle-id", "bundle-july", "--full", "--json")
+      ) === Main.Cli(
+        "releases-validate-bundle", json = true, bundleId = Some("bundle-july"), full = true
+      )
+    )
+    assert(
+      Main.parseArgs(List("releases", "validate-bundle")) ===
+        Main.Cli("releases-validate-bundle")
+    )
+    assert(Main.helpText.contains("releases validate-bundle"))
+    assert(
       Main.parseArgs(List("refresh-receita-company-data", "--release", "2026-08")) ===
         Main.Cli("refresh-receita-company-data", release = Some("2026-08"))
     )

@@ -31,3 +31,8 @@ roots omitted from current.
 
 History is append-only within an active bundle generation. Rebuild stages a complete chronological
 replacement and swaps it only after every release passes validation.
+
+The read-only bundle validator independently checks that every declared release has exactly one
+company and establishment summary and that non-seed history arithmetic reconciles. These checks
+detect damaged or inconsistent published artifacts; they do not rewrite history or replace the
+publication-time quality gates.

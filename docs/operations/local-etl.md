@@ -24,6 +24,7 @@ From the repository root, the same local operations are available through the sh
 ./atlas refresh receita estabelecimentos --release 2026-07
 ./atlas releases rebuild-company-data --from-release 2026-05 --to-release 2026-07
 ./atlas releases inspect-bundle
+./atlas releases validate-bundle --full
 ./atlas refresh receita estabelecimentos --release 2026-07 --memory 10G
 ./atlas releases rebuild-establishments --from-release 2026-05 --to-release 2026-07
 ./atlas status
