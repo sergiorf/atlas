@@ -398,19 +398,32 @@ data. Silver foundation tables are internal contracts, not customer-facing produ
 
 ### Next: v0.4 — serving foundation
 
-- define the supported search, company-profile, lead-filter, and export query contract over the
-  existing gold products;
+- define the supported company-discovery search, company-profile, lead-filter, and export query
+  contract over the existing gold products;
+- treat relevance-ranked company search as an MVP capability rather than reducing discovery to
+  exact identifiers and structured filters: initially cover exact CNPJ, legal-name and trade-name
+  matching, documented normalization and typo behavior, deterministic tie-breaking, filter
+  interaction, and visible match evidence;
+- establish a judged representative search fixture and explicit relevance, latency, rebuild,
+  storage, and operational acceptance measures before selecting the search implementation;
 - introduce a separate indexer that reads atomic gold bundle generations and builds a disposable
-  serving projection without inventing new business semantics;
-- select the simplest serving technology that satisfies measured structured-filter, profile,
-  pagination, and export workloads;
+  serving projection without inventing new business semantics; if structured and search
+  projections use different technologies, publish and roll them back as one serving generation so
+  they cannot expose different gold bundles;
+- evaluate both a structured serving store with basic indexed text search and, where the judged
+  search workload requires it, a dedicated search engine; select the simplest design that meets
+  measured relevance, structured-filter, profile, pagination, export, rebuild, rollback, and
+  operating requirements;
 - prove full rebuild, generation cutover, rollback, freshness reporting, and query-performance
   behavior on representative and national data;
+- keep semantic or vector search, partner-name search, arbitrary keyword search, personalized or
+  opaque ranking, and search semantics not backed by the gold contract outside this phase;
 - keep public network access, authentication, billing, and customer state outside this phase.
 
 ### v0.5 — B2B sales MVP
 
-- expose validated company search, profiles, lead filters, and bounded exports through an API;
+- expose validated relevance-ranked company search, profiles, lead filters, and bounded exports
+  through an API;
 - add a minimal application for B2B prospecting using the same public query contract;
 - support filters for identity, geography, CNAE business group, registration status, opening date,
   company size, legal nature, and contracted Simples or MEI states where available;
