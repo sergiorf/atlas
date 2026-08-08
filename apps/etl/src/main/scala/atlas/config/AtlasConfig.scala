@@ -21,13 +21,25 @@ final case class GraphConfig(maxComponentPropagationRounds: Int = 128) {
   require(maxComponentPropagationRounds >= 1,
     "graph.max-component-propagation-rounds must be at least 1")
 }
+final case class StorageCleanupConfig(
+    olderThanDays: Int = 7,
+    workOlderThanDays: Int = 2,
+    retainBundles: Int = 2,
+    retainBronzeReleases: Int = 1
+) {
+  require(olderThanDays >= 0, "storage.cleanup.older-than-days must be non-negative")
+  require(workOlderThanDays >= 0, "storage.cleanup.work-older-than-days must be non-negative")
+  require(retainBundles >= 2, "storage.cleanup.retain-bundles must be at least 2")
+  require(retainBronzeReleases >= 0, "storage.cleanup.retain-bronze-releases must be non-negative")
+}
 final case class AtlasConfig(
     spark: SparkConfig,
     csv: CsvConfig,
     receita: ReceitaConfig,
     statusDir: String,
     writeMode: String,
-    graph: GraphConfig = GraphConfig()
+    graph: GraphConfig = GraphConfig(),
+    storageCleanup: StorageCleanupConfig = StorageCleanupConfig()
 )
 
 object AtlasConfig {
@@ -54,6 +66,20 @@ object AtlasConfig {
         if (c.hasPath("graph.max-component-propagation-rounds"))
           c.getInt("graph.max-component-propagation-rounds")
         else 128
+      ),
+      StorageCleanupConfig(
+        if (c.hasPath("storage.cleanup.older-than-days"))
+          c.getInt("storage.cleanup.older-than-days")
+        else 7,
+        if (c.hasPath("storage.cleanup.work-older-than-days"))
+          c.getInt("storage.cleanup.work-older-than-days")
+        else 2,
+        if (c.hasPath("storage.cleanup.retain-bundles"))
+          c.getInt("storage.cleanup.retain-bundles")
+        else 2,
+        if (c.hasPath("storage.cleanup.retain-bronze-releases"))
+          c.getInt("storage.cleanup.retain-bronze-releases")
+        else 1
       )
     )
   }

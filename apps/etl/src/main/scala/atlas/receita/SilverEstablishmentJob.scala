@@ -2,6 +2,7 @@ package atlas.receita
 
 import atlas.common.DatasetPaths
 import atlas.config.AtlasConfig
+import atlas.release.WorkManifest
 import atlas.status.{QualityWarning, RunStatus, RunStatusRegistry}
 import java.nio.file.Paths
 import java.time.{Duration, Instant}
@@ -36,9 +37,15 @@ object SilverEstablishmentJob {
         publishAtomically(data, paths.output)
       }
       val warnings = qualityWarnings(report, paths)
+      val finishedAt = Instant.now()
       RunStatusRegistry.write(
         Paths.get(config.statusDir),
         status(config, paths, startedAt, if (warnings.isEmpty) "success" else "success_with_warnings", Some(report), warnings)
+      )
+      val output = Paths.get(paths.output)
+      WorkManifest.write(
+        output.getParent,
+        WorkManifest(config.receita.snapshot, startedAt, finishedAt, "normalize-receita-estabelecimentos", paths.output)
       )
       report
     } catch {

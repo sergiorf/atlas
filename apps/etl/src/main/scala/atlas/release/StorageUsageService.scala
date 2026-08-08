@@ -140,7 +140,7 @@ object StorageUsageService {
     val data = children(dataRoot).filterNot(path => same(path, atlasRoot)).map { path =>
       path.getFileName.toString match {
         case "raw"    => Target("raw", path, "protected_raw", "inspect only")
-        case "bronze" => Target("bronze", path, "derived_rebuildable", "releases drop-derived")
+        case "bronze" => Target("bronze", path, "derived_rebuildable", "storage cleanup")
         case "silver" =>
           Target("silver", path, "protected_active_or_history", "inspect release ownership")
         case _ => Target("unclassified", path, "unknown", "inspect manually")
@@ -155,8 +155,8 @@ object StorageUsageService {
                 Target(
                   "bundles",
                   bundlePath,
-                  "protected_active_or_inactive",
-                  "inspect bundle generations"
+                  "protected_active_or_retained",
+                  "storage cleanup"
                 )
               case "staging" | "failed" =>
                 Target(
@@ -173,7 +173,7 @@ object StorageUsageService {
         case "rebuild-staging" =>
           Seq(Target("staging", path, "recoverable_or_abandoned", "inspect transaction state"))
         case "work" =>
-          Seq(Target("work", path, "derived_rebuildable", "inspect before cleanup"))
+          Seq(Target("work", path, "derived_rebuildable", "storage cleanup"))
         case "_trash" => Seq(Target("trash", path, "quarantined", "releases purge-trash"))
         case "quality" =>
           Seq(Target("quality", path, "derived_rebuildable", "inspect release ownership"))

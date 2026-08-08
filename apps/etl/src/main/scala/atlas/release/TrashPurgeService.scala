@@ -34,7 +34,11 @@ object TrashPurgeService {
       "stale-derived",
       "failed-rebuild",
       "full-rebuild-backup",
-      "failed-company-bundle"
+      "failed-company-bundle",
+      "failed-bundle",
+      "inactive-bundle",
+      "bronze",
+      "work"
     )
 
   def inspect(
@@ -57,13 +61,21 @@ object TrashPurgeService {
       now: Instant = Instant.now()
   ): TrashPurgeResult =
     PublicationLock.withEstablishmentsLock(config) {
-      val checked = inspect(config, olderThanDays, now)
-      checked.generations.filter(_.eligible).foreach(generation => deleteTree(generation.path))
-      pruneEmptyTimestampDirectories(ReleasePaths(config).atlasRoot.resolve("_trash"))
-      val deleted = checked.generations.filter(_.eligible).map(_.bytes).sum
-      val skipped = checked.generations.filterNot(_.eligible).map(_.bytes).sum
-      checked.copy(dryRun = false, deletedBytes = deleted, skippedBytes = skipped)
+      forceUnlocked(config, olderThanDays, now)
     }
+
+  private[release] def forceUnlocked(
+      config: AtlasConfig,
+      olderThanDays: Int,
+      now: Instant
+  ): TrashPurgeResult = {
+    val checked = inspect(config, olderThanDays, now)
+    checked.generations.filter(_.eligible).foreach(generation => deleteTree(generation.path))
+    pruneEmptyTimestampDirectories(ReleasePaths(config).atlasRoot.resolve("_trash"))
+    val deleted = checked.generations.filter(_.eligible).map(_.bytes).sum
+    val skipped = checked.generations.filterNot(_.eligible).map(_.bytes).sum
+    checked.copy(dryRun = false, deletedBytes = deleted, skippedBytes = skipped)
+  }
 
   def render(result: TrashPurgeResult): String = {
     val heading = if (result.dryRun) "Trash purge dry run" else "Trash purge complete"

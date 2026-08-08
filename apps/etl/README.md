@@ -55,9 +55,11 @@ Malformed silver candidates are quarantined beneath `data/_atlas/quality/receita
 Legacy derived outputs from earlier local runs, such as `data/silver/receita/establishments` and old sibling `establishments_quality_report.*` files, can be quarantined with `./atlas releases drop-stale-derived --force`. The command leaves raw files, `establishments_current`, and compact history events intact.
 
 Unified storage cleanup is a dry run unless `--force` is supplied. It inspects existing trash and
-failed company bundle candidates, uses a seven-day recovery window by default, and never
-inventories raw data as a deletion candidate. A first forced invocation may quarantine failed
-candidates; only a later invocation can permanently delete them.
+failed or inactive bundle candidates, old bronze releases, and completed work. It uses configured
+retention counts and recovery windows and never inventories raw data as a deletion candidate. A
+first forced invocation quarantines eligible live candidates; only a later invocation can
+permanently delete them. Use `./atlas storage reconcile-trash` for guarded legacy-manifest repair
+and `./atlas storage reclaim --prepare-wsl` before the separate Windows VHD compaction helper.
 
 Routine refresh only advances current to a newer release. Standalone normalization writes a release-scoped candidate. To recreate the entire active establishment dataset from protected raw releases, preview and then force `./atlas releases rebuild-establishments --from-release YYYY-MM --to-release YYYY-MM`; see the repository refresh runbook for validation and recovery steps.
 

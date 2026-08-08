@@ -243,7 +243,7 @@ class MainTest extends AnyFunSuite {
     assert(Main.parseArgs(List("storage", "cleanup")) === Main.Cli("storage-cleanup"))
     assert(
       Main.parseArgs(List("storage", "cleanup", "--older-than-days", "0", "--force")) ===
-        Main.Cli("storage-cleanup", force = true, olderThanDays = 0)
+        Main.Cli("storage-cleanup", force = true, olderThanDays = 0, cleanupAgeSpecified = true)
     )
     assert(
       Main.parseArgs(List("storage", "cleanup", "--json")) ===
@@ -256,5 +256,11 @@ class MainTest extends AnyFunSuite {
       List("storage", "cleanup", "--older-than-days", "7", "--older-than-days", "0")
     ).foreach(args => assertThrows[IllegalArgumentException](Main.parseArgs(args)))
     assert(Main.helpText.contains("storage cleanup"))
+    assert(
+      Main.parseArgs(List("storage", "cleanup", "--include", "bronze,work", "--retain-bundles", "3")) ===
+        Main.Cli("storage-cleanup", cleanupKinds = Some(Set("bronze", "work")), retainBundles = Some(3))
+    )
+    assert(Main.parseArgs(List("storage", "reconcile-trash", "--force")).force)
+    assert(Main.parseArgs(List("storage", "reclaim", "--prepare-wsl", "--json")).json)
   }
 }

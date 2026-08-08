@@ -15,8 +15,11 @@ import atlas.release.{
   ReleaseLayer,
   StaleDerivedCleanupService,
   StorageCleanupService,
+  StorageCleanupPolicy,
   StorageUsageService,
-  TrashPurgeService
+  TrashReconciliationService,
+  TrashPurgeService,
+  WslReclaimPreflightService
 }
 import atlas.receita.SilverEstablishmentJob
 import atlas.export.{LeadExportRequest, LeadExportService}
@@ -47,7 +50,12 @@ object Main {
       output: Option[String] = None,
       limit: Int = 100000,
       bundleId: Option[String] = None,
-      full: Boolean = false
+      full: Boolean = false,
+      cleanupKinds: Option[Set[String]] = None,
+      retainBundles: Option[Int] = None,
+      retainBronzeReleases: Option[Int] = None,
+      workOlderThanDays: Option[Int] = None,
+      cleanupAgeSpecified: Boolean = false
   )
   def main(args: Array[String]): Unit = {
     val cli = parseArgs(args.toList)
@@ -97,11 +105,30 @@ object Main {
           else StorageUsageService.render(result, cli.top)
         )
       case "storage-cleanup" =>
+        val defaults = StorageCleanupPolicy.defaults(config)
+        val policy = defaults.copy(
+          olderThanDays = if (cli.cleanupAgeSpecified) cli.olderThanDays else defaults.olderThanDays,
+          workOlderThanDays = cli.workOlderThanDays.getOrElse(defaults.workOlderThanDays),
+          retainBundles = cli.retainBundles.getOrElse(defaults.retainBundles),
+          retainBronzeReleases = cli.retainBronzeReleases.getOrElse(defaults.retainBronzeReleases),
+          includedKinds = cli.cleanupKinds.getOrElse(defaults.includedKinds)
+        )
         val result =
-          if (cli.force) StorageCleanupService.force(config, cli.olderThanDays)
-          else StorageCleanupService.inspect(config, cli.olderThanDays)
+          if (cli.force) StorageCleanupService.force(config, policy, java.time.Instant.now())
+          else StorageCleanupService.inspect(config, policy, java.time.Instant.now())
         println(
           if (cli.json) StorageCleanupService.json(result) else StorageCleanupService.render(result)
+        )
+      case "storage-reconcile-trash" =>
+        val result =
+          if (cli.force) TrashReconciliationService.force(config)
+          else TrashReconciliationService.inspect(config)
+        println(TrashReconciliationService.render(result))
+      case "storage-reclaim-wsl" =>
+        val result = WslReclaimPreflightService.inspect(config)
+        println(
+          if (cli.json) WslReclaimPreflightService.json(result)
+          else WslReclaimPreflightService.render(result)
         )
       case "releases-rebuild-establishments" =>
         val from = ReleaseId.unsafe(
@@ -259,6 +286,11 @@ object Main {
     case "status" :: tail                         => parseStatus(tail)
     case "storage" :: "usage" :: tail             => parseStorageUsage(tail)
     case "storage" :: "cleanup" :: tail           => parseStorageCleanup(tail)
+    case "storage" :: "reconcile-trash" :: Nil => Cli("storage-reconcile-trash")
+    case "storage" :: "reconcile-trash" :: "--dry-run" :: Nil => Cli("storage-reconcile-trash")
+    case "storage" :: "reconcile-trash" :: "--force" :: Nil => Cli("storage-reconcile-trash", force = true)
+    case "storage" :: "reclaim" :: "--prepare-wsl" :: Nil => Cli("storage-reclaim-wsl")
+    case "storage" :: "reclaim" :: "--prepare-wsl" :: "--json" :: Nil => Cli("storage-reclaim-wsl", json = true)
     case "export-leads" :: tail                   => parseLeadExport(tail)
     case command :: "--config" :: path :: Nil     => Cli(command, path)
     case command :: "--release" :: release :: Nil => Cli(command, release = Some(release))
@@ -447,7 +479,11 @@ object Main {
         modeSeen: Boolean,
         olderThanDays: Int,
         retentionSeen: Boolean,
-        json: Boolean
+        json: Boolean,
+        cleanupKinds: Option[Set[String]],
+        retainBundles: Option[Int],
+        retainBronzeReleases: Option[Int],
+        workOlderThanDays: Option[Int]
     ): Cli = rest match {
       case Nil =>
         if (force && json)
@@ -458,12 +494,39 @@ object Main {
           "storage-cleanup",
           force = force,
           olderThanDays = olderThanDays,
-          json = json
+          json = json,
+          cleanupKinds = cleanupKinds,
+          retainBundles = retainBundles,
+          retainBronzeReleases = retainBronzeReleases,
+          workOlderThanDays = workOlderThanDays,
+          cleanupAgeSpecified = retentionSeen
         )
       case "--dry-run" :: tail if !modeSeen =>
-        loop(tail, force = false, modeSeen = true, olderThanDays, retentionSeen, json)
+        loop(
+          tail,
+          force = false,
+          modeSeen = true,
+          olderThanDays,
+          retentionSeen,
+          json,
+          cleanupKinds,
+          retainBundles,
+          retainBronzeReleases,
+          workOlderThanDays
+        )
       case "--force" :: tail if !modeSeen =>
-        loop(tail, force = true, modeSeen = true, olderThanDays, retentionSeen, json)
+        loop(
+          tail,
+          force = true,
+          modeSeen = true,
+          olderThanDays,
+          retentionSeen,
+          json,
+          cleanupKinds,
+          retainBundles,
+          retainBronzeReleases,
+          workOlderThanDays
+        )
       case "--older-than-days" :: value :: tail if !retentionSeen =>
         val days =
           try value.toInt
@@ -475,9 +538,61 @@ object Main {
           }
         if (days < 0)
           throw new IllegalArgumentException("--older-than-days requires a non-negative integer")
-        loop(tail, force, modeSeen, days, retentionSeen = true, json)
+        loop(
+          tail,
+          force,
+          modeSeen,
+          days,
+          retentionSeen = true,
+          json,
+          cleanupKinds,
+          retainBundles,
+          retainBronzeReleases,
+          workOlderThanDays
+        )
+      case "--work-older-than-days" :: value :: tail if workOlderThanDays.isEmpty =>
+        loop(
+          tail,
+          force,
+          modeSeen,
+          olderThanDays,
+          retentionSeen,
+          json,
+          cleanupKinds,
+          retainBundles,
+          retainBronzeReleases,
+          Some(nonNegative(value, "--work-older-than-days"))
+        )
+      case "--retain-bundles" :: value :: tail if retainBundles.isEmpty =>
+        val count = positive(value, "--retain-bundles")
+        if (count < 2) throw new IllegalArgumentException("--retain-bundles must be at least 2")
+        loop(tail, force, modeSeen, olderThanDays, retentionSeen, json, cleanupKinds, Some(count), retainBronzeReleases, workOlderThanDays)
+      case "--retain-bronze-releases" :: value :: tail if retainBronzeReleases.isEmpty =>
+        loop(
+          tail,
+          force,
+          modeSeen,
+          olderThanDays,
+          retentionSeen,
+          json,
+          cleanupKinds,
+          retainBundles,
+          Some(nonNegative(value, "--retain-bronze-releases")),
+          workOlderThanDays
+        )
+      case "--include" :: value :: tail if cleanupKinds.isEmpty =>
+        val normalized = value.replace("\\,", ",")
+        val expanded =
+          if (normalized == "all-derived") StorageCleanupPolicy.Kinds
+          else normalized.split(",", -1).toSet
+        val unknown = expanded -- StorageCleanupPolicy.Kinds
+        if (expanded.isEmpty || unknown.nonEmpty)
+          throw new IllegalArgumentException(
+            s"--include expects: ${StorageCleanupPolicy.Kinds.toSeq.sorted.mkString(",")}"
+          )
+        loop(tail, force, modeSeen, olderThanDays, retentionSeen, json, Some(expanded), retainBundles, retainBronzeReleases, workOlderThanDays)
       case "--json" :: tail if !json =>
-        loop(tail, force, modeSeen, olderThanDays, retentionSeen, json = true)
+        loop(tail, force, modeSeen, olderThanDays, retentionSeen, json = true, cleanupKinds, retainBundles, retainBronzeReleases, workOlderThanDays)
       case _ =>
         throw new IllegalArgumentException(
           "Usage: storage cleanup [--older-than-days N] [--dry-run|--force] [--json]"
@@ -489,8 +604,28 @@ object Main {
       modeSeen = false,
       olderThanDays = 7,
       retentionSeen = false,
-      json = false
+      json = false,
+      cleanupKinds = None,
+      retainBundles = None,
+      retainBronzeReleases = None,
+      workOlderThanDays = None
     )
+  }
+
+  private def nonNegative(value: String, option: String): Int = {
+    val parsed = try value.toInt
+    catch {
+      case _: NumberFormatException =>
+        throw new IllegalArgumentException(s"$option requires a non-negative integer")
+    }
+    if (parsed < 0) throw new IllegalArgumentException(s"$option requires a non-negative integer")
+    parsed
+  }
+
+  private def positive(value: String, option: String): Int = {
+    val parsed = nonNegative(value, option)
+    if (parsed == 0) throw new IllegalArgumentException(s"$option requires a positive integer")
+    parsed
   }
 
   private[atlas] val helpText: String =
@@ -562,9 +697,15 @@ object Main {
       |      Inventory Atlas data and Spark temporary storage without deleting anything. Show exact
       |      protection policies and the guarded next step for each configured location.
       |
-      |  storage cleanup [--older-than-days N] [--dry-run|--force] [--json]
-      |      Plan unified cleanup of eligible trash and failed company bundles. Dry-run and seven
-      |      days are defaults; failed bundles are quarantined before a later purge can delete them.
+      |  storage cleanup [retention options] [--include KINDS] [--dry-run|--force] [--json]
+      |      Plan unified cleanup of trash, failed and inactive bundles, old bronze, and stale work.
+      |      Current plus one predecessor bundle remain protected; live data is quarantined first.
+      |
+      |  storage reconcile-trash [--dry-run|--force]
+      |      Validate legacy full-rebuild backups and write missing recovery manifests. No data is deleted.
+      |
+      |  storage reclaim --prepare-wsl [--json]
+      |      Check Linux reclamation state and print the separate Windows-side WSL compaction step.
       |
       |Project commands:
       |  compile

@@ -95,24 +95,41 @@ delete. Release filtering is path-attribution based, so files without a release-
 not assigned to a release.
 
 Compare its totals with `du` when diagnosing filesystem pressure. WSL's Windows-visible
-`ext4.vhdx` can remain large after Linux files are removed; compacting that virtual disk is outside
-Atlas and is separate from dataset cleanup.
+`ext4.vhdx` can remain large after Linux files are removed. Atlas provides a read-only preflight and
+a separate Windows helper for that final host-side operation, described below.
 
 `storage cleanup` is the normal cleanup entry point. Its dry run combines existing trash with
-failed company bundle candidates. With `--force`, eligible existing trash is permanently deleted
-first and eligible failed candidates are then atomically quarantined. Newly quarantined candidates
-are deliberately retained until a separate invocation:
+failed bundles, inactive published generations, old bronze releases, and completed work. Current
+plus one recovery generation and the newest bronze release are protected by default. With
+`--force`, eligible existing trash is permanently deleted first and eligible live candidates are
+then atomically quarantined. Newly quarantined candidates are deliberately retained until a
+separate invocation:
 
 ```bash
 ./atlas storage cleanup --older-than-days 0
 ./atlas storage cleanup --older-than-days 0 --force
+./atlas storage cleanup --include inactive-bundles,bronze,work --retain-bundles 2
 ```
 
 Review the zero-day dry run carefully. The command still blocks malformed, symbolic, active,
-status-referenced, transaction-referenced, or unidentified candidates. Moving a candidate into
-trash does not reclaim bytes; only its later permanent deletion does. Raw inputs and active bundle
-generations are never candidates. `--json` is inspection-only and cannot be combined with
-`--force`.
+transaction-referenced, unidentified, or non-rebuildable candidates. Moving a candidate into trash
+does not reclaim bytes; only its later permanent deletion does. Raw inputs, the current bundle,
+retained recovery generations, and active silver/history are never candidates. `--json` is
+inspection-only and cannot be combined with `--force`. Defaults are versioned under
+`atlas.storage.cleanup`; `--work-older-than-days`, `--retain-bundles`, and
+`--retain-bronze-releases` override them for one invocation.
+
+Legacy full-rebuild trash without replacement expectations must not be deleted manually. Reconcile
+it after verifying the dry run:
+
+```bash
+./atlas storage reconcile-trash
+./atlas storage reconcile-trash --force
+./atlas storage cleanup
+```
+
+Reconciliation writes only the missing recovery manifest. The later cleanup still applies the
+configured trash retention window.
 
 Use the lower-level release commands only for targeted recovery or release removal. Raw Receita
 files under `data/raw` remain protected. Use dry-run first:
@@ -137,6 +154,35 @@ until unified cleanup has quarantined them. Dry-run is the default; `--force` pe
 only independently eligible generations older than the recovery window.
 
 New quarantines contain an internal `.atlas-trash-manifest.json` recording their recovery role, creation time, original paths, replacement expectations, and labels. Atlas recognizes older release drops, stale-derived quarantines, and failed rebuilds by conservative layouts. Legacy full-rebuild backups without replacement expectations remain blocked.
+
+## Reclaim Windows space after WSL cleanup
+
+After permanent trash deletion, check whether host-side compaction is ready:
+
+```bash
+./atlas storage reclaim --prepare-wsl
+```
+
+Resolve and inspect the target from Windows PowerShell at the repository root:
+
+```powershell
+.\scripts\compact-atlas-wsl.ps1 -Distro Ubuntu
+```
+
+The default is a dry run. It resolves the distribution through the current user's WSL registry,
+requires exactly one match, prints the exact `.vhdx` path and physical size, and changes nothing.
+Close Docker Desktop if it owns the distribution, review the path, ensure no Atlas or Spark work is
+running, and then use an elevated PowerShell when required:
+
+```powershell
+.\scripts\compact-atlas-wsl.ps1 -Distro Ubuntu -Force
+```
+
+Force calls `wsl.exe --shutdown`, so it terminates every WSL shell and process. It uses
+`Optimize-VHD -Mode Full` when available and otherwise invokes `diskpart` against the same resolved
+path. The script reports physical bytes before and after. It never resizes, unregisters, exports,
+replaces, or recreates a distribution. Linux bytes deleted and Windows physical bytes reclaimed are
+different measurements and need not match.
 
 ## Change history storage
 

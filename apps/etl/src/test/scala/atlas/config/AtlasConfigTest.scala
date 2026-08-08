@@ -36,6 +36,7 @@ class AtlasConfigTest extends AnyFunSuite {
     assert(loaded.receita.snapshot === "2026-06")
     assert(loaded.receita.silverDir === "custom-silver")
     assert(loaded.graph.maxComponentPropagationRounds === 128)
+    assert(loaded.storageCleanup.retainBundles === 2)
   }
 
   test("loads and validates the graph component propagation limit") {

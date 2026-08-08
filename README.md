@@ -32,6 +32,8 @@ From the repository root:
 ./atlas status
 ./atlas storage usage
 ./atlas storage cleanup
+./atlas storage reconcile-trash
+./atlas storage reclaim --prepare-wsl
 ./atlas releases inspect-bundle
 ./atlas releases validate-bundle --full
 ./atlas status --release 2026-07

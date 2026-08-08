@@ -57,6 +57,12 @@ cleanup permanently deletes eligible existing trash and then quarantines eligibl
 run a separate dry run and force invocation before permanently deleting the new quarantine.
 Raw data and active published bundles are never candidates.
 
+The same command now reports inactive generations, old bronze releases, and completed work. Use
+`--include` to isolate a category. If legacy full-rebuild trash reports missing replacement
+expectations, run `./atlas storage reconcile-trash` and review its evidence; `--force` writes a
+manifest but deletes nothing. After Linux trash is actually purged, use
+`./atlas storage reclaim --prepare-wsl` before running the separate PowerShell VHD helper.
+
 ## Corporate component calculation does not stabilize
 
 This failure means connected-company labels were still changing after the configured propagation

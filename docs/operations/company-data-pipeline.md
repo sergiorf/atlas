@@ -383,6 +383,9 @@ and the selected release is complete.
   `./atlas storage cleanup` to inspect them together with existing trash. Force first quarantines
   eligible failed candidates; a later cleanup invocation may permanently delete that quarantine.
   Never delete the complete failed-bundle directory manually.
+- Published generations outside the configured recovery set are also lifecycle candidates. The
+  current pointer and at least one recovery generation remain protected; malformed chains and
+  active transaction references fail closed. Review `storage cleanup` before retiring a generation.
 
 ### Corporate component convergence
 

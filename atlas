@@ -88,7 +88,13 @@ Status and release commands:
       Inventory Atlas data and Spark temporary storage without deleting anything.
 
   storage cleanup [--older-than-days N] [--dry-run|--force] [--json]
-      Plan or apply guarded cleanup of trash and failed company bundle candidates.
+      Plan or apply guarded cleanup of trash, inactive bundles, old bronze, and stale work.
+
+  storage reconcile-trash [--dry-run|--force]
+      Validate legacy rebuild trash and write missing recovery manifests without deleting data.
+
+  storage reclaim --prepare-wsl [--json]
+      Check readiness and print the separate Windows-side WSL VHD compaction step.
 
 Project commands:
   compile

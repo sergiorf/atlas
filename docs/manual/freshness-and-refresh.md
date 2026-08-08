@@ -6,6 +6,8 @@ The default configuration points to `2026-06`. A run timestamp records when Atla
 
 Derived generations moved to `data/_atlas/_trash` remain recoverable until an operator explicitly
 runs guarded cleanup with `--force`. `./atlas storage cleanup` is the normal entry point: it
-inspects trash and failed company bundle candidates, defaults to a seven-day recovery window, and
-never considers raw source data. See [local ETL operations](../operations/local-etl.md) for its
-two-step quarantine and deletion behavior.
+inspects trash, failed or inactive bundle generations, old bronze releases, and completed work.
+Configured recovery counts protect the current and prior publication, and the default seven-day
+window separates quarantine from deletion. Raw source data is never considered. See
+[local ETL operations](../operations/local-etl.md) for two-step cleanup, legacy-trash
+reconciliation, and the separate WSL host-compaction procedure.
