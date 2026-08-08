@@ -1,6 +1,6 @@
 # Company products and lead exports
 
-- **Status:** Implemented
+- **Status:** Implemented and operator-accepted with limitations on 2026-08-08
 - **Applies to:** v0.3b
 
 ```bash

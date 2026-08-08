@@ -14,7 +14,8 @@ reference, geography, history, and establishment components through one atomic s
 The May–July foundation acceptance was operator-confirmed on 2026-07-30. Silver remains an internal
 contract rather than a public query product.
 
-v0.3b also supports `Simples` and reviewed `Socios`. Masked natural-person evidence remains
+v0.3b was operator-accepted with limitations on 2026-08-08 and supports `Simples` and reviewed
+`Socios`. Masked natural-person evidence remains
 internal and is not resolved across companies. Gold products expose company profiles,
 evidence-preserving legal-entity partner networks, bounded relationship paths, versioned CNAE
 business groups, and establishment-grained new-company leads.
@@ -30,7 +31,7 @@ and the implemented schemas in the
 The canonical [Dataset and source catalog](../source_catalog.md) uses three classes:
 
 - **Supported** means implemented behavior covered by an active specification. This includes
-  Receita CNPJ `Estabelecimentos` and the accepted v0.3a company-data foundation.
+  Receita CNPJ `Estabelecimentos` and the accepted v0.3a and v0.3b company-data products.
 - **Planned** means approved roadmap work through v0.6 that remains unsupported until implemented.
 - **Candidate** means a demand-dependent later source with no implementation commitment.
 

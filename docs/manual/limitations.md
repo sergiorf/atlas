@@ -5,6 +5,10 @@ Atlas currently:
 - implements and has operator-accepted the Receita `Estabelecimentos` and company-data atomic
   silver foundation; detailed production evidence remains local because generated data and
   record-level diagnostics are not committed;
+- implements and has operator-accepted v0.3b company products and corporate relationships with
+  limitations; full validation of the 2026-07 bundle reported no failures, one skipped predecessor
+  check, and 51 establishments without an accepted company under the documented duplicate-company
+  quarantine policy;
 - accepts coexisting numeric and uppercase alphanumeric CNPJs, validates their canonical structure but not their checksum;
 - converts valid `yyyyMMdd` dates and represents invalid or blank dates as null;
 - enforces unique company and establishment identifiers and applies documented bundle quality

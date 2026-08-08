@@ -1,6 +1,6 @@
 # Receita `Socios` and `Simples`
 
-- **Status:** Implemented
+- **Status:** Implemented and operator-accepted with limitations on 2026-08-08
 - **Roadmap milestone:** v0.3b
 - **Source cadence:** Monthly Receita CNPJ snapshot
 - **Refresh:** Operator-selected, local-only transformation

@@ -60,6 +60,14 @@ available for establishment-only operation and advanced recovery.
 
 **Decision:** Accepted with documentation limitations on 2026-07-30.
 
+The later v0.3b company-products bundle for release `2026-07`, bundle
+`2026-07-56c60bc7-4e64-4ca5-b333-f23f0887c979`, was operator-accepted with limitations on
+2026-08-08. Full validator version 1 / contract version 1 reported 63 checks: 61 passed, one
+warning, no failures, and one skipped predecessor check. The warning reported 51 establishments
+without an accepted company, consistent with the documented possibility created by quarantining
+an entire duplicate company root. The operator confirmed completion of the remaining manual
+inspection. Generated evidence, resource details, and record-level diagnostics remain local.
+
 The operator confirmed that the implemented May–July workflow was validated and authorized v0.3a
 closure. Generated bundle identifiers, production counts, resource telemetry, and record-level
 quality diagnostics remain local and were not supplied for this repository change, so they are not

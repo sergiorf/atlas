@@ -278,8 +278,8 @@ establishments with one explicit-release command before the local-only atomic re
 
 `Simples`, reviewed `Socios`, deterministic corporate relationships, versioned CNAE business
 groups, company-profile/partner-network/lead gold, and controlled lead exports are implemented
-pending national-scale operator acceptance. Serving, API, UI, search, AI, billing, sanctions,
-procurement, Docker, cloud deployment,
+and were operator-accepted with limitations on 2026-08-08. Serving, API, UI, search, AI, billing,
+sanctions, procurement, Docker, cloud deployment,
 streaming, and orchestration platforms remain outside the implemented boundary.
 
 ## Raw-data safety and migration
@@ -314,8 +314,7 @@ outside the local foundation.
 
 ```mermaid
 flowchart LR
-    A["Completed foundation<br/>v0.1–v0.3a"] --> C["Company products and<br/>corporate relationships"]
-    C --> D["Graph-ready aggregates"]
+    A["Completed foundation<br/>v0.1–v0.3b"] --> D["Graph-ready aggregates"]
     D --> E["Risk"]
     E --> F["Procurement"]
     F --> G["Serving and API/UI"]
@@ -336,7 +335,13 @@ the documentation change. Routine `download receita company-data` coordinates ma
 establishment acquisition and a final same-release readiness check while preserving separate
 immutable raw layouts, manifests, resumability, and the establishment recovery command.
 
-### Active acceptance — company products and corporate relationships (v0.3b)
+### Completed — company products and corporate relationships (v0.3b)
+
+The national 2026-07 bundle was operator-accepted with limitations on 2026-08-08 after full
+automated validation and manual inspection. The validator reported 61 passed checks, one warning,
+no failures, and one skipped predecessor check. The warning records 51 establishments without an
+accepted company; this is a documented possible consequence of whole-root duplicate-company
+quarantine. Detailed diagnostics and generated data remain local and are not committed.
 
 - ingest `Simples` and reviewed `Socios` data through source-faithful bronze and contracted silver;
 - build deterministic Brazilian company-to-company relationship edges from reviewed QSA legal
@@ -359,7 +364,7 @@ immutable raw layouts, manifests, resumability, and the establishment recovery c
 Gold remains mandatory before any serving index, API, website, or public product consumes these
 data. Silver foundation tables are internal contracts, not customer-facing products.
 
-### v0.4 — graph-ready products
+### Next: v0.4 — graph-ready products
 
 - build openings, counts, age, and density aggregates;
 - add DuckDB market, geographic, corporate-structure, cycle, and bounded-path demonstration queries;
