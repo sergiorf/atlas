@@ -5,9 +5,9 @@ monthly Receita Federal and official geography inputs, preserves immutable raw e
 builds quality-gated bronze, silver, and gold data products for company profiles, relationships,
 and lead generation.
 
-Atlas is currently a local Scala and Spark data platform. Its contracted gold datasets are the
-foundation for future serving indexes, an API, and an application; those delivery surfaces are
-roadmap work and are not implemented yet.
+Atlas is currently a local Scala and Spark data platform. A separate indexer foundation can
+fail-closed validate contracted gold bundle inputs, but no serving database or supported query
+service exists yet. Serving projections, an API, and an application remain roadmap work.
 
 ```mermaid
 flowchart LR
@@ -50,6 +50,7 @@ credentials must never be committed.
 ## Repository layout
 
 - `apps/etl/` — Scala and Spark ingestion, transformation, quality, publication, and export code
+- `apps/indexer/` — independent serving contracts and validated gold-bundle reader; projection work is planned
 - `apps/etl/data/` — ignored local raw and generated data
 - `apps/etl/examples/duckdb/` — executable local inspection and product-query examples
 - `docs/manual/` — supported user-visible behavior

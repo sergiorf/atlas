@@ -22,4 +22,10 @@ Atlas currently:
   AI, sanctions, or procurement;
 - runs locally and is designed around a 32 GB RAM, 1 TB SSD development machine.
 
+The v0.4 foundation includes planned query and serving contracts plus an independent reader that
+validates bundle identity, full-validation evidence, paths, and hashes. It does not yet validate
+Parquet schemas, build a serving database, execute contracted search, publish serving generations,
+or provide serving commands. Bundles published before validation-attestation version 1 need a
+future explicit operator attestation workflow before the serving reader can accept them.
+
 Silver is an internal pipeline contract, not a published product surface. DuckDB lead and graph examples are demonstrations, not supported product contracts.

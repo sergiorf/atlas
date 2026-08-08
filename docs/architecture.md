@@ -27,8 +27,9 @@ flowchart LR
     S -. "future" .-> A["API and application"]
 ```
 
-Today, `apps/etl` and controlled lead exports are implemented. Serving stores, an API, and an
-application are roadmap components. They must consume gold data or rebuildable projections of it.
+Today, `apps/etl` and controlled lead exports are implemented. `apps/indexer` now contains the
+independent fail-closed gold-bundle reader foundation, but no serving store or supported query
+service. The serving projection, API, and application remain sequenced roadmap components.
 
 ## Data pipeline
 
@@ -159,6 +160,8 @@ flowchart TB
 
 - `apps/etl/src/main/scala/atlas` owns production ETL behavior.
 - `apps/etl/src/test/scala/atlas` mirrors it with small verifiable tests.
+- `apps/indexer` independently consumes versioned bundle file contracts and must not import ETL
+  implementation classes.
 - `docs/specs` owns published data and operational contracts.
 - `docs/manual` explains supported behavior.
 - `docs/operations` owns commands, runbooks, and recovery.

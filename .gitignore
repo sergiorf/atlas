@@ -35,6 +35,10 @@ project/project/
 apps/etl/target/
 apps/etl/project/target/
 apps/etl/project/project/
+apps/indexer/target/
+apps/indexer/project/target/
+apps/indexer/project/project/
+apps/indexer/data/
 
 # Python
 __pycache__/

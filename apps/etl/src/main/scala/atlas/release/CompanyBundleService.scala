@@ -56,8 +56,15 @@ object CompanyBundleService {
         plan.releases.foreach(release => buildRelease(spark, withRelease(stagedConfig, release), bundleId))
         validateBundle(spark, withRelease(stagedConfig, plan.toRelease), plan.releases)
         writeManifest(withRelease(stagedConfig, plan.toRelease), staging, bundleId, plan.releases, None)
-        publish(config, staging, bundleId, plan.toRelease, generation =>
-          activateStatuses(config, staging, generation, bundleId, plan.toRelease))
+        publish(config, staging, bundleId, plan.toRelease, generation => {
+          val report = BundleValidationService.validate(
+            config, Some(bundleId), full = true, spark = Some(spark))
+          if (report.failed > 0)
+            throw new IllegalStateException(
+              s"Published bundle failed full validation: ${BundleValidationService.render(report)}")
+          BundleValidationService.writeAttestation(config, report)
+          activateStatuses(config, staging, generation, bundleId, plan.toRelease)
+        })
         plan.copy(dryRun = false, publishedBundleId = Some(bundleId))
       } catch {
         case error: Throwable =>
@@ -81,8 +88,15 @@ object CompanyBundleService {
         buildRelease(spark, withRelease(stagedConfig, release), bundleId)
         validateBundle(spark, withRelease(stagedConfig, release), Seq(release))
         writeManifest(withRelease(stagedConfig, release), staging, bundleId, Seq(release), Some(current.bundleId))
-        publish(config, staging, bundleId, release, generation =>
-          activateStatuses(config, staging, generation, bundleId, release))
+        publish(config, staging, bundleId, release, generation => {
+          val report = BundleValidationService.validate(
+            config, Some(bundleId), full = true, spark = Some(spark))
+          if (report.failed > 0)
+            throw new IllegalStateException(
+              s"Published bundle failed full validation: ${BundleValidationService.render(report)}")
+          BundleValidationService.writeAttestation(config, report)
+          activateStatuses(config, staging, generation, bundleId, release)
+        })
         checked.copy(dryRun = false, publishedBundleId = Some(bundleId))
       } catch {
         case error: Throwable =>

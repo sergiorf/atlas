@@ -4,8 +4,10 @@ import atlas.config.AtlasConfig
 import atlas.receita.{CompanyDataManifestReader, CompanyDataSchemas}
 import com.typesafe.config.{Config, ConfigFactory}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, LinkOption, Path, Paths}
+import java.nio.file.{Files, LinkOption, Path, Paths, StandardCopyOption}
 import java.security.MessageDigest
+import java.time.Instant
+import java.util.UUID
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -141,6 +143,33 @@ object BundleValidationService {
       s"""{"id":"${escape(value.id)}","status":"${value.status.name.toLowerCase}","description":"${escape(value.description)}","expected":${optional(value.expected)},"observed":${optional(value.observed)},"release":${optional(value.release)},"component":${optional(value.component)},"diagnostic_path":${optional(value.diagnosticPath)},"duration_ms":${value.durationMs}}"""
     }.mkString(",")
     s"""{"validator_version":"${report.validatorVersion}","contract_version":"${report.contractVersion}","bundle_id":"${escape(report.bundleId)}","release":"${report.release}","mode":"${report.mode}","result":"${report.result.toLowerCase}","summary":{"total":${report.checks.size},"passed":${report.passed},"warnings":${report.warnings},"failed":${report.failed},"skipped":${report.skipped}},"duration_ms":${report.durationMs},"checks":[$values]}"""
+  }
+
+  def writeAttestation(config: AtlasConfig, report: BundleValidationReport): Path = {
+    require(report.mode == "full", "Bundle validation attestation requires full validation")
+    require(report.failed == 0, "Cannot attest a bundle with blocking validation failures")
+    val selected = selectGeneration(config, Some(report.bundleId))
+    val manifestPath = selected.resolve("bundle-manifest.json")
+    val manifest = readManifest(manifestPath)
+    require(manifest.release.value == report.release, "Validation report release does not match bundle manifest")
+    val warnings = report.checks.filter(_.status == BundleCheckStatus.Warn).map(_.id).distinct.sorted
+    val components = manifest.components.sortBy(_.name).map { component =>
+      s"""{"name":"${escape(component.name)}","sha256":"${component.sha256}"}"""
+    }.mkString(",")
+    val warningJson = warnings.map(value => "\"" + escape(value) + "\"").mkString(",")
+    val body =
+      s"""{"attestation_version":1,"bundle_id":"${escape(report.bundleId)}","bundle_manifest_sha256":"${CompanyDataManifestReader.sha256(manifestPath)}","validator_version":"${escape(report.validatorVersion)}","validation_contract_version":"${escape(report.contractVersion)}","mode":"${escape(report.mode)}","result":"${escape(report.result)}","completed_at":"${Instant.now()}","warning_codes":[$warningJson],"components":[$components]}"""
+    val root = bundleRoot(config).resolve("validation")
+    Files.createDirectories(root)
+    val target = root.resolve(s"${report.bundleId}.json")
+    val temporary = root.resolve(s"${report.bundleId}.${UUID.randomUUID()}.tmp")
+    Files.writeString(temporary, body + "\n", StandardCharsets.UTF_8)
+    try Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+    catch { case _: java.nio.file.AtomicMoveNotSupportedException =>
+      Files.deleteIfExists(temporary)
+      throw new IllegalStateException(s"Atomic validation-attestation replacement is not supported at $target")
+    }
+    target
   }
 
   private[release] def readManifest(path: Path): BundleManifest = {

@@ -215,6 +215,12 @@ the bounded anomaly, quality, query, and resource review below. In particular, a
 warning may be explained by the documented duplicate-company quarantine policy, but that
 explanation remains an operator decision.
 
+New bundle publication also runs full validation after pointer cutover and atomically writes
+`data/_atlas/bundles/validation/<bundle-id>.json`. This attestation is bound to the immutable
+manifest hash for downstream serving validation. A blocking post-switch validation failure uses
+the publication recovery path to restore the prior pointer. Manually running `validate-bundle`
+remains read-only and does not attest a historical generation.
+
 ### 6. Verify counts and history arithmetic
 
 From `apps/etl`, open DuckDB:

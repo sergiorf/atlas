@@ -68,3 +68,11 @@ current behavior; planned work is not a compatibility commitment or implementati
 - [Run-status registry](specs/run-status.md)
 - [Storage usage](specs/storage-usage.md)
 - [Storage cleanup](specs/storage-cleanup.md)
+- [Bundle validation attestation](specs/schemas/bundle-validation-attestation.md)
+
+## Planned serving contracts
+
+- [Company query contract](specs/serving/company-query-contract.md)
+- [Serving projection](specs/serving/serving-projection.md)
+- [Serving quality rules](specs/quality/serving-quality-rules.md)
+- [Serving projection operations](operations/serving-projection.md)

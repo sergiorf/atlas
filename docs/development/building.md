@@ -45,6 +45,15 @@ cd apps/etl
 sbt "testOnly atlas.receita.CompanyProductsPipelineTest"
 ```
 
+The serving foundation has an independent build and does not import ETL implementation classes:
+
+```bash
+cd apps/indexer
+sbt test
+```
+
+There is no root indexer build or serving command yet.
+
 Run the acquisition-script tests without downloading public data:
 
 ```bash

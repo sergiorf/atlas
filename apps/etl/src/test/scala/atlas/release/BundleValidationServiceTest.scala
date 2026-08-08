@@ -49,6 +49,23 @@ class BundleValidationServiceTest extends AnyFunSuite with SparkSuite {
       check.id === "establishments.company_join_coverage" && check.status == BundleCheckStatus.Warn))
   }
 
+  test("writes a versioned full-validation attestation bound to the immutable manifest") {
+    val fixture = writeBundleFixture(realParquet = true)
+    val report = BundleValidationService.validate(fixture.config, full = true, spark = Some(spark))
+
+    val path = BundleValidationService.writeAttestation(fixture.config, report)
+    val value = com.typesafe.config.ConfigFactory.parseFile(path.toFile).resolve()
+
+    assert(value.getInt("attestation_version") === 1)
+    assert(value.getString("bundle_id") === "bundle-july")
+    assert(value.getString("mode") === "full")
+    assert(value.getString("result") === "PASS_WITH_WARNINGS")
+    assert(value.getString("bundle_manifest_sha256") === CompanyDataManifestReader.sha256(
+      fixture.generation.resolve("bundle-manifest.json")))
+    assert(value.getStringList("warning_codes").contains("establishments.company_join_coverage"))
+    assert(value.getConfigList("components").size() === 13)
+  }
+
   private final class Fixture(val config: AtlasConfig, val generation: Path)
 
   private def writeBundleFixture(
