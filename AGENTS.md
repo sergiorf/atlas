@@ -14,7 +14,12 @@ Before substantial work, read:
 
 The unified plan owns direction and sequencing. Specifications own implemented data behavior. The manual owns user-facing claims. Planned documents do not authorize implementation.
 
-v0.1 supports only Receita `estabelecimentos` bronze ingestion. Do not add API, UI, indexer, AI, sanctions, PNCP, Docker, cloud, billing, dashboard, silver, or gold implementations until their roadmap phase is explicitly requested.
+Atlas currently implements the local Receita company-data pipeline through contracted silver and
+gold company products, including controlled lead exports. The next product objective is to
+distribute trusted gold data through rebuildable serving projections, an API, and an application.
+Do not add API, UI, indexer, AI, sanctions, PNCP, Docker, cloud, billing, or dashboard
+implementations until their roadmap phase is explicitly requested. Current scope and sequencing
+are owned by the unified plan; implemented behavior is owned by the active specifications.
 
 ## Design discussion before implementation
 

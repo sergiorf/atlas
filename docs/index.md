@@ -1,66 +1,70 @@
 # Atlas documentation
 
-Atlas documentation separates product direction, implemented contracts, user guidance, operations, and planned work. An active specification describes implemented behavior unless it is prominently marked `Status: Planned`; planned material is not a compatibility commitment and does not authorize implementation.
+Use this page to find the canonical owner for a question. Implemented specifications describe
+current behavior; planned work is not a compatibility commitment or implementation authorization.
 
-## Canonical documents
+## Start here
 
-- [Atlas unified plan](atlas_unified_plan.md) — product direction, milestones, sequencing, and scope.
-- [Feature development workflow](feature_development_workflow.md) — proportional planning, implementation, and verification gates.
-- [Dataset and source catalog](source_catalog.md) — canonical inventory of supported, planned, and candidate datasets, with official inputs, ownership, access, licensing notes, and refresh assumptions.
-- [Data product contract](data_product_contract.md) — global data-layer, lineage, reproducibility, and compatibility invariants.
-
-## Learn and inspect Atlas
-
-- [Manual](manual/index.md)
-- [Getting started](manual/getting-started.md)
-- [Data layers](manual/data_layers.md)
-- [Local run-status registry](manual/status_registry.md)
-- [Querying Atlas](manual/querying-atlas.md)
+- [Build and test Atlas](development/building.md)
+- [CLI command reference](operations/cli-reference.md)
+- [Architecture](architecture.md)
+- [Datasets and important fields](manual/datasets.md)
+- [Query Atlas](manual/querying-atlas.md)
+- [Limitations](manual/limitations.md)
 
 ## Operate Atlas
 
-- [Local ETL operations](operations/local-etl.md)
-- [Refresh runbook](operations/refresh-runbook.md)
-- [Troubleshooting](operations/troubleshooting.md)
-
-## Implemented specifications
-
-- [Receita CNPJ dataset](specs/datasets/receita-cnpj.md)
-- [Receita Socios and Simples](specs/datasets/receita-socios-simples.md)
-- [Receita company-product schemas](specs/schemas/receita-company-products.md)
-- [Receita company-product quality rules](specs/quality/receita-company-products-quality-rules.md)
-- [Raw Receita estabelecimentos layout](specs/schemas/raw-receita-cnpj.md)
-- [Bronze Receita estabelecimentos schema](specs/schemas/bronze-receita-cnpj.md)
-- [Receita estabelecimentos quality rules](specs/quality/receita-cnpj-quality-rules.md)
-- [Silver establishment schema](specs/schemas/silver-establishment.md)
-- [Establishment change-event schema](specs/schemas/establishment-change-events.md)
-- [Establishment release-summary schema](specs/schemas/establishment-release-summaries.md)
-- [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
-- [Run-status registry contract](specs/run-status.md)
-- [Storage usage inventory contract](specs/storage-usage.md)
-- [Unified storage cleanup contract](specs/storage-cleanup.md)
-- [Receita company and reference sources](specs/datasets/receita-company-reference-sources.md) —
-  implemented and accepted through atomic silver
-- [Receita company source manifest](specs/schemas/receita-company-source-manifest.md) — implemented
-  raw acquisition and validation gate
-
-## Company-data specifications
-
-These internal contracts are implemented by the atomic company-data bundle workflow:
-
-- [Raw Receita empresas layout](specs/schemas/raw-receita-empresas.md)
-- [Bronze Receita empresas schema](specs/schemas/bronze-receita-empresas.md)
-- [Silver company schema](specs/schemas/silver-company.md)
-- [Company change events and release summaries](specs/schemas/company-change-history.md)
-- [Receita reference dimensions](specs/schemas/receita-reference-dimensions.md)
-- [Receita-to-IBGE municipality geography](specs/schemas/receita-ibge-municipality-geography.md)
-- [Company and geography quality rules](specs/quality/company-geography-quality-rules.md)
-- [Receita company-data foundation delivery record](plans/receita-company-data-foundation.md)
-- [Company-data and atomic silver bundle runbook](operations/company-data-pipeline.md) — implemented
-  commands and May–July acceptance workflow
+- [Company-data and atomic bundle runbook](operations/company-data-pipeline.md)
+- [Refresh and rebuild runbook](operations/refresh-runbook.md)
 - [Company products and lead exports](operations/company-products.md)
+- [Troubleshooting](operations/troubleshooting.md)
+- [Run-status registry](manual/status_registry.md)
+- [Data quality](manual/data-quality.md)
+- [Freshness and refresh](manual/freshness-and-refresh.md)
 
-## Planned work
+## Product direction and engineering rules
 
-The [roadmap pointer](roadmap/release-roadmap.md) leads to the unified plan, which is the only
-owner of future sequencing. Planned material describes direction rather than supported behavior.
+- [Atlas unified plan](atlas_unified_plan.md) — product objective, current boundary, and roadmap
+- [Data product contract](data_product_contract.md) — layer, lineage, and compatibility invariants
+- [Feature development workflow](feature_development_workflow.md) — planning and delivery gates
+- [Dataset and source catalog](source_catalog.md) — supported, planned, and candidate inputs
+
+## Implemented data contracts
+
+### Dataset interpretation
+
+- [Receita CNPJ establishments](specs/datasets/receita-cnpj.md)
+- [Receita company and reference sources](specs/datasets/receita-company-reference-sources.md)
+- [Receita Socios and Simples](specs/datasets/receita-socios-simples.md)
+
+### Raw and bronze
+
+- [Raw establishments](specs/schemas/raw-receita-cnpj.md)
+- [Bronze establishments](specs/schemas/bronze-receita-cnpj.md)
+- [Raw companies](specs/schemas/raw-receita-empresas.md)
+- [Bronze companies](specs/schemas/bronze-receita-empresas.md)
+- [Company source manifest](specs/schemas/receita-company-source-manifest.md)
+
+### Silver, history, and geography
+
+- [Silver establishments](specs/schemas/silver-establishment.md)
+- [Silver companies](specs/schemas/silver-company.md)
+- [Reference dimensions](specs/schemas/receita-reference-dimensions.md)
+- [Receita-to-IBGE municipality geography](specs/schemas/receita-ibge-municipality-geography.md)
+- [Establishment change events](specs/schemas/establishment-change-events.md)
+- [Establishment release summaries](specs/schemas/establishment-release-summaries.md)
+- [Company history](specs/schemas/company-change-history.md)
+
+### Company products
+
+- [Silver and gold company products](specs/schemas/receita-company-products.md)
+- [Company-product quality rules](specs/quality/receita-company-products-quality-rules.md)
+- [Company and geography quality rules](specs/quality/company-geography-quality-rules.md)
+- [Establishment quality rules](specs/quality/receita-cnpj-quality-rules.md)
+- [Silver establishment quality rules](specs/quality/silver-establishment-quality-rules.md)
+
+### Operational contracts
+
+- [Run-status registry](specs/run-status.md)
+- [Storage usage](specs/storage-usage.md)
+- [Storage cleanup](specs/storage-cleanup.md)

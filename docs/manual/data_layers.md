@@ -1,59 +1,51 @@
 # Atlas data layers
 
-Atlas uses a one-way medallion-style flow: `raw -> bronze -> silver -> gold -> serving/index`.
+Atlas uses a one-way `raw -> bronze -> silver -> gold -> serving` architecture. Raw through gold
+and controlled exports are implemented for the current Receita company products. Serving stores,
+an API, and an application remain roadmap work.
 
-Each layer has a distinct contract. Paths are relative to `apps/etl`. Atlas implements Receita
-`estabelecimentos` and the company-data foundation through atomic silver; gold and serving/index
-remain roadmap layers.
+| Layer | Current purpose | Representative implemented data |
+| --- | --- | --- |
+| Raw | Preserve publisher evidence and manifests unchanged | Receita archives and extracted files, TOM CSV, IBGE response |
+| Bronze | Parse source layouts into provenance-rich Parquet | Establishments, companies, references, Socios, Simples |
+| Silver | Normalize reusable entities, joins, and history | Companies, establishments, geography, tax regime, partners, relationships |
+| Gold | Publish contracted business concepts | Company profiles, partner network, relationship paths, new-company leads |
+| Serving | Rebuild gold projections for API access | Not implemented |
 
 ## Raw
 
-Raw contains original downloaded and extracted source files beneath `data/raw/receita`. It exists for reproducibility. Never normalize, enrich, repair, or rewrite raw files, and never commit them to Git. Corrections belong in downstream transformations.
+Raw data exists for reproducibility. Never normalize, enrich, repair, overwrite, or manually clean
+publisher files. Interrupted downloads remain resumable, and raw data is never a cleanup candidate.
 
 ## Bronze
 
-Bronze is parsed, source-shaped Parquet with named columns, basic safe typing, and ingestion metadata. The current `data/bronze/receita/estabelecimentos` output is partitioned by Brazilian state and remains close to Receita's layout.
-
-Parsing, blank-to-null conversion, safe source typing, identifier assembly, provenance, and practical partitioning belong here. Cross-entity joins, business classifications, product metrics, and heavy business logic do not.
+Bronze assigns explicit schemas, performs safe source parsing, retains source meaning, and adds
+stable identifiers and provenance. It may retain malformed or incomplete source-shaped rows so
+downstream quality behavior remains explicit. Cross-entity business semantics do not belong here.
 
 ## Silver
 
-Silver contains cleaned, validated, standardized tables with stable schemas. Reusable normalization, quality gates, deduplication, and joins between contracted Receita entities belong here.
+Silver owns stable entity keys, normalization, reusable reference joins, deduplication rules,
+quality gates, and compact observation history. The atomic company-data bundle ensures consumers do
+not combine components from different releases; a bundle is a publication boundary, not a layer.
 
-The implemented establishment table standardizes state, postal and contact fields, CNAEs, and
-active status; preserves provenance; and validates unique `cnpj_full` identifiers. Bronze may
-contain malformed source-shaped rows. Silver quarantines invalid identifiers or registration
-statuses before checking uniqueness among valid rows. Compact field deltas and durable release
-summaries preserve history without retaining every prior full table.
-
-The company-data foundation publishes companies, establishments, reference dimensions,
-geography, and compact history as one atomic silver bundle. A bundle is not a new data layer and is
-not gold: it is a versioned consistency boundary that prevents readers from mixing releases. Its
-current pointer changes only after every required component and quality gate succeeds.
-Company silver excludes all source rows belonging to a duplicated `cnpj_root` and reports them as
-a non-blocking quarantine. This preserves primary-key uniqueness without choosing an arbitrary
-company record, but it can leave establishments without a matching accepted company. Such absence
-must not be interpreted as legal closure.
-
-Partner, relationship, and tax-regime tables remain future contracted silver work. UI-specific
-reports, lead lists, rankings, and graph presentation do not belong in silver.
+Silver tables are internal data contracts. Their reusable semantics may feed several gold products,
+but they are not an API or customer-facing query contract by themselves.
 
 ## Gold
 
-Gold contains business-ready, denormalized or purpose-specific query tables built from silver. Future `data/gold` outputs may include company profiles, company search, recent openings, CNAE summaries, and city or activity indicators. Derivations, unsupported cases, quality, and refresh behavior require explicit contracts. Atlas has not implemented gold yet.
+Gold owns business-ready, query-oriented products with documented grain, derivations, limitations,
+freshness, and quality. Current products include company profiles, evidence-preserving company
+partner networks, bounded relationship paths, and establishment-grained new-company leads.
 
-## Serving and index layer
+Controlled exports are bounded projections of contracted gold tables. They do not bypass product
+rules or expose internal natural-person diagnostics.
 
-Serving stores are rebuildable projections of gold optimized for fast access. Future `data/serving` or `data/indexes` outputs may include DuckDB databases, search indexes, graph indexes, and API-ready snapshots. They may optimize physical layout, but must not own business meaning or introduce facts absent from gold. Current DuckDB examples are not a serving contract.
+## Serving and product surfaces
 
-## Where work belongs
+Future serving databases or indexes will be disposable projections of gold optimized for measured
+query patterns. They must not create facts or rules absent from gold. The future API and application
+will consume these trusted products rather than query raw, bronze, or ad hoc silver data.
 
-| Operation | Layer |
-| --- | --- |
-| Preserve a downloaded archive or extracted CSV | Raw |
-| Assign columns, parse safe dates, record provenance | Bronze |
-| Standardize an entity and validate its identifier | Silver |
-| Build a contracted company profile or aggregate | Gold |
-| Build a fast search or graph representation | Serving/index |
-
-Use the earliest layer whose contract owns the operation. If business meaning is missing, revise the owning specification before implementing it downstream.
+See [Architecture](../architecture.md) for diagrams, [Datasets](datasets.md) for table grain and
+important attributes, and the [data product contract](../data_product_contract.md) for invariants.

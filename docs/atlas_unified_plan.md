@@ -18,6 +18,27 @@ The first commercial question Atlas should eventually answer well is:
 
 Answering it requires trustworthy establishment status, municipality and state, opening date, and primary or secondary CNAE classification. The roadmap is ordered to deliver that capability before expanding into broader intelligence products.
 
+## MVP objective
+
+The Atlas MVP is a distributable company-intelligence product that answers the first commercial
+question from contracted gold data through a controlled API and a simple application. It is not
+merely a completed ETL job.
+
+The MVP boundary is reached when Atlas can:
+
+- refresh the required Receita identity, company, establishment, reference, geography, and product
+  data reproducibly from immutable monthly inputs;
+- publish validated gold company profiles and lead results with explicit freshness, quality,
+  taxonomy, lineage, and unsupported cases;
+- load those gold products into a measured, rebuildable serving projection;
+- expose validated search, profile, and lead filters through an API;
+- present the same contracted behavior through a minimal application; and
+- operate refresh, validation, rollback, and recovery without bypassing a data contract.
+
+The local data foundation and initial gold products are implemented. Graph-ready products,
+serving, the API, and the application remain sequenced roadmap work. Risk, procurement, and an AI
+assistant are valuable later capabilities, not prerequisites for this MVP.
+
 ## Customers and product surfaces
 
 Atlas is intended to support:
@@ -269,8 +290,8 @@ processes them through bronze and atomic silver publication. The implemented wor
 
 Refresh never initiates network I/O. Operators acquire and inspect immutable raw input before
 publishing derived state. Exact fields, paths, quality behavior, commands, and recovery procedures
-belong to the implemented [specifications](index.md#implemented-specifications) and
-[operations guides](operations/local-etl.md), rather than this product plan.
+belong to the implemented [specifications](index.md#implemented-data-contracts),
+[CLI reference](operations/cli-reference.md), and focused runbooks rather than this product plan.
 
 The May–July foundation was operator-accepted with documentation limitations on 2026-07-30.
 Routine company-data acquisition now coordinates the company source package and matching
@@ -327,7 +348,7 @@ Atlas has implemented and accepted the local ETL, establishment bronze and silve
 establishment history, company and reference ingestion, TOM-to-IBGE geography, compact company
 history, and atomic same-release silver bundles. Completed task lists have been removed from the
 active roadmap; their behavior and compatibility now belong to the
-[implemented specifications](index.md#implemented-specifications).
+[implemented specifications](index.md#implemented-data-contracts).
 
 The May–July workflow was operator-confirmed as validated on 2026-07-30. Detailed generated bundle
 identifiers, counts, telemetry, and record-level diagnostics remain local and were not supplied for
@@ -423,10 +444,11 @@ intended layer without bypassing a missing contract.
 ## Supporting documents
 
 - [Documentation index](index.md)
+- [Architecture](architecture.md)
+- [CLI reference](operations/cli-reference.md)
 - [Feature development workflow](feature_development_workflow.md)
 - [Dataset and source catalog](source_catalog.md)
 - [Data product contract](data_product_contract.md)
-- [Manual](manual/index.md)
+- [Datasets](manual/datasets.md)
 - [Receita CNPJ dataset specification](specs/datasets/receita-cnpj.md)
-- [Local ETL operations](operations/local-etl.md)
-- [Release roadmap](roadmap/release-roadmap.md)
+- [Company-data operations](operations/company-data-pipeline.md)
