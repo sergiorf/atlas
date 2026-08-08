@@ -143,8 +143,9 @@ projection plus a manifest. See [Company products and lead exports](../operation
 ## Supported, planned, and candidate sources
 
 Receita company data, the reviewed official references, and the current company products are
-supported. Graph-ready aggregates are the next roadmap milestone; sanctions, procurement, serving,
-API, and application capabilities remain planned. Later public sources are candidates only.
+supported. A rebuildable serving projection is the next roadmap milestone, followed by the B2B
+sales API and application over existing gold contracts. Monitoring, procurement, public-integrity
+records, and demand-led aggregates remain planned. Later public sources are candidates only.
 
 The [unified plan](../atlas_unified_plan.md#delivery-roadmap) alone owns sequencing. The
 [source catalog](../source_catalog.md) owns the complete source inventory and evidence.

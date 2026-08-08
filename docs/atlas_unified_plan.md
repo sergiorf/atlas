@@ -39,6 +39,12 @@ The local data foundation and initial gold products are implemented. Graph-ready
 serving, the API, and the application remain sequenced roadmap work. Risk, procurement, and an AI
 assistant are valuable later capabilities, not prerequisites for this MVP.
 
+The first customer prospect is a B2B sales team. The active MVP therefore prioritizes turning the
+existing Receita profiles and leads into a usable prospecting workflow before adding more public
+datasets. A customer must be able to find, qualify, inspect, and export companies with visible
+freshness and source limitations. Recurring monitoring follows the first usable interface because
+new-company and company-change alerts create continuing value from Atlas's monthly snapshots.
+
 ## Customers and product surfaces
 
 Atlas is intended to support:
@@ -132,7 +138,11 @@ CEIS, CNEP, and CEPIM add explainable public-data risk intelligence after a comp
 
 A future `gold_company_risk` should expose company identity and registration status, source-specific flags, sanction sources and count, latest sanction date, an explainable risk score, and human-readable reasons.
 
-This must be described as public-data risk flags, never as a credit score. An initial explainable scale may use 0 for no public risk found, 30 for inactive or non-active registration, 70 for one public sanction, and 90 for multiple or severe sanctions. These rules remain future work and require validation before production use.
+This must initially be described as source-specific public-integrity records, never as a credit
+score or a general claim of trustworthiness. Absence from the captured sources is not a positive
+risk finding. A composite score remains outside the active roadmap unless customer research,
+legal review, source coverage, calibration evidence, and an explicit versioned contract justify
+one.
 
 ### 4. PNCP public procurement
 
@@ -335,11 +345,12 @@ outside the local foundation.
 
 ```mermaid
 flowchart LR
-    A["Completed foundation<br/>v0.1–v0.3b"] --> D["Graph-ready aggregates"]
-    D --> E["Risk"]
-    E --> F["Procurement"]
-    F --> G["Serving and API/UI"]
-    G --> H["Paid AI assistant"]
+    A["Completed data products<br/>v0.1–v0.3b"] --> B["Serving projection"]
+    B --> C["B2B sales MVP<br/>API and application"]
+    C --> D["Monitoring and alerts"]
+    D --> E["Procurement opportunities"]
+    E --> F["Public-integrity enrichment"]
+    F --> G["Demand-led analytics"]
 ```
 
 ### Completed foundation — v0.1 through v0.3a
@@ -385,41 +396,67 @@ quarantine. Detailed diagnostics and generated data remain local and are not com
 Gold remains mandatory before any serving index, API, website, or public product consumes these
 data. Silver foundation tables are internal contracts, not customer-facing products.
 
-### Next: v0.4 — graph-ready products
+### Next: v0.4 — serving foundation
 
-- build openings, counts, age, and density aggregates;
-- add DuckDB market, geographic, corporate-structure, cycle, and bounded-path demonstration queries;
-- measure national corporate-graph size, branching, component distribution, path depth, recursive
-  query cost, and the case for selected materialized paths;
-- export aggregates as CSV and Parquet.
+- define the supported search, company-profile, lead-filter, and export query contract over the
+  existing gold products;
+- introduce a separate indexer that reads atomic gold bundle generations and builds a disposable
+  serving projection without inventing new business semantics;
+- select the simplest serving technology that satisfies measured structured-filter, profile,
+  pagination, and export workloads;
+- prove full rebuild, generation cutover, rollback, freshness reporting, and query-performance
+  behavior on representative and national data;
+- keep public network access, authentication, billing, and customer state outside this phase.
 
-### v0.5 — public-data risk
+### v0.5 — B2B sales MVP
 
-- ingest CEIS, CNEP, and CEPIM;
-- build `gold_company_risk`;
-- add explainable risk flags to company profiles.
+- expose validated company search, profiles, lead filters, and bounded exports through an API;
+- add a minimal application for B2B prospecting using the same public query contract;
+- support filters for identity, geography, CNAE business group, registration status, opening date,
+  company size, legal nature, and contracted Simples or MEI states where available;
+- show source release, freshness, taxonomy version, match evidence, and material limitations;
+- validate the first commercial question end to end without querying raw or silver data.
 
-### v0.6 — procurement intelligence
+The B2B sales MVP boundary is reached at v0.5. Saved customer state, scheduled delivery, billing,
+and broad enrichment are not required to validate the first prospecting workflow.
 
-- ingest PNCP data;
-- build `gold_public_supplier_profile`.
+### v0.6 — monitoring and retention
 
-### v0.7 — serving and indexing
+- add saved searches and explicit company watchlists;
+- publish truthful newly observed company, establishment, status, address, CNAE, tax-regime, and
+  relationship changes only where the implemented history contracts support them;
+- deliver bounded in-application or exportable alerts with release and observation semantics;
+- do not describe snapshot observations as legal-effective events or proof of commercial activity.
 
-- introduce a separate indexer;
-- load gold tables into the selected databases or search stores.
+### v0.7 — procurement opportunity intelligence
 
-### v0.8 — API and simple UI
+- select and contract the exact PNCP and, if justified by measured coverage, Compras.gov inputs;
+- prioritize open procurement discovery, buyer history, deadlines, categories, values, and
+  deterministic opportunity matching for government suppliers;
+- build supplier profiles and Receita-linked buyer, incumbent, and competitor context only from
+  source-supported identifiers and facts;
+- expose coverage, timeliness, duplicate, cancellation, and unsupported-procurement limitations.
 
-- expose validated search, profile, lead, export, risk, and procurement capabilities;
-- add a minimal customer interface.
+### v0.8 — public-integrity enrichment
 
-### v0.9 — paid AI query assistant
+- ingest reviewed CEIS, CNEP, and CEPIM inputs;
+- add source-specific, dated, attributable public-integrity records to company and supplier
+  profiles;
+- do not present absence as proof of trustworthiness or introduce an opaque composite risk score.
+
+### v0.9 — demand-led aggregates and graph enhancements
+
+- build openings and company-count aggregates only for validated sales-territory or market-sizing
+  questions;
+- add age, population, area, density, spatial, or additional materialized graph products only when
+  a named customer workflow justifies their source and interpretation cost;
+- measure national corporate-graph structure and recursive-query cost before expanding
+  materialized paths or selecting graph-specific serving technology.
+
+### Later — paid AI query assistant
 
 - add gated natural-language-to-query-intent functionality;
 - enforce backend validation, authorization, limits, and cost controls.
-
-### Later
 
 Evaluate labor, trade, public-company financial, macroeconomic, and judicial datasets only against concrete customer demand and legal/ethical constraints.
 
