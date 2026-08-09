@@ -21,25 +21,39 @@ and never falls back to establishment, silver, or raw data.
 
 ### Company discovery
 
-Company discovery returns one result per `cnpj_root`. It supports exact CNPJ and judged,
-relevance-ranked matching over legal names and trade-name evidence. Trade names are
-establishment-grained evidence obtained from contracted lead rows; they are not promoted to the
-canonical company name.
+Company discovery returns one result per `cnpj_root`. It supports exact root and establishment
+CNPJ plus judged, relevance-ranked matching over the comprehensive current and historical legal-
+and trade-name evidence contracted by `gold_company_search_names`. Trade names remain
+establishment-grained evidence and are not promoted to the canonical company name. A match from a
+branch or headquarters returns that `cnpj_full` and its evidence status while resolving the result
+to the current company profile when available.
 
 The initial match classes, from strongest to weakest, are:
 
-1. exact CNPJ root;
-2. exact normalized legal name;
-3. exact normalized trade name;
-4. normalized legal-name prefix;
-5. normalized trade-name prefix;
-6. contracted typographical legal-name match;
-7. contracted typographical trade-name match.
+1. exact establishment CNPJ;
+2. exact CNPJ root;
+3. exact normalized current legal name;
+4. exact normalized current trade name;
+5. exact normalized historical legal name;
+6. exact normalized historical trade name;
+7. normalized current legal-name prefix;
+8. normalized current trade-name prefix;
+9. normalized historical-name prefix;
+10. contracted typographical current-name match;
+11. contracted typographical historical-name match.
 
-The judged fixture owns required inclusions, exclusions, and ordering. A storage engine may assign
-internal scores, but `match_class`, `matched_field`, and matched source evidence must be returned.
-Opaque or personalized ranking, semantic/vector search, arbitrary keywords, and partner-name
-search are unsupported.
+The judged fixture owns required inclusions, exclusions, and ordering. Exact identifiers remain
+decisive. Contracted prominence may order genuinely ambiguous candidates within comparable name
+match classes, but it must return its version, tier, and reason codes separately from
+`match_class`, `matched_field`, matched display name, evidence status, observation releases, and
+matched establishment. Current evidence precedes otherwise comparable historical evidence. Opaque
+or personalized ranking, semantic/vector search, arbitrary keywords, and partner-name search are
+unsupported.
+
+A historical match returns the current display name when a current accepted record exists and may
+return the next observed name only for a same-CNPJ transition supported by consecutive retained
+snapshots. Source absence, quality quarantine, and a similar name under another CNPJ are not
+renames. First and last observed releases are observation bounds, not legal-effective dates.
 
 Direct company filters are exact legal-nature code, company-size code, and explicit Simples and
 MEI tri-state values `TRUE`, `FALSE`, or `UNKNOWN`. Registration status, geography, opening date,
@@ -90,8 +104,10 @@ Lead order is:
 opening_date DESC, cnpj_full ASC, business_group ASC
 ```
 
-Company discovery orders by contracted match-class precedence, then normalized display name, then
-`cnpj_root`. Exact internal scores are not a compatibility promise.
+Company discovery orders by contracted match-class precedence, current-versus-historical evidence,
+contracted prominence within eligible comparable match classes, normalized current display name,
+then `cnpj_root`. Exact internal scores are not a compatibility promise; prominence version, tier,
+and reasons are.
 
 Pagination uses keyset cursors. A cursor contains cursor-format version, query-contract version,
 operation, serving generation ID, canonical sort, final sort tuple, canonical filter fingerprint,
@@ -111,6 +127,7 @@ Every result includes or is accompanied by:
 - Receita release;
 - taxonomy version where applicable;
 - calculation, normalization, and relevance versions where applicable;
+- prominence version and reason codes where applicable;
 - serving build completion time;
 - query-contract version;
 - material limitation codes.

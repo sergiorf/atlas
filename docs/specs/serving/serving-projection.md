@@ -11,10 +11,13 @@ representative and national gates pass.
 
 ## Inputs
 
-The first projection reads only the bundle components `gold_company_profiles` and
-`gold_leads_new_companies`. It resolves them through the selected bundle manifest, verifies their
-recorded hashes, and rejects guessed paths, traversal, symlinks, mixed releases, unsupported
-schemas, raw/silver inputs, or incomplete validation evidence.
+The first projection reads only the bundle components `gold_company_profiles`,
+`gold_company_search_names`, `gold_company_search_prominence`, and
+`gold_leads_new_companies`. The search-name and prominence inputs are planned v0.3c prerequisites;
+the projection must not substitute selective lead rows for comprehensive name coverage or derive
+private prominence semantics. It resolves every input through the selected bundle manifest,
+verifies its recorded hash, and rejects guessed paths, traversal, symlinks, mixed releases,
+unsupported schemas, raw/silver inputs, or incomplete validation evidence.
 
 The indexer owns its file-format models and must not import ETL implementation classes. A bundle
 validation attestation is stored separately from the immutable bundle and is bound to the exact
@@ -28,12 +31,16 @@ Candidate logical relations are:
 
 - `serving_metadata`, one row for generation and source identity;
 - `company_profiles`, one row per `cnpj_root`;
-- `company_search_documents`, legal-name and lead-backed trade-name evidence;
+- `company_search_documents`, comprehensive current and historically observed legal-name,
+  trade-name, root-CNPJ, and establishment-CNPJ evidence;
+- `company_prominence`, versioned prominence tier and reason evidence;
 - `lead_search`, lead rows enriched by an exact profile join.
 
 The projection may rename documented fields, add versioned normalized search keys, create physical
-indexes, sort data, and duplicate values. It may not reclassify CNAEs, infer status, collapse
-unknown tax states, invent geographic precedence, or derive risk or opaque ranking scores.
+indexes, sort data, and duplicate values. It may combine contracted match class and prominence
+according to the query contract while returning both forms of evidence. It may not reclassify
+CNAEs, infer status, collapse unknown tax states, invent geographic precedence, derive private
+prominence semantics, or create risk or opaque ranking scores.
 
 ## Runtime layout
 

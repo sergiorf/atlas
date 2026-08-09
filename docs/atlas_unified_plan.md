@@ -28,8 +28,9 @@ The MVP boundary is reached when Atlas can:
 
 - refresh the required Receita identity, company, establishment, reference, geography, and product
   data reproducibly from immutable monthly inputs;
-- publish validated gold company profiles and lead results with explicit freshness, quality,
-  taxonomy, lineage, and unsupported cases;
+- publish validated gold company profiles, comprehensive current and historical search names,
+  explainable prominence, and lead results with explicit freshness, quality, taxonomy, lineage,
+  match evidence, and unsupported cases;
 - load those gold products into a measured, rebuildable serving projection;
 - expose validated search, profile, and lead filters through an API;
 - present the same contracted behavior through a minimal application; and
@@ -39,11 +40,20 @@ The local data foundation and initial gold products are implemented. Graph-ready
 serving, the API, and the application remain sequenced roadmap work. Risk, procurement, and an AI
 assistant are valuable later capabilities, not prerequisites for this MVP.
 
-The first customer prospect is a B2B sales team. The active MVP therefore prioritizes turning the
-existing Receita profiles and leads into a usable prospecting workflow before adding more public
-datasets. A customer must be able to find, qualify, inspect, and export companies with visible
-freshness and source limitations. Recurring monitoring follows the first usable interface because
-new-company and company-change alerts create continuing value from Atlas's monthly snapshots.
+The first customer prospect is a B2B sales team. The active MVP therefore prioritizes a
+demonstrable monthly prospecting workflow before adding more public datasets: define an ideal
+customer profile, find newly opened matching establishments, discover every accepted company and
+branch by current or historically observed name, inspect why each result matched and why ambiguous
+matches were ordered, qualify the company and establishment, and export a bounded lead list with
+visible freshness and source limitations. The MVP is built to show prospective customers without
+making customer interviews a delivery dependency. Recurring monitoring follows the first usable
+interface because new-company and company-change alerts create continuing value from Atlas's
+monthly snapshots.
+
+No external dataset is an MVP prerequisite. Atlas first closes the discovery, prominence, contact,
+serving, and interface gaps over its existing Receita inputs. Financial, employment, procurement,
+sanctions, and other enrichments move forward only through a source-specific contract tied to a
+demonstrated workflow; missing financial coverage must never be treated as poor company quality.
 
 ## Customers and product surfaces
 
@@ -345,12 +355,13 @@ outside the local foundation.
 
 ```mermaid
 flowchart LR
-    A["Completed data products<br/>v0.1–v0.3b"] --> B["Serving projection"]
-    B --> C["B2B sales MVP<br/>API and application"]
-    C --> D["Monitoring and alerts"]
-    D --> E["Procurement opportunities"]
-    E --> F["Public-integrity enrichment"]
-    F --> G["Demand-led analytics"]
+    A["Completed data products<br/>v0.1–v0.3b"] --> B["Search-ready gold<br/>v0.3c"]
+    B --> C["Serving projection<br/>v0.4"]
+    C --> D["Demoable sales MVP<br/>v0.5"]
+    D --> E["Monitoring and alerts"]
+    E --> F["Procurement opportunities"]
+    F --> G["Public-integrity enrichment"]
+    G --> H["Demand-led analytics"]
 ```
 
 ### Completed foundation — v0.1 through v0.3a
@@ -396,14 +407,66 @@ quarantine. Detailed diagnostics and generated data remain local and are not com
 Gold remains mandatory before any serving index, API, website, or public product consumes these
 data. Silver foundation tables are internal contracts, not customer-facing products.
 
-### Next: v0.4 — serving foundation
+### Next: v0.3c — comprehensive discovery and prospect qualification gold
+
+This substantial ETL slice closes the product-contract gaps that would otherwise force the
+indexer to invent search coverage, historical-name meaning, prominence, or contact semantics.
+
+- publish `gold_company_search_names` independently of lead taxonomy, covering every accepted
+  company root and every accepted headquarters or branch through exact `cnpj_root` and
+  `cnpj_full` identity plus nonblank legal-name and trade-name evidence;
+- include current and historically observed legal and trade names from the implemented compact
+  history, with first/last observed releases, current/superseded/record-absent evidence status,
+  the current display name when available, and the next observed name only for a supported
+  same-CNPJ name transition;
+- never describe snapshot observation bounds as legal-effective dates, infer a rename across
+  different CNPJs, or label source absence or quality quarantine as a name change;
+- publish a versioned, explainable company-prominence product from broadly covered Receita facts
+  such as company-size class, presence and count of active establishments, total establishment
+  count, oldest supported establishment opening date, and geographic footprint; treat share
+  capital cautiously and do not present prominence as revenue, valuation, creditworthiness, or
+  commercial fit;
+- keep name-match strength and prominence as separate evidence. Exact identifiers remain
+  decisive; prominence orders genuinely ambiguous, comparably matched companies and exposes
+  reason codes rather than an opaque score;
+- contract controlled prospect contact evidence from accepted establishment phone, email, and
+  address fields for qualification and export, including normalization, quality state, source
+  establishment, release, staleness limitations, and a completed legal and redistribution review
+  before it is exposed in the application;
+- make every current accepted company and establishment discoverable even when it has no configured
+  CNAE business group, is inactive, or is absent from `gold_leads_new_companies`; keep lead groups
+  exclusively as commercial qualification logic;
+- add the new gold components to atomic bundle publication, validation attestations, schema and
+  quality contracts, manuals, runbooks, and representative in-memory tests;
+- validate completeness against accepted current company and establishment inputs and rebuild
+  historical search evidence from the retained ordered snapshot history.
+
+Historical search is comprehensive only for releases Atlas retained and processed. A seed release
+means first observed by Atlas, not the date a name began. Blank trade names remain non-searchable,
+while their establishments remain discoverable by full CNPJ and linked company evidence.
+
+### v0.4 — serving foundation
+
+After v0.3c is accepted, the first serving slice is an unpublished DuckDB candidate proof over
+committed, representative gold Parquet fixtures. It must make the serving schemas, search
+normalization, initial relevance behavior, profile lookup, lead filtering, deterministic
+pagination, bounded streaming export, validation, and representative measurements executable
+before DuckDB is accepted as the serving technology. This slice does not publish a current serving
+generation.
+
+The immediately following slice adds immutable serving generations, manifests, locking, atomic
+cutover, post-switch verification, rollback, retention, and generation-bound cursor behavior once
+the candidate query behavior and physical design have passed the representative gates. National
+rebuild, concurrency, storage, and latency evidence remains required before final technology
+acceptance.
 
 - define the supported company-discovery search, company-profile, lead-filter, and export query
-  contract over the existing gold products;
+  contract over the search-ready gold products;
 - treat relevance-ranked company search as an MVP capability rather than reducing discovery to
-  exact identifiers and structured filters: initially cover exact CNPJ, legal-name and trade-name
-  matching, documented normalization and typo behavior, deterministic tie-breaking, filter
-  interaction, and visible match evidence;
+  exact identifiers and structured filters: initially cover root and establishment CNPJ, current
+  and historical legal-name and trade-name matching, documented normalization and typo behavior,
+  explainable prominence for ambiguous comparable matches, deterministic tie-breaking, filter
+  interaction, and visible match and ranking evidence;
 - establish a judged representative search fixture and explicit relevance, latency, rebuild,
   storage, and operational acceptance measures before selecting the search implementation;
 - introduce a separate indexer that reads atomic gold bundle generations and builds a disposable
@@ -425,13 +488,24 @@ data. Silver foundation tables are internal contracts, not customer-facing produ
 - expose validated relevance-ranked company search, profiles, lead filters, and bounded exports
   through an API;
 - add a minimal application for B2B prospecting using the same public query contract;
+- ship one polished demonstration workflow: select a documented prospecting scenario, run the
+  first commercial Recife software-company query, inspect a result and its matched current or
+  historical name/establishment evidence, qualify it from contracted profile and contact evidence,
+  and export the bounded result set;
 - support filters for identity, geography, CNAE business group, registration status, opening date,
   company size, legal nature, and contracted Simples or MEI states where available;
-- show source release, freshness, taxonomy version, match evidence, and material limitations;
-- validate the first commercial question end to end without querying raw or silver data.
+- show source release, freshness, taxonomy and prominence versions, match and ranking evidence,
+  current versus historical-name status, contact-quality state, and material limitations;
+- include deterministic seeded demo cases for a prominent ambiguous name, a current branch trade
+  name, a superseded name resolving to its current name, an inactive establishment, and a company
+  without a lead group;
+- validate the first commercial question end to end without querying raw or silver data and keep a
+  repeatable local demo command or fixture that does not depend on network access.
 
 The B2B sales MVP boundary is reached at v0.5. Saved customer state, scheduled delivery, billing,
-and broad enrichment are not required to validate the first prospecting workflow.
+CRM integration, financial ingestion, and broad enrichment are not required to demonstrate the
+first prospecting workflow. A prospect demonstration is a commercial learning mechanism, not
+evidence that ranking quality, contact usefulness, or willingness to pay has been validated.
 
 ### v0.6 — monitoring and retention
 

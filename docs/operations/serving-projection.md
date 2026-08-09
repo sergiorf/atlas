@@ -2,9 +2,10 @@
 
 - **Status:** Planned; no serving command is implemented yet
 
-v0.4 will build disposable serving generations from one validated atomic gold bundle. DuckDB is
-the first benchmark candidate. This page records the intended operator boundary without claiming
-an available product or command.
+After the v0.3c comprehensive search-name and prominence gold prerequisites are implemented, v0.4
+will build disposable serving generations from one validated atomic gold bundle. DuckDB is the
+first benchmark candidate. This page records the intended operator boundary without claiming an
+available product or command.
 
 Planned indexer-local operations are build, validate, inspect, benchmark, rollback, and eventually
 locked cleanup. Root `./atlas serving ...` routing is deferred until those operations stabilize.

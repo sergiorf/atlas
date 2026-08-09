@@ -23,6 +23,11 @@ Blocking checks include:
 
 - required relations and columns;
 - profile source-to-serving row-count equality;
+- search-name source-to-serving row-count equality and complete coverage of every contracted
+  current company and establishment identity;
+- preservation of historical name evidence status, observation releases, matched establishment,
+  and current-name linkage without unsupported rename inference;
+- prominence source-to-serving row-count equality and preservation of version, tier, and reasons;
 - lead source-to-serving row-count equality;
 - unique company root;
 - unique lead key `(cnpj_full, business_group)`;
@@ -35,10 +40,12 @@ Blocking checks include:
 ## Query checks
 
 The generated fixture must prove every filter alone and in supported combinations, judged search
-order and match evidence, normalization, numeric and alphanumeric CNPJ handling, deterministic
-ties, zero results, injection-shaped data, cursor integrity, and pagination without duplicates or
-omissions. Rebuilding the same logical inputs may change timestamps and generation identity but
-must preserve logical query results and manifest invariants.
+order, current and historical match evidence, prominent ambiguous-name ordering, current-name
+resolution, branch and inactive-establishment discovery, a company without a lead group,
+normalization, numeric and alphanumeric CNPJ handling, deterministic ties, zero results,
+injection-shaped data, cursor integrity, and pagination without duplicates or omissions.
+Rebuilding the same logical inputs may change timestamps and generation identity but must preserve
+logical query results and manifest invariants.
 
 ## Publication checks
 
